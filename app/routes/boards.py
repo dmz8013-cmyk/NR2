@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, jsonify
 from flask_login import login_required, current_user
 from app import db
+from app.utils.telegram_notify import notify_new_post
 from app.models import Post, PostImage, Comment, Like
 
 bp = Blueprint('boards', __name__, url_prefix='/boards')
@@ -436,3 +437,7 @@ def toggle_like(board_type, post_id):
         'liked': liked,
         'likes_count': likes_count
     })
+
+
+# 텔레그램 알림 import (파일 상단에 추가 필요)
+# from app.utils.telegram_notify import notify_new_post
