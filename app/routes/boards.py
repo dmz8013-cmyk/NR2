@@ -176,6 +176,13 @@ def write(board_type):
                     flash(f'"{file.filename}"은(는) 허용되지 않는 파일 형식입니다.', 'warning')
 
         db.session.commit()
+
+        # 텔레그램 알림
+        try:
+            notify_new_post(post)
+        except Exception:
+            pass
+
         flash('게시글이 작성되었습니다.', 'success')
         return redirect(url_for('boards.view', board_type=board_type, post_id=post.id))
 
