@@ -9,7 +9,7 @@
     <div class="bg-white rounded-lg shadow-md p-6 mb-6">
         <div class="flex justify-between items-center mb-4">
             <h1 class="text-3xl font-bold text-gray-900">{{ board_name }}</h1>
-            {% if current_user.is_authenticated %}
+            {% if current_user.is_authenticated and (board_type != 'aesa' or current_user.is_admin) %}
             <a href="{{ url_for('boards.write', board_type=board_type) }}"
                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
                 글쓰기

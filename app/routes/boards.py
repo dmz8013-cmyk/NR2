@@ -1,4 +1,5 @@
 import os
+import re
 from werkzeug.utils import secure_filename
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, jsonify
 from flask_login import login_required, current_user
@@ -13,8 +14,21 @@ BOARD_NAMES = {
     'left': 'LEFT로 가세요',
     'right': 'RIGHT로 가세요',
     'fakenews': '팩트체크',
-    'morpheus': '모피어스뉴스'
+    'morpheus': '모피어스뉴스',
+    'aesa': '누렁이 AESA',
 }
+
+# 관리자만 글 작성 가능한 게시판
+ADMIN_ONLY_BOARDS = {'aesa'}
+
+
+def extract_youtube_id(url):
+    """유튜브 URL에서 영상 ID 추출"""
+    if not url:
+        return None
+    pattern = r'(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([a-zA-Z0-9_-]{11})'
+    match = re.search(pattern, url)
+    return match.group(1) if match else None
 
 VALID_BOARDS = list(BOARD_NAMES.keys())
 
@@ -105,9 +119,15 @@ def write(board_type):
         flash('존재하지 않는 게시판입니다.', 'error')
         return redirect(url_for('main.index'))
 
+    # 관리자 전용 게시판 체크
+    if board_type in ADMIN_ONLY_BOARDS and not current_user.is_admin:
+        flash('관리자만 글을 작성할 수 있습니다.', 'error')
+        return redirect(url_for('boards.board', board_type=board_type))
+
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
         content = request.form.get('content', '').strip()
+        youtube_url = request.form.get('youtube_url', '').strip() or None
 
         # 유효성 검사
         errors = []
@@ -119,6 +139,9 @@ def write(board_type):
         if not content:
             errors.append('내용을 입력해주세요.')
 
+        if youtube_url and not extract_youtube_id(youtube_url):
+            errors.append('유효한 유튜브 URL을 입력해주세요.')
+
         if errors:
             for error in errors:
                 flash(error, 'error')
@@ -126,13 +149,15 @@ def write(board_type):
                                  board_type=board_type,
                                  board_name=BOARD_NAMES[board_type],
                                  title=title,
-                                 content=content)
+                                 content=content,
+                                 youtube_url=youtube_url or '')
 
         # 게시글 생성
         post = Post(
             title=title,
             content=content,
             board_type=board_type,
+            youtube_url=youtube_url,
             user_id=current_user.id
         )
         db.session.add(post)
@@ -181,7 +206,12 @@ def view(board_type, post_id):
     # 조회수 증가
     post.increment_views()
 
-    return render_template('boards/view.html', post=post)
+    youtube_embed_url = None
+    youtube_id = extract_youtube_id(post.youtube_url)
+    if youtube_id:
+        youtube_embed_url = f'https://www.youtube.com/embed/{youtube_id}'
+
+    return render_template('boards/view.html', post=post, youtube_embed_url=youtube_embed_url)
 
 
 @bp.route('/<board_type>/<int:post_id>/edit', methods=['GET', 'POST'])
@@ -202,6 +232,7 @@ def edit(board_type, post_id):
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
         content = request.form.get('content', '').strip()
+        youtube_url = request.form.get('youtube_url', '').strip() or None
 
         # 유효성 검사
         errors = []
@@ -212,6 +243,9 @@ def edit(board_type, post_id):
 
         if not content:
             errors.append('내용을 입력해주세요.')
+
+        if youtube_url and not extract_youtube_id(youtube_url):
+            errors.append('유효한 유튜브 URL을 입력해주세요.')
 
         if errors:
             for error in errors:
@@ -224,6 +258,7 @@ def edit(board_type, post_id):
         # 게시글 수정
         post.title = title
         post.content = content
+        post.youtube_url = youtube_url
 
         # 기존 이미지 삭제 여부 처리
         delete_images = request.form.getlist('delete_images')

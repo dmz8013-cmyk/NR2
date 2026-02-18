@@ -45,6 +45,20 @@
             <div class="whitespace-pre-wrap text-gray-800">{{ post.content }}</div>
         </div>
 
+        <!-- 유튜브 임베드 -->
+        {% if youtube_embed_url %}
+        <div class="mb-6">
+            <div class="relative w-full" style="padding-top: 56.25%;">
+                <iframe class="absolute inset-0 w-full h-full rounded-lg shadow"
+                        src="{{ youtube_embed_url }}"
+                        frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen>
+                </iframe>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- 이미지 -->
         {% if post.images.count() > 0 %}
         <div class="mb-6">
