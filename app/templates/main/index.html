@@ -9,7 +9,7 @@
         <div class="flex flex-col md:flex-row items-center justify-between gap-8">
             <!-- 누렁이 이미지 -->
             <div class="w-full md:w-1/2 flex justify-center">
-                <img src="{{ url_for('static', filename='images/nureongi.jpeg') }}" 
+                <img src="{{ url_for('static', filename='images/nureongi.jpg') }}"
                      alt="누렁이 캐릭터" 
                      class="rounded-3xl shadow-2xl w-full max-w-md hover:scale-105 transition-transform duration-300">
             </div>
@@ -31,7 +31,7 @@
                     </a>
                 {% else %}
                     <div class="space-x-4">
-                        <a href="{{ url_for('auth.quick_register') }}" 
+                        <a href="{{ url_for('auth.register') }}"
                            class="inline-block bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-4 px-8 rounded-full text-lg transition shadow-lg">
                             🎊 30초 회원가입
                         </a>
