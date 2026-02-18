@@ -68,9 +68,9 @@ def validate_nickname(nickname):
     if len(nickname) > 50:
         return False, "닉네임은 최대 50자까지 가능합니다."
 
-    # 한글, 영문, 숫자만 허용
-    if not re.match(r'^[가-힣a-zA-Z0-9]+$', nickname):
-        return False, "닉네임은 한글, 영문, 숫자만 사용할 수 있습니다."
+    # 한글, 영문, 숫자, 특수문자 허용
+    if not re.match(r'^[가-힣a-zA-Z0-9()!@#$%^&*\-_+=\[\]{}<>?./,~]+$', nickname):
+        return False, "닉네임에 사용할 수 없는 문자가 포함되어 있습니다."
 
     return True, "닉네임이 유효합니다."
 
