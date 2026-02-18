@@ -12,7 +12,7 @@
             <div class="flex items-center justify-between text-sm text-gray-600">
                 <div class="flex items-center space-x-4">
                     <div class="flex items-center space-x-2">
-                        <img src="{{ url_for('static', filename='uploads/profiles/' + post.author.profile_image) }}"
+                        <img src="{{ post.author.profile_image if post.author.profile_image and 'cloudinary.com' in post.author.profile_image else url_for('static', filename='uploads/profiles/' + (post.author.profile_image or 'default_profile.jpeg')) }}"
                              alt="{{ post.author.nickname }}"
                              class="w-10 h-10 rounded-full object-cover border-2 border-gray-200">
                         <span class="font-medium text-gray-900">{{ post.author.nickname }}</span>
@@ -65,10 +65,10 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {% for image in post.images.order_by('order') %}
                 <div class="relative">
-                    <img src="{{ url_for('static', filename='uploads/' + image.filename) }}"
+                    <img src="{{ image.filename if 'cloudinary.com' in (image.filename or '') else url_for('static', filename='uploads/' + image.filename) }}"
                          alt="Image {{ image.order + 1 }}"
                          class="w-full h-auto rounded-lg shadow cursor-pointer hover:opacity-90"
-                         onclick="openImageModal('{{ url_for('static', filename='uploads/' + image.filename) }}')">
+                         onclick="openImageModal('{{ image.filename if 'cloudinary.com' in (image.filename or '') else url_for('static', filename='uploads/' + image.filename) }}')">
                 </div>
                 {% endfor %}
             </div>
@@ -133,7 +133,7 @@
                     <!-- 댓글 내용 -->
                     <div class="flex justify-between items-start mb-2">
                         <div class="flex items-center space-x-2">
-                            <img src="{{ url_for('static', filename='uploads/profiles/' + comment.author.profile_image) }}"
+                            <img src="{{ comment.author.profile_image if comment.author.profile_image and 'cloudinary.com' in comment.author.profile_image else url_for('static', filename='uploads/profiles/' + (comment.author.profile_image or 'default_profile.jpeg')) }}"
                                  alt="{{ comment.author.nickname }}"
                                  class="w-8 h-8 rounded-full object-cover border-2 border-gray-200">
                             <div>
@@ -213,7 +213,7 @@
                             <div class="flex justify-between items-start mb-2">
                                 <div class="flex items-center space-x-2">
                                     <span class="text-blue-600">↳</span>
-                                    <img src="{{ url_for('static', filename='uploads/profiles/' + reply.author.profile_image) }}"
+                                    <img src="{{ reply.author.profile_image if reply.author.profile_image and 'cloudinary.com' in reply.author.profile_image else url_for('static', filename='uploads/profiles/' + (reply.author.profile_image or 'default_profile.jpeg')) }}"
                                          alt="{{ reply.author.nickname }}"
                                          class="w-6 h-6 rounded-full object-cover border border-gray-200">
                                     <div>

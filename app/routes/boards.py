@@ -40,22 +40,11 @@ def allowed_file(filename):
 
 
 def save_upload_file(file):
-    """업로드된 파일 저장"""
+    """업로드된 파일 저장 - Cloudinary 연동"""
     if file and allowed_file(file.filename):
-        # 안전한 파일명 생성
-        filename = secure_filename(file.filename)
-
-        # 고유한 파일명 생성 (타임스탬프 추가)
-        from datetime import datetime
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
-        name, ext = os.path.splitext(filename)
-        unique_filename = f"{timestamp}_{name}{ext}"
-
-        # 파일 저장
-        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
-        file.save(filepath)
-
-        return unique_filename
+        from app.utils.image_processing import save_upload_image
+        image_url = save_upload_image(file, None, prefix='post')
+        return image_url
     return None
 
 

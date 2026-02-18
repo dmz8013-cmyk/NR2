@@ -174,19 +174,18 @@ def upload_profile_image():
         return redirect(url_for('auth.profile'))
 
     if file and allowed_file(file.filename):
-        # Delete old profile image if it's not the default
-        if current_user.profile_image and current_user.profile_image != 'default_profile.jpeg':
-            old_image_path = os.path.join('app/static/uploads/profiles', current_user.profile_image)
-            if os.path.exists(old_image_path):
-                os.remove(old_image_path)
+        # Delete old profile image from Cloudinary
+        if current_user.profile_image and 'cloudinary.com' in str(current_user.profile_image):
+            delete_image(current_user.profile_image, None)
 
-        # Save new image
-        filename = secure_filename(f"profile_{current_user.id}_{file.filename}")
-        filepath = os.path.join('app/static/uploads/profiles', filename)
-        file.save(filepath)
+        # Upload to Cloudinary
+        image_url = save_upload_image(file, None, prefix=f'profile_{current_user.id}')
+        if not image_url:
+            flash('이미지 업로드에 실패했습니다.', 'error')
+            return redirect(url_for('auth.profile'))
 
         # Update user profile
-        current_user.profile_image = filename
+        current_user.profile_image = image_url
         db.session.commit()
 
         flash('프로필 이미지가 업데이트되었습니다.', 'success')

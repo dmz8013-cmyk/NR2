@@ -96,7 +96,7 @@
                     </div>
                     {% if post.images.first() %}
                     <div class="ml-4">
-                        <img src="{{ url_for('static', filename='uploads/' + post.images.first().filename) }}"
+                        <img src="{{ post.images.first().filename if 'cloudinary.com' in (post.images.first().filename or '') else url_for('static', filename='uploads/' + post.images.first().filename) }}"
                              alt="Thumbnail"
                              class="w-16 h-16 object-cover rounded">
                     </div>

@@ -25,7 +25,12 @@
       "Bash(/usr/local/bin/ngrok:*)",
       "Bash(grep:*)",
       "Bash(ls:*)",
-      "Bash(git init:*)"
+      "Bash(git init:*)",
+      "Bash(git -C /Users/smpark/Desktop/NR2 add nixpacks.toml)",
+      "Bash(git -C:*)",
+      "Bash(railway status:*)",
+      "Bash(/Users/smpark/Desktop/NR2/venv/bin/python:*)",
+      "Bash(./venv/bin/python:*)"
     ]
   }
 }

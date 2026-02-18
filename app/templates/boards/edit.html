@@ -61,7 +61,7 @@
                 <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                     {% for image in post.images.order_by('order') %}
                     <div class="relative">
-                        <img src="{{ url_for('static', filename='uploads/' + image.filename) }}"
+                        <img src="{{ image.filename if 'cloudinary.com' in (image.filename or '') else url_for('static', filename='uploads/' + image.filename) }}"
                              alt="Image {{ image.order + 1 }}"
                              class="w-full h-24 object-cover rounded border border-gray-300">
                         <label class="absolute top-1 right-1 bg-red-500 text-white text-xs px-2 py-1 rounded cursor-pointer hover:bg-red-600">
