@@ -1,0 +1,91 @@
+{% extends "layouts/base.html" %}
+{% from "layouts/pagination.html" import render_pagination %}
+
+{% block title %}속보 관리 - 관리자{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">📢 속보 관리</h1>
+        <div class="flex gap-2">
+            <a href="{{ url_for('news.create') }}"
+               class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                + 속보 작성
+            </a>
+            <a href="{{ url_for('admin.dashboard') }}"
+               class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
+                ← 대시보드
+            </a>
+        </div>
+    </div>
+
+    <!-- 속보 목록 -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">우선순위</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">제목</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">출처</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작성일</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for news in news_list %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs font-bold rounded bg-orange-100 text-orange-800">
+                            {{ news.priority }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <p class="text-sm font-medium text-gray-900">{{ news.title }}</p>
+                        <p class="text-xs text-gray-500 mt-1 truncate max-w-md">{{ news.content }}</p>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ news.source or '-' }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if news.is_active %}
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">활성</span>
+                        {% else %}
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">비활성</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ news.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <a href="{{ url_for('news.detail', news_id=news.id) }}"
+                           class="text-blue-600 hover:text-blue-800 mr-3">보기</a>
+                        <a href="{{ url_for('news.edit', news_id=news.id) }}"
+                           class="text-yellow-600 hover:text-yellow-800 mr-3">수정</a>
+                        <form method="POST"
+                              action="{{ url_for('news.delete', news_id=news.id) }}"
+                              onsubmit="return confirm('속보를 삭제하시겠습니까?');"
+                              class="inline">
+                            <button type="submit" class="text-red-600 hover:text-red-900">삭제</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                        등록된 속보가 없습니다.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 페이지네이션 -->
+    {% if pagination.pages > 1 %}
+    <div class="mt-6">
+        {{ render_pagination(pagination, 'admin.breaking_news') }}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

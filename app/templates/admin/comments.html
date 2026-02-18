@@ -1,0 +1,101 @@
+{% extends "layouts/base.html" %}
+{% from "layouts/pagination.html" import render_pagination %}
+
+{% block title %}댓글 관리 - 관리자{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">💬 댓글 관리</h1>
+        <a href="{{ url_for('admin.dashboard') }}"
+           class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
+            ← 대시보드
+        </a>
+    </div>
+
+    <!-- 검색 -->
+    <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+        <form method="GET" class="flex gap-2">
+            <input type="text"
+                   name="search"
+                   value="{{ search }}"
+                   placeholder="댓글 내용 검색..."
+                   class="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button type="submit"
+                    class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                검색
+            </button>
+            {% if search %}
+            <a href="{{ url_for('admin.comments') }}"
+               class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                초기화
+            </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- 댓글 목록 -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">내용</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작성자</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">게시글</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작성일</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for comment in comments %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ comment.id }}</td>
+                    <td class="px-6 py-4">
+                        <p class="text-sm text-gray-900 max-w-xs truncate">
+                            {% if comment.is_reply %}
+                            <span class="text-xs text-gray-400 mr-1">↳ 대댓글</span>
+                            {% endif %}
+                            {{ comment.content }}
+                        </p>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {{ comment.author.nickname }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <a href="{{ url_for('boards.view', board_type=comment.post.board_type, post_id=comment.post_id) }}"
+                           class="text-blue-600 hover:text-blue-800 truncate block max-w-xs">
+                            {{ comment.post.title }}
+                        </a>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <form method="POST"
+                              action="{{ url_for('admin.delete_comment', comment_id=comment.id) }}"
+                              onsubmit="return confirm('댓글을 삭제하시겠습니까?');"
+                              class="inline">
+                            <button type="submit" class="text-red-600 hover:text-red-900">삭제</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="px-6 py-12 text-center text-gray-500">
+                        댓글이 없습니다.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 페이지네이션 -->
+    {% if pagination.pages > 1 %}
+    <div class="mt-6">
+        {{ render_pagination(pagination, 'admin.comments', search=search) }}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

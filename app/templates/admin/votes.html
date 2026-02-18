@@ -1,0 +1,100 @@
+{% extends "layouts/base.html" %}
+{% from "layouts/pagination.html" import render_pagination %}
+
+{% block title %}투표 관리 - 관리자{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">📊 투표 관리</h1>
+        <div class="flex gap-2">
+            <a href="{{ url_for('votes.create') }}"
+               class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700">
+                + 투표 만들기
+            </a>
+            <a href="{{ url_for('admin.dashboard') }}"
+               class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
+                ← 대시보드
+            </a>
+        </div>
+    </div>
+
+    <!-- 투표 목록 -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">제목</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작성자</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">참여 수</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">종료일</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">생성일</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for vote in votes %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ vote.id }}</td>
+                    <td class="px-6 py-4">
+                        <a href="{{ url_for('votes.detail', vote_id=vote.id) }}"
+                           class="text-sm font-medium text-blue-600 hover:text-blue-800">
+                            {{ vote.title }}
+                        </a>
+                        {% if vote.is_multiple %}
+                        <span class="ml-1 text-xs bg-gray-100 text-gray-600 px-1 rounded">복수선택</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {{ vote.creator.nickname }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {{ vote.total_votes }}명
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if vote.is_active %}
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">진행중</span>
+                        {% else %}
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">종료</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {% if vote.end_date %}
+                        {{ vote.end_date.strftime('%Y-%m-%d') }}
+                        {% else %}
+                        <span class="text-gray-400">무기한</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ vote.created_at.strftime('%Y-%m-%d') }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <form method="POST"
+                              action="{{ url_for('admin.delete_vote', vote_id=vote.id) }}"
+                              onsubmit="return confirm('투표를 삭제하시겠습니까?');"
+                              class="inline">
+                            <button type="submit" class="text-red-600 hover:text-red-900">삭제</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                        투표가 없습니다.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 페이지네이션 -->
+    {% if pagination.pages > 1 %}
+    <div class="mt-6">
+        {{ render_pagination(pagination, 'admin.votes') }}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
