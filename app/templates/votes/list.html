@@ -1,0 +1,75 @@
+{% extends "layouts/base.html" %}
+{% from "layouts/pagination.html" import render_pagination %}
+
+{% block title %}투표 - NR2 Network{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="flex justify-between items-center">
+            <h1 class="text-3xl font-bold text-gray-900">투표</h1>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('votes.create') }}"
+               class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                투표 생성
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Votes List -->
+    <div class="space-y-4">
+        {% if votes %}
+            {% for vote in votes %}
+            <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                <a href="{{ url_for('votes.view', vote_id=vote.id) }}">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex-1">
+                            <h2 class="text-xl font-semibold text-gray-900 mb-2">{{ vote.title }}</h2>
+                            {% if vote.description %}
+                            <p class="text-gray-600 text-sm mb-3">{{ vote.description[:100] }}{% if vote.description|length > 100 %}...{% endif %}</p>
+                            {% endif %}
+                        </div>
+                        {% if not vote.is_active %}
+                        <span class="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded-full">종료</span>
+                        {% else %}
+                        <span class="px-3 py-1 bg-green-100 text-green-700 text-xs rounded-full">진행중</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="flex items-center text-sm text-gray-500 space-x-4">
+                        <span>{{ vote.creator.nickname }}</span>
+                        <span>{{ vote.created_at.strftime('%Y-%m-%d') }}</span>
+                        <span class="flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                            {{ vote.total_votes }}명 참여
+                        </span>
+                        {% if vote.is_multiple %}
+                        <span class="text-blue-600">복수선택</span>
+                        {% endif %}
+                        {% if vote.end_date %}
+                        <span>~ {{ vote.end_date.strftime('%Y-%m-%d') }}</span>
+                        {% endif %}
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="bg-white rounded-lg shadow-md p-12 text-center text-gray-500">
+            <p class="text-lg">아직 투표가 없습니다.</p>
+            {% if current_user.is_authenticated %}
+            <p class="mt-2">첫 번째 투표를 만들어보세요!</p>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Pagination -->
+    {% if votes %}
+    {{ render_pagination(pagination, 'votes.list') }}
+    {% endif %}
+</div>
+{% endblock %}

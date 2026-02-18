@@ -1,0 +1,137 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ vote.title }} - 투표{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Vote Header -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="flex justify-between items-start mb-4">
+            <div class="flex-1">
+                <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ vote.title }}</h1>
+                {% if vote.description %}
+                <p class="text-gray-600 whitespace-pre-wrap">{{ vote.description }}</p>
+                {% endif %}
+            </div>
+            {% if not vote.is_active %}
+            <span class="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded-full">종료</span>
+            {% else %}
+            <span class="px-3 py-1 bg-green-100 text-green-700 text-sm rounded-full">진행중</span>
+            {% endif %}
+        </div>
+
+        <div class="flex items-center justify-between text-sm text-gray-600 pt-4 border-t">
+            <div class="flex items-center space-x-4">
+                <span>{{ vote.creator.nickname }}</span>
+                <span>{{ vote.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                {% if vote.end_date %}
+                <span>종료: {{ vote.end_date.strftime('%Y-%m-%d') }}</span>
+                {% endif %}
+            </div>
+
+            {% if current_user.is_authenticated and (current_user.id == vote.user_id or current_user.is_admin) %}
+            <form method="POST" action="{{ url_for('votes.delete', vote_id=vote.id) }}"
+                  onsubmit="return confirm('정말 삭제하시겠습니까?');">
+                <button type="submit" class="text-red-600 hover:text-red-800">
+                    삭제
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Vote Content -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">
+            총 {{ vote.total_votes }}명 참여
+            {% if vote.is_multiple %}
+            <span class="text-sm text-blue-600 font-normal">(복수 선택 가능)</span>
+            {% endif %}
+        </h2>
+
+        {% if current_user.is_authenticated and vote.is_active and not user_voted %}
+        <!-- Vote Form -->
+        <form method="POST" action="{{ url_for('votes.submit_vote', vote_id=vote.id) }}">
+            <div class="space-y-3">
+                {% for option in vote.options.order_by('order') %}
+                <label class="flex items-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
+                    {% if vote.is_multiple %}
+                    <input type="checkbox"
+                           name="options"
+                           value="{{ option.id }}"
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                    {% else %}
+                    <input type="radio"
+                           name="option"
+                           value="{{ option.id }}"
+                           required
+                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300">
+                    {% endif %}
+                    <span class="ml-3 text-gray-900">{{ option.text }}</span>
+                </label>
+                {% endfor %}
+            </div>
+
+            <button type="submit"
+                    class="mt-6 w-full px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium">
+                투표하기
+            </button>
+        </form>
+
+        {% else %}
+        <!-- Vote Results -->
+        <div class="space-y-4">
+            {% for option in vote.options.order_by('order') %}
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-gray-900 font-medium">{{ option.text }}</span>
+                    <span class="text-sm text-gray-600">
+                        {{ option.votes_count }}명 ({{ "%.1f"|format(option.percentage) }}%)
+                    </span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div class="bg-blue-600 h-3 rounded-full transition-all duration-500"
+                         style="width: {{ option.percentage }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if user_voted %}
+        <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p class="text-sm text-blue-800">
+                ✓ 이미 투표에 참여하셨습니다.
+                {% if vote.is_multiple %}
+                <br>선택:
+                {% for response in user_votes %}
+                    {{ response.option.text }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+                {% endif %}
+            </p>
+        </div>
+        {% elif not vote.is_active %}
+        <div class="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
+            <p class="text-sm text-gray-600">종료된 투표입니다.</p>
+        </div>
+        {% elif not current_user.is_authenticated %}
+        <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
+            <p class="text-sm text-yellow-800">
+                투표하려면 <a href="{{ url_for('auth.login') }}" class="font-medium underline">로그인</a>이 필요합니다.
+            </p>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <!-- Back Button -->
+    <div class="mt-6">
+        <a href="{{ url_for('votes.list') }}"
+           class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+            목록으로
+        </a>
+    </div>
+</div>
+{% endblock %}

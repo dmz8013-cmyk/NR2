@@ -1,0 +1,166 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}프로필 - NR2 Network{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-8">
+            <h1 class="text-3xl font-bold text-white">프로필 설정</h1>
+        </div>
+
+        <div class="p-6">
+            <!-- Profile Image Section -->
+            <div class="mb-8">
+            <!-- 닉네임 변경 섹션 -->
+            <div class="bg-white rounded-lg shadow p-6 mb-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">닉네임 변경</h2>
+                <form method="POST" action="{{ url_for('auth.update_nickname') }}" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            현재 닉네임: <span class="text-blue-600 font-bold">{{ current_user.nickname }}</span>
+                        </label>
+                        <input type="text" name="nickname" required minlength="2" maxlength="20"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                               placeholder="새 닉네임 입력 (2~20자)">
+                        <p class="text-sm text-gray-500 mt-1">※ 한글, 영문, 숫자 가능</p>
+                    </div>
+                    <button type="submit"
+                            class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition">
+                        닉네임 변경하기
+                    </button>
+                </form>
+            </div>
+
+                <h2 class="text-xl font-bold text-gray-900 mb-4">프로필 이미지</h2>
+
+                <div class="flex items-center space-x-6">
+                    <!-- Current Profile Image -->
+                    <div class="flex-shrink-0">
+                        <img src="{{ url_for('static', filename='uploads/profiles/' + current_user.profile_image) }}"
+                             alt="{{ current_user.nickname }}"
+                             class="w-32 h-32 rounded-full object-cover border-4 border-gray-200">
+                    </div>
+
+                    <!-- Upload Form -->
+                    <div class="flex-1">
+                        <form action="{{ url_for('auth.upload_profile_image') }}"
+                              method="POST"
+                              enctype="multipart/form-data"
+                              class="space-y-4">
+                            <div>
+                                <label for="profile_image"
+                                       class="block text-sm font-medium text-gray-700 mb-2">
+                                    새 이미지 선택
+                                </label>
+                                <input type="file"
+                                       id="profile_image"
+                                       name="profile_image"
+                                       accept="image/png,image/jpeg,image/jpg,image/gif"
+                                       class="block w-full text-sm text-gray-500
+                                              file:mr-4 file:py-2 file:px-4
+                                              file:rounded-md file:border-0
+                                              file:text-sm file:font-semibold
+                                              file:bg-blue-50 file:text-blue-700
+                                              hover:file:bg-blue-100
+                                              cursor-pointer">
+                                <p class="mt-1 text-xs text-gray-500">
+                                    PNG, JPG, JPEG, GIF 형식만 가능 (최대 16MB)
+                                </p>
+                            </div>
+
+                            <button type="submit"
+                                    class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                                이미지 업로드
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="my-8">
+
+            <!-- User Information -->
+            <div>
+                <h2 class="text-xl font-bold text-gray-900 mb-4">계정 정보</h2>
+
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between py-3 border-b border-gray-200">
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">이메일</p>
+                            <p class="text-base text-gray-900">{{ current_user.email }}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between py-3 border-b border-gray-200">
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">닉네임</p>
+                            <p class="text-base text-gray-900">{{ current_user.nickname }}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between py-3 border-b border-gray-200">
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">가입일</p>
+                            <p class="text-base text-gray-900">
+                                {{ current_user.created_at.strftime('%Y년 %m월 %d일') }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between py-3 border-b border-gray-200">
+                        <div>
+                            <p class="text-sm font-medium text-gray-500">권한</p>
+                            <p class="text-base text-gray-900">
+                                {% if current_user.is_admin %}
+                                    <span class="px-2 py-1 bg-red-100 text-red-800 rounded text-sm font-medium">
+                                        관리자
+                                    </span>
+                                {% else %}
+                                    <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-medium">
+                                        일반 사용자
+                                    </span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Stats -->
+            <div class="mt-8">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">활동 통계</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-blue-50 rounded-lg p-4">
+                        <p class="text-sm text-blue-600 font-medium">작성한 게시글</p>
+                        <p class="text-2xl font-bold text-blue-900 mt-1">
+                            {{ current_user.posts.count() }}개
+                        </p>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-4">
+                        <p class="text-sm text-green-600 font-medium">작성한 댓글</p>
+                        <p class="text-2xl font-bold text-green-900 mt-1">
+                            {{ current_user.comments.count() }}개
+                        </p>
+                    </div>
+                    <div class="bg-purple-50 rounded-lg p-4">
+                        <p class="text-sm text-purple-600 font-medium">좋아요</p>
+                        <p class="text-2xl font-bold text-purple-900 mt-1">
+                            {{ current_user.likes.count() }}개
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Back Button -->
+            <div class="mt-8 flex justify-end">
+                <a href="{{ url_for('main.index') }}"
+                   class="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">
+                    메인으로 돌아가기
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

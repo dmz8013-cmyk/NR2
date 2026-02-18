@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m venv:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(flask db init:*)",
+      "Bash(flask db migrate:*)",
+      "Bash(flask db:*)",
+      "Bash(python run.py:*)",
+      "Bash(curl:*)",
+      "Bash(python:*)",
+      "Bash(lsof:*)",
+      "Bash(/Users/smpark/Desktop/NR2/app/routes/boards.py << 'EOF'\n\n\n# ===== 좋아요 관련 라우트 =====\n\n@bp.route\\('/<board_type>/<int:post_id>/like', methods=['POST']\\)\n@login_required\ndef toggle_like\\(board_type, post_id\\):\n    \"\"\"좋아요 토글 \\(AJAX\\)\"\"\"\n    post = Post.query.get_or_404\\(post_id\\)\n\n    # 기존 좋아요 확인\n    existing_like = Like.query.filter_by\\(\n        user_id=current_user.id,\n        post_id=post_id\n    \\).first\\(\\)\n\n    if existing_like:\n        # 좋아요 취소\n        db.session.delete\\(existing_like\\)\n        db.session.commit\\(\\)\n        liked = False\n    else:\n        # 좋아요 추가\n        new_like = Like\\(\n            user_id=current_user.id,\n            post_id=post_id\n        \\)\n        db.session.add\\(new_like\\)\n        db.session.commit\\(\\)\n        liked = True\n\n    # 현재 좋아요 개수\n    likes_count = post.likes_count\n\n    return jsonify\\({\n        'success': True,\n        'liked': liked,\n        'likes_count': likes_count\n    }\\)\nEOF)",
+      "Bash(python3:*)",
+      "Bash(./venv/bin/python3:*)",
+      "Bash(xargs kill:*)",
+      "Bash(chmod:*)",
+      "Bash(./venv/bin/pip install:*)",
+      "Bash(./venv/bin/flask db migrate:*)",
+      "Bash(./venv/bin/flask db upgrade:*)",
+      "Bash(brew install:*)",
+      "Bash(ngrok http:*)",
+      "Bash(sudo mv:*)",
+      "Bash(/usr/local/bin/ngrok:*)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(git init:*)"
+    ]
+  }
+}

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}NR2 Network{% endblock %}</title>
+    <meta name="description" content="정보가 흐르고, 사람이 연결되는 곳 - NR2 Network">
+    <meta property="og:title" content="NR2 Network">
+    <meta property="og:description" content="정보가 흐르고, 사람이 연결되는 곳">
+    <meta property="og:type" content="website">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <!-- Logo -->
+                    <div class="flex-shrink-0 flex items-center">
+                        <a href="{{ url_for('main.index') }}" class="flex flex-col">
+                            <span class="text-2xl font-bold text-blue-600">🌐 NR2 Network</span>
+                            <span class="text-xs text-gray-500 -mt-1">정보가 흐르고, 사람이 연결되는 곳</span>
+                        </a>
+                    </div>
+
+                    <!-- Main Navigation -->
+                    <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                        <a href="{{ url_for('news.breaking') }}"
+                           class="border-transparent text-red-600 hover:border-red-300 hover:text-red-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold">
+                            📢 공지
+                        </a>
+                        <a href="{{ url_for('boards.board', board_type='free') }}"
+                           class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            자유게시판
+                        </a>
+                        <a href="{{ url_for('boards.board', board_type='morpheus') }}"
+                           class="border-transparent text-purple-600 hover:border-purple-300 hover:text-purple-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            💊 모피어스뉴스
+                        </a>
+                        <a href="{{ url_for('votes.list') }}"
+                           class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            투표
+                        </a>
+                        <a href="{{ url_for('boards.board', board_type='left') }}"
+                           class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            LEFT로 가세요
+                        </a>
+                        <a href="{{ url_for('boards.board', board_type='right') }}"
+                           class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            RIGHT로 가세요
+                        </a>
+                        {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('calendar.index') }}"
+                           class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            캘린더
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Right Navigation -->
+                <div class="flex items-center">
+                    {% if current_user.is_authenticated %}
+                        <!-- Profile Image & Dropdown -->
+                        <div x-data="{ open: false }" class="relative">
+                            <button @click="open = !open"
+                                    class="flex items-center space-x-2 focus:outline-none">
+                                <img src="{{ url_for('static', filename='uploads/profiles/' + current_user.profile_image) }}"
+                                     alt="{{ current_user.nickname }}"
+                                     class="w-8 h-8 rounded-full object-cover border-2 border-gray-300">
+                                <span class="text-gray-700 font-medium">{{ current_user.nickname }}님</span>
+                                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+
+                            <!-- Dropdown Menu -->
+                            <div x-show="open"
+                                 @click.away="open = false"
+                                 x-transition
+                                 class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                                <a href="{{ url_for('auth.profile') }}"
+                                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    👤 프로필
+                                </a>
+                                {% if current_user.is_admin %}
+                                <a href="{{ url_for('admin.dashboard') }}"
+                                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    ⚙️ 관리자
+                                </a>
+                                {% endif %}
+                                <hr class="my-1">
+                                <a href="{{ url_for('auth.logout') }}"
+                                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    🚪 로그아웃
+                                </a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <a href="{{ url_for('auth.login') }}"
+                           class="text-sm font-medium text-gray-700 hover:text-gray-900 mr-4">
+                            로그인
+                        </a>
+                        <a href="{{ url_for('auth.register') }}"
+                           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                            회원가입
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+                {% for category, message in messages %}
+                    <div x-data="{ show: true }"
+                         x-show="show"
+                         x-transition
+                         class="rounded-md p-4 mb-4
+                                {% if category == 'error' %}bg-red-50 text-red-800 border border-red-200
+                                {% elif category == 'success' %}bg-green-50 text-green-800 border border-green-200
+                                {% elif category == 'warning' %}bg-yellow-50 text-yellow-800 border border-yellow-200
+                                {% else %}bg-blue-50 text-blue-800 border border-blue-200{% endif %}">
+                        <div class="flex justify-between items-center">
+                            <p class="text-sm">{{ message }}</p>
+                            <button @click="show = false" class="ml-4 text-lg font-semibold">&times;</button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 mt-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="text-center">
+                <p class="text-gray-700 font-semibold mb-1">🌐 NR2 Network</p>
+                <p class="text-gray-500 text-sm mb-2">정보가 흐르고, 사람이 연결되는 곳</p>
+                <p class="text-gray-400 text-xs">
+                    &copy; 2026 NR2 Network. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

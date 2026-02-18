@@ -1,0 +1,81 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}속보 등록 - NR2 Network{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-2xl font-bold text-gray-900 mb-6">📰 속보 등록</h1>
+
+        <form method="POST" action="{{ url_for('news.create') }}">
+            <!-- 제목 -->
+            <div class="mb-4">
+                <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
+                    제목 <span class="text-red-500">*</span>
+                </label>
+                <input type="text"
+                       id="title"
+                       name="title"
+                       required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                       placeholder="속보 제목을 입력하세요">
+            </div>
+
+            <!-- 출처 -->
+            <div class="mb-4">
+                <label for="source" class="block text-sm font-medium text-gray-700 mb-2">
+                    출처
+                </label>
+                <input type="text"
+                       id="source"
+                       name="source"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                       placeholder="예: 연합뉴스, KBS, 자체취재">
+            </div>
+
+            <!-- 우선순위 -->
+            <div class="mb-4">
+                <label for="priority" class="block text-sm font-medium text-gray-700 mb-2">
+                    우선순위
+                </label>
+                <select id="priority"
+                        name="priority"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">
+                    <option value="0">일반</option>
+                    <option value="3">중요</option>
+                    <option value="5">긴급</option>
+                    <option value="10">최우선</option>
+                </select>
+                <p class="mt-1 text-sm text-gray-500">
+                    우선순위가 높을수록 목록 상단에 표시됩니다
+                </p>
+            </div>
+
+            <!-- 내용 -->
+            <div class="mb-6">
+                <label for="content" class="block text-sm font-medium text-gray-700 mb-2">
+                    내용 <span class="text-red-500">*</span>
+                </label>
+                <textarea id="content"
+                          name="content"
+                          rows="10"
+                          required
+                          class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                          placeholder="속보 내용을 입력하세요"></textarea>
+            </div>
+
+            <!-- 버튼 -->
+            <div class="flex justify-end space-x-2">
+                <a href="{{ url_for('news.breaking') }}"
+                   class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                    취소
+                </a>
+                <button type="submit"
+                        class="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                    등록
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

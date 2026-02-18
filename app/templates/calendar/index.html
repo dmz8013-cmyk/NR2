@@ -1,0 +1,318 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}캘린더 - NR2 Network{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+<style>
+#calendar {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+.fc-event {
+    cursor: pointer;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">캘린더</h1>
+            <button onclick="openEventModal()"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                + 일정 추가
+            </button>
+        </div>
+
+        <div id="calendar"></div>
+    </div>
+</div>
+
+<!-- Event Modal -->
+<div id="eventModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="modalTitle" class="text-2xl font-bold text-gray-900">일정 추가</h2>
+                <button onclick="closeEventModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <form id="eventForm" onsubmit="return handleEventSubmit(event)">
+                <input type="hidden" id="eventId" name="eventId">
+
+                <!-- 제목 -->
+                <div class="mb-4">
+                    <label for="eventTitle" class="block text-sm font-medium text-gray-700 mb-2">
+                        제목 <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text"
+                           id="eventTitle"
+                           name="title"
+                           required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           placeholder="일정 제목">
+                </div>
+
+                <!-- 설명 -->
+                <div class="mb-4">
+                    <label for="eventDescription" class="block text-sm font-medium text-gray-700 mb-2">
+                        설명
+                    </label>
+                    <textarea id="eventDescription"
+                              name="description"
+                              rows="3"
+                              class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="일정 설명"></textarea>
+                </div>
+
+                <!-- 시작일 -->
+                <div class="mb-4">
+                    <label for="eventStart" class="block text-sm font-medium text-gray-700 mb-2">
+                        시작일 <span class="text-red-500">*</span>
+                    </label>
+                    <input type="datetime-local"
+                           id="eventStart"
+                           name="start"
+                           required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- 종료일 -->
+                <div class="mb-4">
+                    <label for="eventEnd" class="block text-sm font-medium text-gray-700 mb-2">
+                        종료일
+                    </label>
+                    <input type="datetime-local"
+                           id="eventEnd"
+                           name="end"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- 종일 -->
+                <div class="mb-4">
+                    <label class="flex items-center">
+                        <input type="checkbox"
+                               id="eventAllDay"
+                               name="allDay"
+                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                        <span class="ml-2 text-sm text-gray-700">종일</span>
+                    </label>
+                </div>
+
+                <!-- 색상 -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">색상</label>
+                    <div class="flex space-x-2">
+                        <button type="button" onclick="selectColor('#3B82F6')" class="w-8 h-8 rounded-full bg-blue-500 border-2 border-transparent hover:border-gray-400"></button>
+                        <button type="button" onclick="selectColor('#EF4444')" class="w-8 h-8 rounded-full bg-red-500 border-2 border-transparent hover:border-gray-400"></button>
+                        <button type="button" onclick="selectColor('#10B981')" class="w-8 h-8 rounded-full bg-green-500 border-2 border-transparent hover:border-gray-400"></button>
+                        <button type="button" onclick="selectColor('#F59E0B')" class="w-8 h-8 rounded-full bg-yellow-500 border-2 border-transparent hover:border-gray-400"></button>
+                        <button type="button" onclick="selectColor('#8B5CF6')" class="w-8 h-8 rounded-full bg-purple-500 border-2 border-transparent hover:border-gray-400"></button>
+                        <button type="button" onclick="selectColor('#EC4899')" class="w-8 h-8 rounded-full bg-pink-500 border-2 border-transparent hover:border-gray-400"></button>
+                    </div>
+                    <input type="hidden" id="eventColor" name="color" value="#3B82F6">
+                </div>
+
+                <!-- 버튼 -->
+                <div class="flex justify-between">
+                    <button type="button"
+                            id="deleteBtn"
+                            onclick="deleteEvent()"
+                            class="hidden px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                        삭제
+                    </button>
+                    <div class="ml-auto flex space-x-2">
+                        <button type="button"
+                                onclick="closeEventModal()"
+                                class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                            취소
+                        </button>
+                        <button type="submit"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                            저장
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+<script>
+let calendar;
+let currentEvent = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const calendarEl = document.getElementById('calendar');
+
+    calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        locale: 'ko',
+        events: '{{ url_for("calendar.get_events") }}',
+        editable: true,
+        selectable: true,
+        selectMirror: true,
+        dayMaxEvents: true,
+        select: function(info) {
+            openEventModal(info.startStr, info.endStr);
+        },
+        eventClick: function(info) {
+            editEvent(info.event);
+        },
+        eventDrop: function(info) {
+            updateEventDates(info.event);
+        },
+        eventResize: function(info) {
+            updateEventDates(info.event);
+        }
+    });
+
+    calendar.render();
+});
+
+function openEventModal(start = null, end = null) {
+    document.getElementById('modalTitle').textContent = '일정 추가';
+    document.getElementById('eventForm').reset();
+    document.getElementById('eventId').value = '';
+    document.getElementById('deleteBtn').classList.add('hidden');
+
+    if (start) {
+        document.getElementById('eventStart').value = start.slice(0, 16);
+    }
+    if (end) {
+        document.getElementById('eventEnd').value = end.slice(0, 16);
+    }
+
+    document.getElementById('eventModal').classList.remove('hidden');
+}
+
+function closeEventModal() {
+    document.getElementById('eventModal').classList.add('hidden');
+    currentEvent = null;
+}
+
+function selectColor(color) {
+    document.getElementById('eventColor').value = color;
+}
+
+function editEvent(event) {
+    currentEvent = event;
+    document.getElementById('modalTitle').textContent = '일정 수정';
+    document.getElementById('eventId').value = event.id;
+    document.getElementById('eventTitle').value = event.title;
+    document.getElementById('eventDescription').value = event.extendedProps.description || '';
+    document.getElementById('eventStart').value = event.start.toISOString().slice(0, 16);
+    if (event.end) {
+        document.getElementById('eventEnd').value = event.end.toISOString().slice(0, 16);
+    }
+    document.getElementById('eventAllDay').checked = event.allDay;
+    document.getElementById('eventColor').value = event.backgroundColor;
+    document.getElementById('deleteBtn').classList.remove('hidden');
+    document.getElementById('eventModal').classList.remove('hidden');
+}
+
+async function handleEventSubmit(e) {
+    e.preventDefault();
+
+    const eventId = document.getElementById('eventId').value;
+    const formData = {
+        title: document.getElementById('eventTitle').value,
+        description: document.getElementById('eventDescription').value,
+        start: document.getElementById('eventStart').value,
+        end: document.getElementById('eventEnd').value || null,
+        allDay: document.getElementById('eventAllDay').checked,
+        color: document.getElementById('eventColor').value
+    };
+
+    try {
+        let response;
+        if (eventId) {
+            // 수정
+            response = await fetch(`{{ url_for('calendar.update_event', event_id=0) }}`.replace('0', eventId), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+        } else {
+            // 생성
+            response = await fetch('{{ url_for("calendar.create_event") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+        }
+
+        if (response.ok) {
+            calendar.refetchEvents();
+            closeEventModal();
+        } else {
+            const error = await response.json();
+            alert(error.error || '오류가 발생했습니다.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('오류가 발생했습니다.');
+    }
+
+    return false;
+}
+
+async function updateEventDates(event) {
+    try {
+        const response = await fetch(`{{ url_for('calendar.update_event', event_id=0) }}`.replace('0', event.id), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                start: event.start.toISOString(),
+                end: event.end ? event.end.toISOString() : null
+            })
+        });
+
+        if (!response.ok) {
+            event.revert();
+            alert('일정 수정에 실패했습니다.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        event.revert();
+    }
+}
+
+async function deleteEvent() {
+    if (!confirm('정말 삭제하시겠습니까?')) return;
+
+    const eventId = document.getElementById('eventId').value;
+
+    try {
+        const response = await fetch(`{{ url_for('calendar.delete_event', event_id=0) }}`.replace('0', eventId), {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            calendar.refetchEvents();
+            closeEventModal();
+        } else {
+            alert('삭제에 실패했습니다.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('오류가 발생했습니다.');
+    }
+}
+</script>
+{% endblock %}

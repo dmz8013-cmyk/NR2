@@ -1,0 +1,313 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}관리자 대시보드 - NR2 Network{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">⚙️ 관리자 대시보드</h1>
+        <a href="{{ url_for('admin.statistics') }}"
+           class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+            📊 상세 통계
+        </a>
+    </div>
+
+    <!-- 전체 통계 카드 -->
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+        <!-- 총 회원 수 -->
+        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between mb-2">
+                <svg class="h-8 w-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+            </div>
+            <p class="text-3xl font-bold">{{ total_users }}</p>
+            <p class="text-sm opacity-90">총 회원</p>
+            <p class="text-xs mt-1">오늘 +{{ today_users }}</p>
+        </div>
+
+        <!-- 총 게시글 -->
+        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between mb-2">
+                <svg class="h-8 w-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+            </div>
+            <p class="text-3xl font-bold">{{ total_posts }}</p>
+            <p class="text-sm opacity-90">총 게시글</p>
+            <p class="text-xs mt-1">오늘 +{{ today_posts }}</p>
+        </div>
+
+        <!-- 총 댓글 -->
+        <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between mb-2">
+                <svg class="h-8 w-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                </svg>
+            </div>
+            <p class="text-3xl font-bold">{{ total_comments }}</p>
+            <p class="text-sm opacity-90">총 댓글</p>
+            <p class="text-xs mt-1">오늘 +{{ today_comments }}</p>
+        </div>
+
+        <!-- 총 좋아요 -->
+        <div class="bg-gradient-to-br from-red-500 to-red-600 rounded-lg shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between mb-2">
+                <svg class="h-8 w-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                </svg>
+            </div>
+            <p class="text-3xl font-bold">{{ total_likes }}</p>
+            <p class="text-sm opacity-90">총 좋아요</p>
+        </div>
+
+        <!-- 총 투표 -->
+        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between mb-2">
+                <svg class="h-8 w-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                </svg>
+            </div>
+            <p class="text-3xl font-bold">{{ total_votes }}</p>
+            <p class="text-sm opacity-90">총 투표</p>
+        </div>
+
+        <!-- 속보 -->
+        <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg p-6 text-white">
+            <div class="flex items-center justify-between mb-2">
+                <svg class="h-8 w-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+                </svg>
+            </div>
+            <p class="text-3xl font-bold">{{ total_news }}</p>
+            <p class="text-sm opacity-90">활성 속보</p>
+        </div>
+    </div>
+
+    <!-- 차트 및 통계 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- 최근 7일 게시글 추이 -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-lg font-bold text-gray-900 mb-4">📈 최근 7일 게시글 추이</h2>
+            <div class="space-y-3">
+                {% for data in chart_data %}
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-600">{{ data.date }}</span>
+                        <span class="font-semibold text-gray-900">{{ data.posts }}개</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-600 h-2 rounded-full"
+                             style="width: {% if data.posts > 0 %}{{ (data.posts / 20 * 100)|round|int }}%{% else %}0%{% endif %}"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 게시판별 통계 -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-lg font-bold text-gray-900 mb-4">📊 게시판별 게시글 수</h2>
+            <div class="space-y-4">
+                {% for board_type, count in board_stats %}
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-gray-700 font-medium">
+                            {% if board_type == 'free' %}자유정보
+                            {% elif board_type == 'left' %}LEFT정보
+                            {% elif board_type == 'right' %}RIGHT정보
+                            {% elif board_type == 'fakenews' %}팩트체크
+                            {% endif %}
+                        </span>
+                        <span class="font-bold text-gray-900">{{ count }}개</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        {% set max_count = board_stats|map(attribute='count')|max %}
+                        <div class="h-2.5 rounded-full
+                                    {% if board_type == 'free' %}bg-blue-500
+                                    {% elif board_type == 'left' %}bg-red-500
+                                    {% elif board_type == 'right' %}bg-indigo-500
+                                    {% elif board_type == 'fakenews' %}bg-yellow-500
+                                    {% endif %}"
+                             style="width: {% if count > 0 %}{{ (count / max_count * 100)|round|int }}%{% else %}0%{% endif %}"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 인기 게시글 & 최근 회원 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- 인기 게시글 Top 5 -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-lg font-bold text-gray-900 mb-4">🔥 인기 게시글 Top 5</h2>
+            <div class="space-y-3">
+                {% for post in popular_posts %}
+                <a href="{{ url_for('boards.view', board_type=post.board_type, post_id=post.id) }}"
+                   class="block p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-gray-900 truncate">
+                                {{ post.title }}
+                            </p>
+                            <p class="text-xs text-gray-500 mt-1">
+                                {{ post.author.nickname }} · 조회 {{ post.views }}
+                            </p>
+                        </div>
+                        <span class="ml-2 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                            👁️ {{ post.views }}
+                        </span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- 최근 가입 회원 -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-lg font-bold text-gray-900 mb-4">👥 최근 가입 회원</h2>
+            <div class="space-y-3">
+                {% for user in recent_users %}
+                <div class="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg">
+                    <div class="flex items-center space-x-3">
+                        <img src="{{ url_for('static', filename='uploads/profiles/' + user.profile_image) }}"
+                             alt="{{ user.nickname }}"
+                             class="w-10 h-10 rounded-full object-cover">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">{{ user.nickname }}</p>
+                            <p class="text-xs text-gray-500">{{ user.email }}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs text-gray-500">
+                            {{ user.created_at.strftime('%m/%d') }}
+                        </p>
+                        {% if user.is_admin %}
+                        <span class="inline-block mt-1 px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 rounded">
+                            관리자
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 관리 메뉴 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- 회원 관리 -->
+        <a href="{{ url_for('admin.users') }}"
+           class="bg-white rounded-lg shadow-md p-6 hover:shadow-xl transition-shadow">
+            <div class="flex items-center mb-4">
+                <div class="bg-blue-100 rounded-full p-3">
+                    <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                </div>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-2">회원 관리</h3>
+            <p class="text-sm text-gray-600">회원 목록, 권한 변경, 계정 삭제</p>
+        </a>
+
+        <!-- 게시글 관리 -->
+        <a href="{{ url_for('admin.posts') }}"
+           class="bg-white rounded-lg shadow-md p-6 hover:shadow-xl transition-shadow">
+            <div class="flex items-center mb-4">
+                <div class="bg-green-100 rounded-full p-3">
+                    <svg class="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-2">게시글 관리</h3>
+            <p class="text-sm text-gray-600">게시글 조회, 검색, 삭제</p>
+        </a>
+
+        <!-- 댓글 관리 -->
+        <a href="{{ url_for('admin.comments') }}"
+           class="bg-white rounded-lg shadow-md p-6 hover:shadow-xl transition-shadow">
+            <div class="flex items-center mb-4">
+                <div class="bg-yellow-100 rounded-full p-3">
+                    <svg class="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                    </svg>
+                </div>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-2">댓글 관리</h3>
+            <p class="text-sm text-gray-600">댓글 조회, 검색, 삭제</p>
+        </a>
+
+        <!-- 투표 관리 -->
+        <a href="{{ url_for('admin.votes') }}"
+           class="bg-white rounded-lg shadow-md p-6 hover:shadow-xl transition-shadow">
+            <div class="flex items-center mb-4">
+                <div class="bg-purple-100 rounded-full p-3">
+                    <svg class="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                    </svg>
+                </div>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-2">투표 관리</h3>
+            <p class="text-sm text-gray-600">투표 목록, 결과 확인, 삭제</p>
+        </a>
+
+        <!-- 속보 관리 -->
+        <a href="{{ url_for('admin.breaking_news') }}"
+           class="bg-white rounded-lg shadow-md p-6 hover:shadow-xl transition-shadow">
+            <div class="flex items-center mb-4">
+                <div class="bg-red-100 rounded-full p-3">
+                    <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+                    </svg>
+                </div>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-2">속보 관리</h3>
+            <p class="text-sm text-gray-600">속보 목록, 우선순위, 활성화</p>
+        </a>
+
+        <!-- 상세 통계 -->
+        <a href="{{ url_for('admin.statistics') }}"
+           class="bg-white rounded-lg shadow-md p-6 hover:shadow-xl transition-shadow">
+            <div class="flex items-center mb-4">
+                <div class="bg-indigo-100 rounded-full p-3">
+                    <svg class="h-6 w-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                </div>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 mb-2">상세 통계</h3>
+            <p class="text-sm text-gray-600">월별 통계, 사용자 랭킹</p>
+        </a>
+
+        <!-- 속보 작성 -->
+        <a href="{{ url_for('news.create') }}"
+           class="bg-gradient-to-br from-red-500 to-red-600 rounded-lg shadow-md p-6 hover:shadow-xl transition-shadow text-white">
+            <div class="flex items-center mb-4">
+                <div class="bg-white bg-opacity-20 rounded-full p-3">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                </div>
+            </div>
+            <h3 class="text-lg font-bold mb-2">📰 속보 작성</h3>
+            <p class="text-sm opacity-90">긴급 속보 등록</p>
+        </a>
+
+        <!-- 투표 작성 -->
+        <a href="{{ url_for('votes.create') }}"
+           class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-md p-6 hover:shadow-xl transition-shadow text-white">
+            <div class="flex items-center mb-4">
+                <div class="bg-white bg-opacity-20 rounded-full p-3">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                </div>
+            </div>
+            <h3 class="text-lg font-bold mb-2">📊 투표 작성</h3>
+            <p class="text-sm opacity-90">새 투표 만들기</p>
+        </a>
+    </div>
+</div>
+{% endblock %}

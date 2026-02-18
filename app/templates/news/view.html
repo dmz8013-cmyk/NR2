@@ -1,0 +1,104 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ news.title }} - NR2 Network{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- 속보 헤더 -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-4">
+        <!-- 우선순위 배지 -->
+        <div class="mb-4">
+            {% if news.priority >= 5 %}
+            <span class="inline-block px-4 py-2 bg-red-100 text-red-800 text-sm font-bold rounded-full">
+                🔴 긴급속보
+            </span>
+            {% elif news.priority >= 3 %}
+            <span class="inline-block px-4 py-2 bg-orange-100 text-orange-800 text-sm font-bold rounded-full">
+                ⚠️ 중요속보
+            </span>
+            {% else %}
+            <span class="inline-block px-4 py-2 bg-blue-100 text-blue-800 text-sm font-bold rounded-full">
+                📰 속보
+            </span>
+            {% endif %}
+        </div>
+
+        <!-- 제목 -->
+        <h1 class="text-3xl font-bold text-gray-900 mb-4">{{ news.title }}</h1>
+
+        <!-- 메타 정보 -->
+        <div class="flex items-center justify-between border-b border-gray-200 pb-4 mb-6">
+            <div class="flex items-center space-x-4 text-sm text-gray-600">
+                {% if news.source %}
+                <span class="flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+                    </svg>
+                    출처: {{ news.source }}
+                </span>
+                {% endif %}
+                <span class="flex items-center">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    {{ news.created_at.strftime('%Y년 %m월 %d일 %H:%M') }}
+                </span>
+                {% if news.created_at != news.updated_at %}
+                <span class="text-xs text-gray-400">
+                    (수정: {{ news.updated_at.strftime('%Y-%m-%d %H:%M') }})
+                </span>
+                {% endif %}
+            </div>
+
+            <!-- 관리자 버튼 -->
+            {% if current_user.is_authenticated and current_user.is_admin %}
+            <div class="flex space-x-2">
+                <a href="{{ url_for('news.edit', news_id=news.id) }}"
+                   class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                    수정
+                </a>
+                <form method="POST" action="{{ url_for('news.toggle_active', news_id=news.id) }}"
+                      class="inline">
+                    <button type="submit"
+                            class="text-orange-600 hover:text-orange-800 text-sm font-medium">
+                        {% if news.is_active %}비활성화{% else %}활성화{% endif %}
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('news.delete', news_id=news.id) }}"
+                      onsubmit="return confirm('정말 삭제하시겠습니까?');"
+                      class="inline">
+                    <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium">
+                        삭제
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 본문 -->
+        <div class="prose max-w-none">
+            <div class="text-gray-800 text-lg leading-relaxed whitespace-pre-wrap">{{ news.content }}</div>
+        </div>
+
+        <!-- 상태 표시 -->
+        {% if not news.is_active %}
+        <div class="mt-6 p-4 bg-gray-100 border border-gray-300 rounded-md">
+            <p class="text-gray-600 text-sm">
+                ⚠️ 이 속보는 비활성화 상태입니다.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 목록으로 버튼 -->
+    <div class="flex justify-between items-center">
+        <a href="{{ url_for('news.breaking') }}"
+           class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+            속보 목록
+        </a>
+    </div>
+</div>
+{% endblock %}

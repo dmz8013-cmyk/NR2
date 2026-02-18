@@ -1,0 +1,371 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}{{ post.title }} - NR2 Network{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- 게시글 헤더 -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-4">
+        <div class="border-b border-gray-200 pb-4 mb-4">
+            <h1 class="text-2xl font-bold text-gray-900 mb-3">{{ post.title }}</h1>
+
+            <div class="flex items-center justify-between text-sm text-gray-600">
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <img src="{{ url_for('static', filename='uploads/profiles/' + post.author.profile_image) }}"
+                             alt="{{ post.author.nickname }}"
+                             class="w-10 h-10 rounded-full object-cover border-2 border-gray-200">
+                        <span class="font-medium text-gray-900">{{ post.author.nickname }}</span>
+                    </div>
+                    <span>{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    <span>조회 {{ post.views }}</span>
+                </div>
+
+                <!-- 작성자 액션 버튼 -->
+                {% if current_user.is_authenticated and (current_user.id == post.user_id or current_user.is_admin) %}
+                <div class="flex space-x-2">
+                    <a href="{{ url_for('boards.edit', board_type=post.board_type, post_id=post.id) }}"
+                       class="text-blue-600 hover:text-blue-800">
+                        수정
+                    </a>
+                    <form method="POST" action="{{ url_for('boards.delete', board_type=post.board_type, post_id=post.id) }}"
+                          onsubmit="return confirm('정말 삭제하시겠습니까?');"
+                          class="inline">
+                        <button type="submit" class="text-red-600 hover:text-red-800">
+                            삭제
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 게시글 내용 -->
+        <div class="prose max-w-none mb-6">
+            <div class="whitespace-pre-wrap text-gray-800">{{ post.content }}</div>
+        </div>
+
+        <!-- 이미지 -->
+        {% if post.images.count() > 0 %}
+        <div class="mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for image in post.images.order_by('order') %}
+                <div class="relative">
+                    <img src="{{ url_for('static', filename='uploads/' + image.filename) }}"
+                         alt="Image {{ image.order + 1 }}"
+                         class="w-full h-auto rounded-lg shadow cursor-pointer hover:opacity-90"
+                         onclick="openImageModal('{{ url_for('static', filename='uploads/' + image.filename) }}')">
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 좋아요 및 공유 -->
+        <div class="flex items-center space-x-4 pt-4 border-t border-gray-200">
+            <button onclick="toggleLike({{ post.id }})"
+                    id="like-btn-{{ post.id }}"
+                    class="flex items-center space-x-2 px-4 py-2 rounded-md hover:bg-gray-100 transition-colors
+                           {% if current_user.is_authenticated and post.likes.filter_by(user_id=current_user.id).first() %}
+                           text-red-600
+                           {% else %}
+                           text-gray-600
+                           {% endif %}">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"/>
+                </svg>
+                <span id="like-count-{{ post.id }}">{{ post.likes_count }}</span>
+            </button>
+
+            <div class="flex items-center space-x-2 text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                </svg>
+                <span>댓글 {{ post.comments_count }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 댓글 섹션 -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">댓글 {{ post.comments_count }}개</h2>
+
+        {% if current_user.is_authenticated %}
+        <!-- 댓글 작성 폼 -->
+        <form method="POST" action="{{ url_for('boards.add_comment', board_type=post.board_type, post_id=post.id) }}" class="mb-6">
+            <textarea name="content"
+                      class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      rows="3"
+                      placeholder="댓글을 입력하세요..."
+                      required></textarea>
+            <div class="mt-2 flex justify-end">
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    댓글 작성
+                </button>
+            </div>
+        </form>
+        {% else %}
+        <div class="text-center py-8 text-gray-500">
+            <p>댓글을 작성하려면 <a href="{{ url_for('auth.login') }}" class="text-blue-600 hover:text-blue-800">로그인</a>이 필요합니다.</p>
+        </div>
+        {% endif %}
+
+        <!-- 댓글 목록 -->
+        <div class="space-y-4">
+            {% set root_comments = post.comments.filter_by(parent_id=None).order_by('created_at').all() %}
+            {% if root_comments %}
+                {% for comment in root_comments %}
+                <div id="comment-{{ comment.id }}" class="border-l-2 border-gray-200 pl-4">
+                    <!-- 댓글 내용 -->
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center space-x-2">
+                            <img src="{{ url_for('static', filename='uploads/profiles/' + comment.author.profile_image) }}"
+                                 alt="{{ comment.author.nickname }}"
+                                 class="w-8 h-8 rounded-full object-cover border-2 border-gray-200">
+                            <div>
+                                <span class="font-semibold text-gray-900">{{ comment.author.nickname }}</span>
+                                <span class="text-sm text-gray-500 ml-2">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                {% if comment.created_at != comment.updated_at %}
+                                <span class="text-xs text-gray-400 ml-1">(수정됨)</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- 댓글 액션 버튼 -->
+                        {% if current_user.is_authenticated %}
+                        <div class="flex space-x-2 text-sm">
+                            <button onclick="showReplyForm({{ comment.id }})" class="text-blue-600 hover:text-blue-800">
+                                답글
+                            </button>
+                            {% if current_user.id == comment.user_id or current_user.is_admin %}
+                            <button onclick="showEditForm({{ comment.id }})" class="text-gray-600 hover:text-gray-800">
+                                수정
+                            </button>
+                            <form method="POST"
+                                  action="{{ url_for('boards.delete_comment', board_type=post.board_type, post_id=post.id, comment_id=comment.id) }}"
+                                  onsubmit="return confirm('정말 삭제하시겠습니까?');"
+                                  class="inline">
+                                <button type="submit" class="text-red-600 hover:text-red-800">
+                                    삭제
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- 댓글 본문 -->
+                    <div id="comment-content-{{ comment.id }}" class="text-gray-800 whitespace-pre-wrap mb-3">{{ comment.content }}</div>
+
+                    <!-- 댓글 수정 폼 (숨김) -->
+                    <div id="edit-form-{{ comment.id }}" class="hidden mb-3">
+                        <form method="POST" action="{{ url_for('boards.edit_comment', board_type=post.board_type, post_id=post.id, comment_id=comment.id) }}">
+                            <textarea name="content" class="w-full px-3 py-2 border border-gray-300 rounded-md" rows="3" required>{{ comment.content }}</textarea>
+                            <div class="mt-2 flex justify-end space-x-2">
+                                <button type="button" onclick="hideEditForm({{ comment.id }})" class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50">
+                                    취소
+                                </button>
+                                <button type="submit" class="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                                    수정
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- 답글 작성 폼 (숨김) -->
+                    {% if current_user.is_authenticated %}
+                    <div id="reply-form-{{ comment.id }}" class="hidden mb-3">
+                        <form method="POST" action="{{ url_for('boards.add_comment', board_type=post.board_type, post_id=post.id) }}">
+                            <input type="hidden" name="parent_id" value="{{ comment.id }}">
+                            <textarea name="content" class="w-full px-3 py-2 border border-gray-300 rounded-md" rows="2" placeholder="답글을 입력하세요..." required></textarea>
+                            <div class="mt-2 flex justify-end space-x-2">
+                                <button type="button" onclick="hideReplyForm({{ comment.id }})" class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50">
+                                    취소
+                                </button>
+                                <button type="submit" class="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                                    답글 작성
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    {% endif %}
+
+                    <!-- 대댓글 목록 -->
+                    {% set replies = comment.replies.order_by('created_at').all() %}
+                    {% if replies %}
+                    <div class="ml-8 mt-4 space-y-4">
+                        {% for reply in replies %}
+                        <div id="comment-{{ reply.id }}" class="border-l-2 border-blue-200 pl-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-blue-600">↳</span>
+                                    <img src="{{ url_for('static', filename='uploads/profiles/' + reply.author.profile_image) }}"
+                                         alt="{{ reply.author.nickname }}"
+                                         class="w-6 h-6 rounded-full object-cover border border-gray-200">
+                                    <div>
+                                        <span class="font-semibold text-gray-900">{{ reply.author.nickname }}</span>
+                                        <span class="text-sm text-gray-500 ml-2">{{ reply.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                        {% if reply.created_at != reply.updated_at %}
+                                        <span class="text-xs text-gray-400 ml-1">(수정됨)</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                {% if current_user.is_authenticated and (current_user.id == reply.user_id or current_user.is_admin) %}
+                                <div class="flex space-x-2 text-sm">
+                                    <button onclick="showEditForm({{ reply.id }})" class="text-gray-600 hover:text-gray-800">
+                                        수정
+                                    </button>
+                                    <form method="POST"
+                                          action="{{ url_for('boards.delete_comment', board_type=post.board_type, post_id=post.id, comment_id=reply.id) }}"
+                                          onsubmit="return confirm('정말 삭제하시겠습니까?');"
+                                          class="inline">
+                                        <button type="submit" class="text-red-600 hover:text-red-800">
+                                            삭제
+                                        </button>
+                                    </form>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div id="comment-content-{{ reply.id }}" class="text-gray-800 whitespace-pre-wrap mb-2">{{ reply.content }}</div>
+
+                            <!-- 대댓글 수정 폼 (숨김) -->
+                            <div id="edit-form-{{ reply.id }}" class="hidden mb-2">
+                                <form method="POST" action="{{ url_for('boards.edit_comment', board_type=post.board_type, post_id=post.id, comment_id=reply.id) }}">
+                                    <textarea name="content" class="w-full px-3 py-2 border border-gray-300 rounded-md" rows="2" required>{{ reply.content }}</textarea>
+                                    <div class="mt-2 flex justify-end space-x-2">
+                                        <button type="button" onclick="hideEditForm({{ reply.id }})" class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50">
+                                            취소
+                                        </button>
+                                        <button type="submit" class="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                                            수정
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+            <p class="text-center text-gray-500 py-8">첫 번째 댓글을 작성해보세요!</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 목록으로 버튼 -->
+    <div class="mt-6">
+        <a href="{{ url_for('boards.board', board_type=post.board_type) }}"
+           class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+            목록으로
+        </a>
+    </div>
+</div>
+
+<!-- 이미지 모달 -->
+<div id="imageModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4"
+     onclick="closeImageModal()">
+    <div class="relative max-w-4xl max-h-full">
+        <img id="modalImage" src="" alt="Full size" class="max-w-full max-h-screen rounded-lg">
+        <button onclick="closeImageModal()"
+                class="absolute top-4 right-4 text-white text-3xl hover:text-gray-300">
+            &times;
+        </button>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 이미지 모달
+function openImageModal(src) {
+    document.getElementById('modalImage').src = src;
+    document.getElementById('imageModal').classList.remove('hidden');
+}
+
+function closeImageModal() {
+    document.getElementById('imageModal').classList.add('hidden');
+}
+
+// 좋아요 토글 (AJAX)
+function toggleLike(postId) {
+    {% if not current_user.is_authenticated %}
+    alert('로그인이 필요합니다.');
+    window.location.href = "{{ url_for('auth.login') }}";
+    return;
+    {% endif %}
+
+    const button = document.getElementById('like-btn-' + postId);
+    const countSpan = document.getElementById('like-count-' + postId);
+
+    // 버튼 비활성화 (중복 클릭 방지)
+    button.disabled = true;
+
+    fetch("{{ url_for('boards.toggle_like', board_type=post.board_type, post_id=post.id) }}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 좋아요 개수 업데이트
+            countSpan.textContent = data.likes_count;
+
+            // 버튼 색상 변경
+            if (data.liked) {
+                button.classList.remove('text-gray-600');
+                button.classList.add('text-red-600');
+            } else {
+                button.classList.remove('text-red-600');
+                button.classList.add('text-gray-600');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('좋아요 처리 중 오류가 발생했습니다.');
+    })
+    .finally(() => {
+        // 버튼 다시 활성화
+        button.disabled = false;
+    });
+}
+
+// ESC 키로 모달 닫기
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeImageModal();
+    }
+});
+
+// 댓글 수정 폼 토글
+function showEditForm(commentId) {
+    document.getElementById('comment-content-' + commentId).classList.add('hidden');
+    document.getElementById('edit-form-' + commentId).classList.remove('hidden');
+}
+
+function hideEditForm(commentId) {
+    document.getElementById('comment-content-' + commentId).classList.remove('hidden');
+    document.getElementById('edit-form-' + commentId).classList.add('hidden');
+}
+
+// 답글 폼 토글
+function showReplyForm(commentId) {
+    document.getElementById('reply-form-' + commentId).classList.remove('hidden');
+}
+
+function hideReplyForm(commentId) {
+    document.getElementById('reply-form-' + commentId).classList.add('hidden');
+}
+</script>
+{% endblock %}

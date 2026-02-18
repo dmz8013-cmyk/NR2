@@ -1,0 +1,87 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}누렁이방 - NR2 Network{% endblock %}
+
+{% block content %}
+<!-- 누렁이 히어로 섹션 -->
+<div class="bg-gradient-to-r from-yellow-50 to-orange-50 py-16">
+    <div class="max-w-6xl mx-auto px-4">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-8">
+            <!-- 누렁이 이미지 -->
+            <div class="w-full md:w-1/2 flex justify-center">
+                <img src="{{ url_for('static', filename='images/nureongi.jpeg') }}" 
+                     alt="누렁이 캐릭터" 
+                     class="rounded-3xl shadow-2xl w-full max-w-md hover:scale-105 transition-transform duration-300">
+            </div>
+            
+            <!-- 환영 메시지 -->
+            <div class="w-full md:w-1/2 text-center md:text-left">
+                <h1 class="text-5xl font-bold text-gray-900 mb-4">
+                    🐕 누렁이방에<br>오신 것을 환영합니다!
+                </h1>
+                <p class="text-xl text-gray-700 mb-6">
+                    따뜻한 커뮤니티에서<br>
+                    자유롭게 소통하세요 💛
+                </p>
+                
+                {% if current_user.is_authenticated %}
+                    <a href="{{ url_for('boards.board', board_type='free') }}" 
+                       class="inline-block bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-4 px-8 rounded-full text-lg transition shadow-lg">
+                        🎉 자유게시판 가기
+                    </a>
+                {% else %}
+                    <div class="space-x-4">
+                        <a href="{{ url_for('auth.quick_register') }}" 
+                           class="inline-block bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-4 px-8 rounded-full text-lg transition shadow-lg">
+                            🎊 30초 회원가입
+                        </a>
+                        <a href="{{ url_for('auth.login') }}" 
+                           class="inline-block bg-white hover:bg-gray-100 text-gray-800 font-bold py-4 px-8 rounded-full text-lg transition border-2 border-gray-300">
+                            로그인
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 게시판 목록 -->
+<div class="max-w-6xl mx-auto px-4 py-12">
+    <h2 class="text-3xl font-bold text-gray-900 mb-8 text-center">📋 게시판</h2>
+    
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- 모피어스뉴스 -->
+        <a href="{{ url_for('boards.board', board_type='morpheus') }}" 
+           class="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition transform hover:-translate-y-1">
+            <div class="text-4xl mb-3">🔮</div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">모피어스뉴스</h3>
+            <p class="text-gray-600">진실을 찾아 떠나는 여정</p>
+        </a>
+        
+        <!-- LEFT 게시판 -->
+        <a href="{{ url_for('boards.board', board_type='left') }}" 
+           class="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition transform hover:-translate-y-1">
+            <div class="text-4xl mb-3">👈</div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">LEFT</h3>
+            <p class="text-gray-600">진보 성향 이슈 토론</p>
+        </a>
+        
+        <!-- RIGHT 게시판 -->
+        <a href="{{ url_for('boards.board', board_type='right') }}" 
+           class="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition transform hover:-translate-y-1">
+            <div class="text-4xl mb-3">👉</div>
+            <h3 class="text-xl font-bold text-gray-900 mb-2">RIGHT</h3>
+            <p class="text-gray-600">보수 성향 이슈 토론</p>
+        </a>
+    </div>
+</div>
+
+<!-- 푸터 누렁이 -->
+<div class="bg-yellow-50 py-8 mt-12">
+    <div class="max-w-6xl mx-auto px-4 text-center">
+        <p class="text-gray-700 text-lg mb-2">🐕 누렁이방과 함께 즐거운 하루 되세요!</p>
+        <p class="text-gray-500 text-sm">따뜻한 커뮤니티, 누렁이방 💛</p>
+    </div>
+</div>
+{% endblock %}

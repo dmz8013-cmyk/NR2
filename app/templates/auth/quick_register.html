@@ -1,0 +1,78 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}회원가입 - 누렁이방{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-r from-yellow-50 to-orange-50 py-12 px-4">
+    <div class="max-w-4xl w-full">
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div class="md:flex">
+                <!-- 누렁이 이미지 섹션 -->
+                <div class="md:w-1/2 bg-yellow-100 p-8 flex items-center justify-center">
+                    <div class="text-center">
+                        <img src="{{ url_for('static', filename='images/nureongi.jpeg') }}" 
+                             alt="누렁이" 
+                             class="rounded-3xl shadow-xl mb-4 w-full max-w-sm">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">🐕 누렁이방에 오신 것을 환영합니다!</h2>
+                        <p class="text-gray-600">30초면 가입 완료! 💛</p>
+                    </div>
+                </div>
+                
+                <!-- 회원가입 폼 -->
+                <div class="md:w-1/2 p-8">
+                    <h1 class="text-3xl font-bold text-gray-900 mb-6 text-center">회원가입</h1>
+                    
+                    <form method="POST" action="{{ url_for('auth.quick_register') }}" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">닉네임 (2~20자)</label>
+                            <input type="text" name="nickname" required minlength="2" maxlength="20"
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                                   placeholder="사용할 닉네임">
+                            <p class="text-sm text-gray-500 mt-1">※ 한글, 영문, 숫자 가능</p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">이메일</label>
+                            <input type="email" name="email" required
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                                   placeholder="your@email.com">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">비밀번호 (6자 이상)</label>
+                            <input type="password" name="password" required minlength="6"
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                                   placeholder="최소 6자">
+                        </div>
+                        
+                        <button type="submit"
+                                class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 rounded-lg transition shadow-lg">
+                            🎉 가입하기
+                        </button>
+                    </form>
+                    
+                    <div class="mt-6">
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                            <h3 class="font-bold text-sm mb-2">💬 회원 가입 혜택</h3>
+                            <ul class="text-sm text-gray-700 space-y-1">
+                                <li>✅ 자유롭게 글 작성</li>
+                                <li>✅ 댓글 참여</li>
+                                <li>✅ 좋아요 표시</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 text-center">
+                        <p class="text-gray-600 text-sm">
+                            이미 계정이 있으신가요?
+                            <a href="{{ url_for('auth.login') }}" class="text-yellow-600 hover:text-yellow-700 font-semibold">
+                                로그인 →
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

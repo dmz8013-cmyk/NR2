@@ -1,0 +1,134 @@
+{% extends "layouts/base.html" %}
+{% from "layouts/pagination.html" import render_pagination %}
+
+{% block title %}회원 관리 - 관리자{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">👥 회원 관리</h1>
+        <a href="{{ url_for('admin.dashboard') }}"
+           class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
+            ← 대시보드
+        </a>
+    </div>
+
+    <!-- 검색 -->
+    <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+        <form method="GET" class="flex gap-2">
+            <input type="text"
+                   name="search"
+                   value="{{ search }}"
+                   placeholder="이메일 또는 닉네임 검색..."
+                   class="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button type="submit"
+                    class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                검색
+            </button>
+            {% if search %}
+            <a href="{{ url_for('admin.users') }}"
+               class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                초기화
+            </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- 회원 목록 -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        프로필
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        닉네임
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        이메일
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        권한
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        가입일
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        활동
+                    </th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        관리
+                    </th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for user in users %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <img src="{{ url_for('static', filename='uploads/profiles/' + user.profile_image) }}"
+                             alt="{{ user.nickname }}"
+                             class="w-10 h-10 rounded-full object-cover">
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900">{{ user.nickname }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-500">{{ user.email }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if user.is_admin %}
+                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                            관리자
+                        </span>
+                        {% else %}
+                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                            일반 사용자
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ user.created_at.strftime('%Y-%m-%d') }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div class="space-y-1">
+                            <div>게시글: {{ user.posts.count() }}개</div>
+                            <div>댓글: {{ user.comments.count() }}개</div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div class="flex justify-end space-x-2">
+                            <form method="POST" action="{{ url_for('admin.toggle_admin', user_id=user.id) }}"
+                                  {% if user.id == current_user.id %}onsubmit="return false;"{% endif %}
+                                  class="inline">
+                                <button type="submit"
+                                        {% if user.id == current_user.id %}disabled{% endif %}
+                                        class="text-blue-600 hover:text-blue-900 {% if user.id == current_user.id %}opacity-50 cursor-not-allowed{% endif %}">
+                                    {% if user.is_admin %}일반{% else %}관리자{% endif %}
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin.delete_user', user_id=user.id) }}"
+                                  onsubmit="return {% if user.id == current_user.id %}false{% else %}confirm('정말 삭제하시겠습니까?'){% endif %};"
+                                  class="inline">
+                                <button type="submit"
+                                        {% if user.id == current_user.id %}disabled{% endif %}
+                                        class="text-red-600 hover:text-red-900 {% if user.id == current_user.id %}opacity-50 cursor-not-allowed{% endif %}">
+                                    삭제
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 페이지네이션 -->
+    {% if pagination.pages > 1 %}
+    <div class="mt-6">
+        {{ render_pagination(pagination, 'admin.users', search=search) }}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

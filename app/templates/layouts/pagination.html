@@ -1,0 +1,79 @@
+{% macro render_pagination(pagination, endpoint, board_type=None, search_query='', search_type='all') %}
+{% if pagination.pages > 1 %}
+<div class="flex justify-center items-center space-x-2 mt-6">
+    <!-- 이전 페이지 -->
+    {% if pagination.has_prev %}
+    <a href="{{ url_for(endpoint, board_type=board_type, page=pagination.prev_num, q=search_query, type=search_type) if board_type else url_for(endpoint, page=pagination.prev_num, q=search_query, type=search_type) }}"
+       class="px-3 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+    </a>
+    {% else %}
+    <span class="px-3 py-2 border border-gray-200 rounded-md text-gray-400 cursor-not-allowed">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+    </span>
+    {% endif %}
+
+    <!-- 페이지 번호들 -->
+    {% set start_page = [pagination.page - 2, 1]|max %}
+    {% set end_page = [pagination.page + 2, pagination.pages]|min %}
+
+    {% if start_page > 1 %}
+    <a href="{{ url_for(endpoint, board_type=board_type, page=1, q=search_query, type=search_type) if board_type else url_for(endpoint, page=1, q=search_query, type=search_type) }}"
+       class="px-3 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+        1
+    </a>
+    {% if start_page > 2 %}
+    <span class="px-3 py-2 text-gray-500">...</span>
+    {% endif %}
+    {% endif %}
+
+    {% for page_num in range(start_page, end_page + 1) %}
+    {% if page_num == pagination.page %}
+    <span class="px-3 py-2 border border-blue-500 rounded-md bg-blue-500 text-white font-semibold">
+        {{ page_num }}
+    </span>
+    {% else %}
+    <a href="{{ url_for(endpoint, board_type=board_type, page=page_num, q=search_query, type=search_type) if board_type else url_for(endpoint, page=page_num, q=search_query, type=search_type) }}"
+       class="px-3 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+        {{ page_num }}
+    </a>
+    {% endif %}
+    {% endfor %}
+
+    {% if end_page < pagination.pages %}
+    {% if end_page < pagination.pages - 1 %}
+    <span class="px-3 py-2 text-gray-500">...</span>
+    {% endif %}
+    <a href="{{ url_for(endpoint, board_type=board_type, page=pagination.pages, q=search_query, type=search_type) if board_type else url_for(endpoint, page=pagination.pages, q=search_query, type=search_type) }}"
+       class="px-3 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+        {{ pagination.pages }}
+    </a>
+    {% endif %}
+
+    <!-- 다음 페이지 -->
+    {% if pagination.has_next %}
+    <a href="{{ url_for(endpoint, board_type=board_type, page=pagination.next_num, q=search_query, type=search_type) if board_type else url_for(endpoint, page=pagination.next_num, q=search_query, type=search_type) }}"
+       class="px-3 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+    </a>
+    {% else %}
+    <span class="px-3 py-2 border border-gray-200 rounded-md text-gray-400 cursor-not-allowed">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+    </span>
+    {% endif %}
+</div>
+
+<!-- 페이지 정보 -->
+<div class="text-center text-sm text-gray-600 mt-4">
+    {{ pagination.total }}개 중 {{ ((pagination.page - 1) * pagination.per_page) + 1 }}-{{ [pagination.page * pagination.per_page, pagination.total]|min }}번째 표시
+</div>
+{% endif %}
+{% endmacro %}
