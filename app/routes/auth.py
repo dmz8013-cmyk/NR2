@@ -77,8 +77,9 @@ def register():
         db.session.add(user)
         db.session.commit()
 
-        flash('회원가입이 완료되었습니다. 로그인해주세요.', 'success')
-        return redirect(url_for('auth.login'))
+        login_user(user)
+        flash(f'{user.nickname}님, 환영합니다!', 'success')
+        return redirect(url_for('main.index'))
 
     return render_template('auth/register.html')
 
@@ -193,62 +194,7 @@ def upload_profile_image():
         flash('허용되지 않는 파일 형식입니다. (png, jpg, jpeg, gif만 가능)', 'error')
 
     return redirect(url_for('auth.profile'))
-@bp.route('/quick-register', methods=['GET', 'POST'])
-@bp.route('/quick-register', methods=['GET', 'POST'])
-def quick_register():
-    """간소화 회원가입 - 닉네임 포함"""
-    if current_user.is_authenticated:
-        return redirect(url_for('main.index'))
 
-    if request.method == 'POST':
-        nickname = request.form.get('nickname', '').strip()
-        email = request.form.get('email', '').strip()
-        password = request.form.get('password', '')
-
-        errors = []
-
-        # Nickname validation
-        if not nickname:
-            errors.append('닉네임을 입력해주세요.')
-        elif len(nickname) < 2 or len(nickname) > 20:
-            errors.append('닉네임은 2~20자여야 합니다.')
-        elif User.query.filter_by(nickname=nickname).first():
-            errors.append('이미 사용 중인 닉네임입니다.')
-
-        # Email validation
-        if not email:
-            errors.append('이메일을 입력해주세요.')
-        else:
-            try:
-                validate_email(email)
-            except EmailNotValidError:
-                errors.append('유효한 이메일 주소를 입력해주세요.')
-
-            if User.query.filter_by(email=email).first():
-                errors.append('이미 사용 중인 이메일입니다.')
-
-        # Password validation
-        if not password or len(password) < 6:
-            errors.append('비밀번호는 최소 6자 이상이어야 합니다.')
-
-        if errors:
-            for error in errors:
-                flash(error, 'error')
-            return render_template('auth/quick_register.html')
-
-        # Create user
-        user = User(email=email, nickname=nickname)
-        user.set_password(password)
-
-        db.session.add(user)
-        db.session.commit()
-        login_user(user)
-        
-        flash(f'{user.nickname}님, 환영합니다!', 'success')
-        
-        return redirect(url_for('main.index'))
-
-    return render_template('auth/quick_register.html')
 
 @bp.route('/profile/nickname', methods=['POST'])
 @login_required
