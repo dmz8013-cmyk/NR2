@@ -1,19 +1,123 @@
 {% extends "layouts/base.html" %}
+{% from "layouts/pagination.html" import render_pagination %}
 
 {% block title %}게시글 관리 - 관리자{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto">
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">게시글 관리</h1>
-
-    <div class="bg-white shadow-md rounded-lg overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">전체 게시글 목록</h2>
-        </div>
-
-        <div class="p-6 text-center text-gray-500">
-            게시글 관리 기능은 추후 구현 예정입니다.
-        </div>
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">📝 게시글 관리</h1>
+        <a href="{{ url_for('admin.dashboard') }}"
+           class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
+            ← 대시보드
+        </a>
     </div>
+
+    <!-- 검색 / 필터 -->
+    <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+        <form method="GET" class="flex flex-wrap gap-2">
+            <select name="board"
+                    class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">전체 게시판</option>
+                <option value="free"     {% if board_type == 'free'     %}selected{% endif %}>자유정보</option>
+                <option value="left"     {% if board_type == 'left'     %}selected{% endif %}>LEFT정보</option>
+                <option value="right"    {% if board_type == 'right'    %}selected{% endif %}>RIGHT정보</option>
+                <option value="fakenews" {% if board_type == 'fakenews' %}selected{% endif %}>팩트체크</option>
+                <option value="morpheus" {% if board_type == 'morpheus' %}selected{% endif %}>모피어스뉴스</option>
+            </select>
+            <input type="text"
+                   name="search"
+                   value="{{ search }}"
+                   placeholder="제목 또는 내용 검색..."
+                   class="flex-1 min-w-48 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button type="submit"
+                    class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                검색
+            </button>
+            {% if search or board_type %}
+            <a href="{{ url_for('admin.posts') }}"
+               class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                초기화
+            </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- 게시글 목록 -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">게시판</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">제목</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작성자</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">조회</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">댓글</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">좋아요</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작성일</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for post in posts %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ post.id }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if post.board_type == 'free' %}
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">자유</span>
+                        {% elif post.board_type == 'left' %}
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">LEFT</span>
+                        {% elif post.board_type == 'right' %}
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-800">RIGHT</span>
+                        {% elif post.board_type == 'fakenews' %}
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">팩트체크</span>
+                        {% elif post.board_type == 'morpheus' %}
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">모피어스</span>
+                        {% else %}
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">{{ post.board_type }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4">
+                        <a href="{{ url_for('boards.view', board_type=post.board_type, post_id=post.id) }}"
+                           class="text-sm font-medium text-blue-600 hover:text-blue-800 block max-w-xs truncate">
+                            {{ post.title }}
+                        </a>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {{ post.author.nickname }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ post.views }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ post.comments_count }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ post.likes_count }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {{ post.created_at.strftime('%Y-%m-%d') }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <form method="POST"
+                              action="{{ url_for('admin.delete_post', post_id=post.id) }}"
+                              onsubmit="return confirm('게시글을 삭제하시겠습니까?');"
+                              class="inline">
+                            <button type="submit" class="text-red-600 hover:text-red-900">삭제</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9" class="px-6 py-12 text-center text-gray-500">
+                        게시글이 없습니다.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 페이지네이션 -->
+    {% if pagination.pages > 1 %}
+    <div class="mt-6">
+        {{ render_pagination(pagination, 'admin.posts', search=search, board=board_type) }}
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
