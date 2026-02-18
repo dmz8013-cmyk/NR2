@@ -9,24 +9,13 @@ def validate_password_strength(password):
     비밀번호 강도 검사
 
     Requirements:
-    - 최소 8자
-    - 영문 대소문자 포함
-    - 숫자 포함
+    - 최소 6자
 
     Returns:
         (is_valid, message): 유효성 여부와 메시지
     """
-    if len(password) < 8:
-        return False, "비밀번호는 최소 8자 이상이어야 합니다."
-
-    if not re.search(r'[a-z]', password):
-        return False, "비밀번호에 영문 소문자가 포함되어야 합니다."
-
-    if not re.search(r'[A-Z]', password):
-        return False, "비밀번호에 영문 대문자가 포함되어야 합니다."
-
-    if not re.search(r'\d', password):
-        return False, "비밀번호에 숫자가 포함되어야 합니다."
+    if len(password) < 6:
+        return False, "비밀번호는 최소 6자 이상이어야 합니다."
 
     return True, "비밀번호가 유효합니다."
 
