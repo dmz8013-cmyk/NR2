@@ -33,6 +33,9 @@ Thumbs.db
 # Uploads
 app/static/uploads/*
 !app/static/uploads/.gitkeep
+!app/static/uploads/profiles/
+app/static/uploads/profiles/*
+!app/static/uploads/profiles/default_profile.jpeg
 
 # Migrations (optional - uncomment if you want to ignore)
 # migrations/
