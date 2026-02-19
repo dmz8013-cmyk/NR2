@@ -72,7 +72,7 @@
             <p class="text-sm opacity-90">총 투표</p>
         </div>
 
-        <!-- 속보 -->
+        <!-- 공지 -->
         <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg p-6 text-white">
             <div class="flex items-center justify-between mb-2">
                 <svg class="h-8 w-8 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -80,7 +80,7 @@
                 </svg>
             </div>
             <p class="text-3xl font-bold">{{ total_news }}</p>
-            <p class="text-sm opacity-90">활성 속보</p>
+            <p class="text-sm opacity-90">활성 공지</p>
         </div>
     </div>
 
@@ -253,7 +253,7 @@
             <p class="text-sm text-gray-600">투표 목록, 결과 확인, 삭제</p>
         </a>
 
-        <!-- 속보 관리 -->
+        <!-- 공지 관리 -->
         <a href="{{ url_for('admin.breaking_news') }}"
            class="bg-white rounded-lg shadow-md p-6 hover:shadow-xl transition-shadow">
             <div class="flex items-center mb-4">
@@ -263,8 +263,8 @@
                     </svg>
                 </div>
             </div>
-            <h3 class="text-lg font-bold text-gray-900 mb-2">속보 관리</h3>
-            <p class="text-sm text-gray-600">속보 목록, 우선순위, 활성화</p>
+            <h3 class="text-lg font-bold text-gray-900 mb-2">공지 관리</h3>
+            <p class="text-sm text-gray-600">공지 목록, 우선순위, 활성화</p>
         </a>
 
         <!-- 상세 통계 -->
@@ -281,7 +281,7 @@
             <p class="text-sm text-gray-600">월별 통계, 사용자 랭킹</p>
         </a>
 
-        <!-- 속보 작성 -->
+        <!-- 공지 작성 -->
         <a href="{{ url_for('news.create') }}"
            class="bg-gradient-to-br from-red-500 to-red-600 rounded-lg shadow-md p-6 hover:shadow-xl transition-shadow text-white">
             <div class="flex items-center mb-4">
@@ -291,8 +291,8 @@
                     </svg>
                 </div>
             </div>
-            <h3 class="text-lg font-bold mb-2">📰 속보 작성</h3>
-            <p class="text-sm opacity-90">긴급 속보 등록</p>
+            <h3 class="text-lg font-bold mb-2">📰 공지 작성</h3>
+            <p class="text-sm opacity-90">긴급 공지 등록</p>
         </a>
 
         <!-- 투표 작성 -->

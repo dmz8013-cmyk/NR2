@@ -268,7 +268,7 @@ def delete_vote(vote_id):
 @bp.route('/breaking-news')
 @admin_required
 def breaking_news():
-    """속보 관리"""
+    """공지 관리"""
     page = request.args.get('page', 1, type=int)
     per_page = 20
 

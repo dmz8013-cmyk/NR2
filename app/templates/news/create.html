@@ -1,11 +1,11 @@
 {% extends "layouts/base.html" %}
 
-{% block title %}속보 등록 - NR2 Network{% endblock %}
+{% block title %}공지 등록 - NR2 Network{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto">
     <div class="bg-white rounded-lg shadow-md p-6">
-        <h1 class="text-2xl font-bold text-gray-900 mb-6">📰 속보 등록</h1>
+        <h1 class="text-2xl font-bold text-gray-900 mb-6">📰 공지 등록</h1>
 
         <form method="POST" action="{{ url_for('news.create') }}">
             <!-- 제목 -->
@@ -18,7 +18,7 @@
                        name="title"
                        required
                        class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-                       placeholder="속보 제목을 입력하세요">
+                       placeholder="공지 제목을 입력하세요">
             </div>
 
             <!-- 출처 -->
@@ -61,7 +61,7 @@
                           rows="10"
                           required
                           class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-                          placeholder="속보 내용을 입력하세요"></textarea>
+                          placeholder="공지 내용을 입력하세요"></textarea>
             </div>
 
             <!-- 버튼 -->
