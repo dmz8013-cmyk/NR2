@@ -22,11 +22,20 @@
 </head>
 <body class="bg-gray-50">
     <!-- Navigation -->
-    <nav class="bg-white shadow-lg">
+    <nav class="bg-white shadow-lg relative z-40" x-data="{ mobileOpen: false }">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
-                <div class="flex">
-                    <!-- Logo -->
+                <div class="flex items-center">
+                    <!-- 햄버거 버튼 (모바일) -->
+                    <button @click="mobileOpen = !mobileOpen"
+                            class="sm:hidden mr-3 text-gray-600 hover:text-gray-900 focus:outline-none">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path x-show="!mobileOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                            <path x-show="mobileOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+
+                    <!-- 로고 -->
                     <div class="flex-shrink-0 flex items-center">
                         <a href="{{ url_for('main.index') }}" class="flex flex-col">
                             <span class="text-2xl font-bold text-blue-600">🌐 NR2 Network</span>
@@ -34,52 +43,26 @@
                         </a>
                     </div>
 
-                    <!-- Main Navigation -->
+                    <!-- PC 메뉴 -->
                     <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-                        <a href="{{ url_for('news.breaking') }}"
-                           class="border-transparent text-red-600 hover:border-red-300 hover:text-red-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold">
-                            📢 공지
-                        </a>
-                        <a href="{{ url_for('boards.board', board_type='free') }}"
-                           class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            자유게시판
-                        </a>
-                        <a href="{{ url_for('boards.board', board_type='morpheus') }}"
-                           class="border-transparent text-purple-600 hover:border-purple-300 hover:text-purple-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            💊 모피어스뉴스
-                        </a>
-                        <a href="{{ url_for('boards.board', board_type='aesa') }}"
-                           class="border-transparent text-yellow-600 hover:border-yellow-300 hover:text-yellow-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            🐕 누렁이 AESA
-                        </a>
-                        <a href="{{ url_for('votes.list') }}"
-                           class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            투표
-                        </a>
-                        <a href="{{ url_for('boards.board', board_type='left') }}"
-                           class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            LEFT로 가세요
-                        </a>
-                        <a href="{{ url_for('boards.board', board_type='right') }}"
-                           class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            RIGHT로 가세요
-                        </a>
+                        <a href="{{ url_for('news.breaking') }}" class="border-transparent text-red-600 hover:border-red-300 hover:text-red-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold">📢 공지</a>
+                        <a href="{{ url_for('boards.board', board_type='free') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">자유게시판</a>
+                        <a href="{{ url_for('boards.board', board_type='morpheus') }}" class="border-transparent text-purple-600 hover:border-purple-300 hover:text-purple-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">💊 모피어스뉴스</a>
+                        <a href="{{ url_for('boards.board', board_type='aesa') }}" class="border-transparent text-yellow-600 hover:border-yellow-300 hover:text-yellow-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">🐕 누렁이 AESA</a>
+                        <a href="{{ url_for('votes.list') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">투표</a>
+                        <a href="{{ url_for('boards.board', board_type='left') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">LEFT로 가세요</a>
+                        <a href="{{ url_for('boards.board', board_type='right') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">RIGHT로 가세요</a>
                         {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('calendar.index') }}"
-                           class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                            캘린더
-                        </a>
+                        <a href="{{ url_for('calendar.index') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">캘린더</a>
                         {% endif %}
                     </div>
                 </div>
 
-                <!-- Right Navigation -->
-                <div class="flex items-center">
+                <!-- 우측 (PC) -->
+                <div class="hidden sm:flex items-center">
                     {% if current_user.is_authenticated %}
-                        <!-- Profile Image & Dropdown -->
                         <div x-data="{ open: false }" class="relative">
-                            <button @click="open = !open"
-                                    class="flex items-center space-x-2 focus:outline-none">
+                            <button @click="open = !open" class="flex items-center space-x-2 focus:outline-none">
                                 <img src="{{ url_for('static', filename='uploads/profiles/' + current_user.profile_image) }}"
                                      alt="{{ current_user.nickname }}"
                                      class="w-8 h-8 rounded-full object-cover border-2 border-gray-300">
@@ -88,40 +71,67 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                                 </svg>
                             </button>
-
-                            <!-- Dropdown Menu -->
-                            <div x-show="open"
-                                 @click.away="open = false"
-                                 x-transition
-                                 class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-                                <a href="{{ url_for('auth.profile') }}"
-                                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                    👤 프로필
-                                </a>
+                            <div x-show="open" @click.away="open = false" x-transition class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                                <a href="{{ url_for('auth.profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">👤 프로필</a>
                                 {% if current_user.is_admin %}
-                                <a href="{{ url_for('admin.dashboard') }}"
-                                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                    ⚙️ 관리자
-                                </a>
+                                <a href="{{ url_for('admin.dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">⚙️ 관리자</a>
                                 {% endif %}
                                 <hr class="my-1">
-                                <a href="{{ url_for('auth.logout') }}"
-                                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                    🚪 로그아웃
-                                </a>
+                                <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">🚪 로그아웃</a>
                             </div>
                         </div>
                     {% else %}
-                        <a href="{{ url_for('auth.login') }}"
-                           class="text-sm font-medium text-gray-700 hover:text-gray-900 mr-4">
-                            로그인
-                        </a>
-                        <a href="{{ url_for('auth.register') }}"
-                           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                            회원가입
-                        </a>
+                        <a href="{{ url_for('auth.login') }}" class="text-sm font-medium text-gray-700 hover:text-gray-900 mr-4">로그인</a>
+                        <a href="{{ url_for('auth.register') }}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">회원가입</a>
                     {% endif %}
                 </div>
+
+                <!-- 우측 (모바일) -->
+                <div class="sm:hidden flex items-center">
+                    {% if current_user.is_authenticated %}
+                        <div x-data="{ open: false }" class="relative">
+                            <button @click="open = !open" class="flex items-center focus:outline-none">
+                                <img src="{{ url_for('static', filename='uploads/profiles/' + current_user.profile_image) }}"
+                                     alt="{{ current_user.nickname }}"
+                                     class="w-8 h-8 rounded-full object-cover border-2 border-gray-300">
+                            </button>
+                            <div x-show="open" @click.away="open = false" x-transition class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                                <a href="{{ url_for('auth.profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">👤 프로필</a>
+                                {% if current_user.is_admin %}
+                                <a href="{{ url_for('admin.dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">⚙️ 관리자</a>
+                                {% endif %}
+                                <hr class="my-1">
+                                <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">🚪 로그아웃</a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <a href="{{ url_for('auth.register') }}" class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">회원가입</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 모바일 드롭다운 메뉴 -->
+        <div x-show="mobileOpen"
+             @click.away="mobileOpen = false"
+             x-transition
+             class="sm:hidden absolute w-full bg-white shadow-lg border-t border-gray-200 z-50">
+            <div class="px-4 py-2 space-y-1">
+                <a href="{{ url_for('news.breaking') }}" @click="mobileOpen=false" class="block px-3 py-3 text-red-600 font-bold border-b border-gray-100">📢 공지</a>
+                <a href="{{ url_for('boards.board', board_type='free') }}" @click="mobileOpen=false" class="block px-3 py-3 text-gray-700 border-b border-gray-100">📋 자유게시판</a>
+                <a href="{{ url_for('boards.board', board_type='morpheus') }}" @click="mobileOpen=false" class="block px-3 py-3 text-purple-600 border-b border-gray-100">💊 모피어스뉴스</a>
+                <a href="{{ url_for('boards.board', board_type='aesa') }}" @click="mobileOpen=false" class="block px-3 py-3 text-yellow-600 border-b border-gray-100">🐕 누렁이 AESA</a>
+                <a href="{{ url_for('votes.list') }}" @click="mobileOpen=false" class="block px-3 py-3 text-gray-700 border-b border-gray-100">🗳️ 투표</a>
+                <a href="{{ url_for('boards.board', board_type='left') }}" @click="mobileOpen=false" class="block px-3 py-3 text-blue-600 border-b border-gray-100">◀ LEFT로 가세요</a>
+                <a href="{{ url_for('boards.board', board_type='right') }}" @click="mobileOpen=false" class="block px-3 py-3 text-red-500 border-b border-gray-100">▶ RIGHT로 가세요</a>
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('calendar.index') }}" @click="mobileOpen=false" class="block px-3 py-3 text-gray-700 border-b border-gray-100">📅 캘린더</a>
+                {% else %}
+                <div class="flex gap-3 py-3">
+                    <a href="{{ url_for('auth.login') }}" class="flex-1 text-center py-2 border border-gray-300 rounded-lg text-gray-700 font-medium">로그인</a>
+                    <a href="{{ url_for('auth.register') }}" class="flex-1 text-center py-2 bg-blue-600 rounded-lg text-white font-medium">회원가입</a>
+                </div>
+                {% endif %}
             </div>
         </div>
     </nav>
