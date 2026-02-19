@@ -16,6 +16,7 @@ app = create_app()
 
 from app.jobs.youtube_feed import check_and_post_new_videos
 from nureongi_news_bot import run_news_bot
+from ai_briefing import send_briefing
 
 scheduler = BlockingScheduler(timezone='Asia/Seoul')
 INTERVAL_MINUTES = int(os.environ.get('YOUTUBE_CHECK_INTERVAL', 10))
@@ -31,6 +32,16 @@ def job():
 def news_job():
     logger.info('[Scheduler] 뉴스 크롤링 중...')
     run_news_bot()
+
+@scheduler.scheduled_job('cron', hour=6, minute=0, id='morning_briefing', timezone='Asia/Seoul')
+def morning_briefing():
+    logger.info('[Scheduler] 아침 AI 브리핑 생성 중...')
+    send_briefing()
+
+@scheduler.scheduled_job('cron', hour=18, minute=0, id='evening_briefing', timezone='Asia/Seoul')
+def evening_briefing():
+    logger.info('[Scheduler] 저녁 AI 브리핑 생성 중...')
+    send_briefing()
 
 if __name__ == '__main__':
     logger.info(f'[Scheduler] 시작 — {INTERVAL_MINUTES}분마다 유튜브 RSS 피드 확인')
