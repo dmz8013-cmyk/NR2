@@ -1,6 +1,5 @@
 """
-APScheduler 스케줄러 워커
-Railway에서 gunicorn과 별도 프로세스로 실행됩니다.
+APScheduler 스케줄러 워커 - Railway worker 서비스 전용
 """
 import os
 import logging
@@ -19,7 +18,6 @@ from app.jobs.youtube_feed import check_and_post_new_videos
 from nureongi_news_bot import run_news_bot
 
 scheduler = BlockingScheduler(timezone='Asia/Seoul')
-
 INTERVAL_MINUTES = int(os.environ.get('YOUTUBE_CHECK_INTERVAL', 10))
 
 @scheduler.scheduled_job('interval', minutes=INTERVAL_MINUTES, id='youtube_feed_check',
