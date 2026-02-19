@@ -36,8 +36,8 @@ def generate_briefing(articles):
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     period = '아침' if datetime.now().hour < 12 else '저녁'
     date_str = datetime.now().strftime('%Y년 %m월 %d일')
-    article_text = '
-'.join([f"[{a['section']}] {a['title']}" for a in articles])
+    article_text = "
+".join(["[" + a["section"] + "] " + a["title"] for a in articles])
     prompt = f'다음은 최근 12시간 동안 수집된 뉴스 기사 목록입니다:
 
 {article_text}
