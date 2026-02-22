@@ -1,45 +1,31 @@
-/* Custom styles for NR2 */
-
-/* Smooth transitions */
-* {
-    transition: color 0.2s ease, background-color 0.2s ease;
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+:root {
+  --nr2-gold: #D4A843;
+  --nr2-navy: #1a1a2e;
+  --nr2-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
-/* Custom scrollbar */
-::-webkit-scrollbar {
-    width: 10px;
+body {
+  font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
-
-::-webkit-scrollbar-track {
-    background: #f1f1f1;
+* { transition: color 0.2s ease, background-color 0.2s ease; }
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #999; }
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(212, 168, 67, 0.2);
+  border-color: var(--nr2-gold) !important;
 }
-
-::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 5px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #555;
-}
-
-/* Form focus styles */
-input:focus,
-textarea:focus,
-select:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-/* Button hover effects */
-button:hover,
-a.button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-/* Card hover effects */
-.card-hover:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-}
+nav { backdrop-filter: blur(20px); background: rgba(255,255,255,0.9) !important; border-bottom: 1px solid rgba(0,0,0,0.05); }
+button:hover, [type="submit"]:hover { transform: translateY(-1px); }
+button:active, [type="submit"]:active { transform: translateY(0); }
+.divide-y > *:hover { background: rgba(212,168,67,0.03); }
+footer { background: var(--nr2-navy) !important; color: #9ca3af !important; border-top: none !important; }
+footer p.text-gray-700 { color: #fff !important; }
+footer p.text-gray-500 { color: #9ca3af !important; }
+footer .text-gray-400, footer p.text-gray-400 { color: #6b7280 !important; }
+footer a { color: #9ca3af !important; }
+footer a:hover { color: #D4A843 !important; }
+::selection { background: rgba(212,168,67,0.2); }
