@@ -38,7 +38,7 @@
                 <div class="flex items-center space-x-6">
                     <!-- Current Profile Image -->
                     <div class="flex-shrink-0">
-                        <img src="{{ url_for('static', filename='uploads/profiles/' + current_user.profile_image) }}"
+                        <img src="{% if current_user.profile_image and 'cloudinary.com' in current_user.profile_image %}{{ current_user.profile_image }}{% else %}{{ url_for('static', filename='uploads/profiles/' + current_user.profile_image) }}{% endif %}"
                              alt="{{ current_user.nickname }}"
                              class="w-32 h-32 rounded-full object-cover border-4 border-gray-200">
                     </div>

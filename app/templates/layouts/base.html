@@ -63,7 +63,7 @@
                     {% if current_user.is_authenticated %}
                         <div x-data="{ open: false }" class="relative">
                             <button @click="open = !open" class="flex items-center space-x-2 focus:outline-none">
-                                <img src="{{ url_for('static', filename='uploads/profiles/' + current_user.profile_image) }}"
+                                <img src="{% if current_user.profile_image and 'cloudinary.com' in current_user.profile_image %}{{ current_user.profile_image }}{% else %}{{ url_for('static', filename='uploads/profiles/' + current_user.profile_image) }}{% endif %}"
                                      alt="{{ current_user.nickname }}"
                                      class="w-8 h-8 rounded-full object-cover border-2 border-gray-300">
                                 <span class="text-gray-700 font-medium">{{ current_user.nickname }}님</span>
@@ -91,7 +91,7 @@
                     {% if current_user.is_authenticated %}
                         <div x-data="{ open: false }" class="relative">
                             <button @click="open = !open" class="flex items-center focus:outline-none">
-                                <img src="{{ url_for('static', filename='uploads/profiles/' + current_user.profile_image) }}"
+                                <img src="{% if current_user.profile_image and 'cloudinary.com' in current_user.profile_image %}{{ current_user.profile_image }}{% else %}{{ url_for('static', filename='uploads/profiles/' + current_user.profile_image) }}{% endif %}"
                                      alt="{{ current_user.nickname }}"
                                      class="w-8 h-8 rounded-full object-cover border-2 border-gray-300">
                             </button>
