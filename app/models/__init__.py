@@ -7,6 +7,7 @@ from app.models.event import Event
 from app.models.breaking_news import BreakingNews
 from app.models.login_attempt import LoginAttempt
 from app.models.bias_metric import BiasMetric
+from app.models.bias import NewsArticle, BiasVote, BoneTransaction
 
 __all__ = [
     'User',
@@ -21,4 +22,7 @@ __all__ = [
     'BreakingNews',
     'LoginAttempt',
     'BiasMetric',
+    'NewsArticle',
+    'BiasVote',
+    'BoneTransaction',
 ]
