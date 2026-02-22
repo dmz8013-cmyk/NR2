@@ -1,0 +1,96 @@
+{% extends "layouts/base.html" %}
+{% block title %}뉴스 편향 분석 - NR2 Network{% endblock %}
+
+{% block extra_css %}
+<style>
+.bias-bar{height:8px;border-radius:4px;overflow:hidden;display:flex}
+.bias-left{background:#3B82F6}.bias-center{background:#9CA3AF}.bias-right{background:#EF4444}
+.article-card{transition:all .2s;border:1px solid rgba(0,0,0,.06)}
+.article-card:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,.1)}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="text-3xl font-black text-gray-900">📊 뉴스 편향 분석</h1>
+      <p class="text-gray-500 mt-1">시민과 전문가가 함께 판단하는 뉴스 편향 지수</p>
+    </div>
+    {% if current_user.is_authenticated and current_user.verify_tier != 'bronze' %}
+    <a href="{{ url_for('bias.submit') }}" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-6 rounded-xl transition">+ 기사 등록</a>
+    {% endif %}
+  </div>
+
+  {% if not current_user.is_authenticated %}
+  <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-800">
+    🔒 편향 투표에 참여하려면 <a href="{{ url_for('auth.login') }}" class="font-bold underline">로그인</a> 후 본인인증이 필요합니다.
+  </div>
+  {% elif current_user.verify_tier == 'bronze' %}
+  <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-800">
+    🔒 편향 투표 참여를 위해 본인인증이 필요합니다. 프로필에서 인증을 진행하세요.
+  </div>
+  {% endif %}
+
+  <div class="grid gap-4">
+    {% for article in articles.items %}
+    <a href="{{ url_for('bias.detail', article_id=article.id) }}" class="article-card bg-white rounded-xl p-5 block">
+      <div class="flex items-start justify-between gap-4">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-2">
+            {% if article.source %}
+            <span class="text-xs font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600">{{ article.source }}</span>
+            {% endif %}
+            {% if article.bias_label == 'left' %}
+            <span class="text-xs font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700">◀ 진보편향</span>
+            {% elif article.bias_label == 'right' %}
+            <span class="text-xs font-bold px-2 py-0.5 rounded bg-red-100 text-red-700">보수편향 ▶</span>
+            {% elif article.bias_label == 'center' %}
+            <span class="text-xs font-bold px-2 py-0.5 rounded bg-gray-100 text-gray-700">⚖ 중도</span>
+            {% else %}
+            <span class="text-xs font-bold px-2 py-0.5 rounded bg-yellow-100 text-yellow-700">📊 집계중</span>
+            {% endif %}
+          </div>
+          <h3 class="font-bold text-gray-900 mb-2 line-clamp-2">{{ article.title }}</h3>
+          {% if article.vote_total >= 10 %}
+          <div class="bias-bar w-full max-w-md mb-2">
+            <div class="bias-left" style="width:{{ article.left_pct }}%"></div>
+            <div class="bias-center" style="width:{{ article.center_pct }}%"></div>
+            <div class="bias-right" style="width:{{ article.right_pct }}%"></div>
+          </div>
+          <div class="flex gap-4 text-xs text-gray-400">
+            <span>◀ {{ article.left_pct }}%</span>
+            <span>⚖ {{ article.center_pct }}%</span>
+            <span>{{ article.right_pct }}% ▶</span>
+            <span class="ml-auto">{{ article.vote_total }}명 참여</span>
+          </div>
+          {% else %}
+          <p class="text-xs text-gray-400">{{ article.vote_total }}명 참여 · 10명 이상 시 결과 공개</p>
+          {% endif %}
+        </div>
+      </div>
+    </a>
+    {% else %}
+    <div class="text-center py-16 text-gray-400">
+      <p class="text-4xl mb-4">📰</p>
+      <p>아직 등록된 기사가 없습니다.</p>
+      {% if current_user.is_authenticated and current_user.verify_tier != 'bronze' %}
+      <a href="{{ url_for('bias.submit') }}" class="inline-block mt-4 text-amber-600 font-bold hover:underline">첫 기사를 등록해보세요!</a>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if articles.pages > 1 %}
+  <div class="flex justify-center gap-2 mt-8">
+    {% for p in articles.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+      {% if p %}
+        <a href="{{ url_for('bias.index', page=p) }}" class="px-3 py-1 rounded-lg text-sm {% if p == articles.page %}bg-amber-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">{{ p }}</a>
+      {% else %}
+        <span class="px-2 text-gray-400">...</span>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -80,7 +80,7 @@ def create_app(config_name='default'):
         return '파일 크기가 너무 큽니다. 최대 16MB까지 업로드 가능합니다.', 413
 
     # Register blueprints
-    from app.routes import auth, boards, main, admin, votes, calendar, news
+    from app.routes import auth, boards, main, admin, votes, calendar, news, bias
     app.register_blueprint(auth.bp)
     app.register_blueprint(boards.bp)
     app.register_blueprint(main.bp)
@@ -88,6 +88,7 @@ def create_app(config_name='default'):
     app.register_blueprint(votes.bp)
     app.register_blueprint(calendar.bp)
     app.register_blueprint(news.bp)
+    app.register_blueprint(bias.bp)
 
     # Import models for Flask-Migrate
     from app import models

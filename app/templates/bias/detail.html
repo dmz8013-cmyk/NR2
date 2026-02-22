@@ -1,0 +1,90 @@
+{% extends "layouts/base.html" %}
+{% block title %}{{ article.title }} - 편향 분석{% endblock %}
+
+{% block extra_css %}
+<style>
+.bias-bar-lg{height:16px;border-radius:8px;overflow:hidden;display:flex}
+.bias-left{background:#3B82F6}.bias-center{background:#9CA3AF}.bias-right{background:#EF4444}
+.vote-btn{transition:all .2s}.vote-btn:hover{transform:scale(1.03)}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-8">
+  <a href="{{ url_for('bias.index') }}" class="text-gray-400 hover:text-gray-600 text-sm mb-4 inline-block">&larr; 목록으로</a>
+
+  <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+    <div class="flex items-center gap-2 mb-3">
+      {% if article.source %}
+      <span class="text-xs font-semibold px-2 py-1 rounded bg-gray-100 text-gray-600">{{ article.source }}</span>
+      {% endif %}
+      <span class="text-xs text-gray-400">{{ article.created_at.strftime('%Y.%m.%d %H:%M') }}</span>
+    </div>
+
+    <h1 class="text-2xl font-black text-gray-900 mb-3">{{ article.title }}</h1>
+
+    {% if article.summary %}
+    <p class="text-gray-600 text-sm mb-4 leading-relaxed">{{ article.summary }}</p>
+    {% endif %}
+
+    <a href="{{ article.url }}" target="_blank" rel="noopener" class="inline-block text-sm text-blue-600 hover:underline mb-6">🔗 원문 보기 →</a>
+
+    {% if article.vote_total >= 10 %}
+    <div class="bg-gray-50 rounded-xl p-5 mb-6">
+      <p class="text-sm font-bold text-gray-700 mb-3">📊 편향 분석 결과</p>
+      <div class="bias-bar-lg w-full mb-3">
+        <div class="bias-left" style="width:{{ article.left_pct }}%"></div>
+        <div class="bias-center" style="width:{{ article.center_pct }}%"></div>
+        <div class="bias-right" style="width:{{ article.right_pct }}%"></div>
+      </div>
+      <div class="flex justify-between text-sm">
+        <span class="text-blue-600 font-bold">◀ 진보 {{ article.left_pct }}%</span>
+        <span class="text-gray-500 font-bold">⚖ 중도 {{ article.center_pct }}%</span>
+        <span class="text-red-600 font-bold">보수 {{ article.right_pct }}% ▶</span>
+      </div>
+      <p class="text-xs text-gray-400 mt-2 text-center">{{ article.vote_total }}명 참여</p>
+    </div>
+    {% else %}
+    <div class="bg-yellow-50 rounded-xl p-5 mb-6 text-center">
+      <p class="text-amber-700 font-bold mb-1">📊 집계중</p>
+      <p class="text-sm text-amber-600">{{ article.vote_total }}명 참여 · {{ 10 - article.vote_total }}명 더 참여하면 결과가 공개됩니다</p>
+    </div>
+    {% endif %}
+
+    {% if current_user.is_authenticated and current_user.verify_tier != 'bronze' %}
+    <div class="border-t pt-6">
+      <p class="text-sm font-bold text-gray-700 mb-4">이 기사의 편향을 판단해주세요</p>
+      <form method="POST" action="{{ url_for('bias.vote', article_id=article.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="grid grid-cols-3 gap-3">
+          <button type="submit" name="bias" value="left" class="vote-btn rounded-xl p-4 text-center border-2 {% if user_vote and user_vote.bias == 'left' %}border-blue-500 bg-blue-50{% else %}border-gray-200 hover:border-blue-300 hover:bg-blue-50{% endif %}">
+            <div class="text-2xl mb-1">◀</div>
+            <div class="font-bold text-sm text-blue-600">진보편향</div>
+          </button>
+          <button type="submit" name="bias" value="center" class="vote-btn rounded-xl p-4 text-center border-2 {% if user_vote and user_vote.bias == 'center' %}border-gray-500 bg-gray-50{% else %}border-gray-200 hover:border-gray-400 hover:bg-gray-50{% endif %}">
+            <div class="text-2xl mb-1">⚖</div>
+            <div class="font-bold text-sm text-gray-600">중도/사실</div>
+          </button>
+          <button type="submit" name="bias" value="right" class="vote-btn rounded-xl p-4 text-center border-2 {% if user_vote and user_vote.bias == 'right' %}border-red-500 bg-red-50{% else %}border-gray-200 hover:border-red-300 hover:bg-red-50{% endif %}">
+            <div class="text-2xl mb-1">▶</div>
+            <div class="font-bold text-sm text-red-600">보수편향</div>
+          </button>
+        </div>
+      </form>
+      {% if user_vote %}
+      <p class="text-xs text-gray-400 mt-3 text-center">투표를 변경하려면 다른 옵션을 클릭하세요</p>
+      {% endif %}
+    </div>
+    {% elif not current_user.is_authenticated %}
+    <div class="border-t pt-6 text-center">
+      <p class="text-gray-500 text-sm mb-3">편향 투표에 참여하려면 로그인이 필요합니다</p>
+      <a href="{{ url_for('auth.login') }}" class="inline-block bg-amber-500 text-white font-bold py-2 px-6 rounded-xl">로그인</a>
+    </div>
+    {% else %}
+    <div class="border-t pt-6 text-center">
+      <p class="text-gray-500 text-sm">🔒 본인인증 후 투표에 참여할 수 있습니다</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
