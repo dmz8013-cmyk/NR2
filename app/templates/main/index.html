@@ -111,6 +111,75 @@
     </div>
   </div>
 
+
+  <!-- ═══ 🔥 실시간 베스트 ═══ -->
+  {% if hot_posts %}
+  <div class="bg-white py-16">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="flex items-center justify-between mb-8">
+        <div>
+          <div class="flex items-center gap-3">
+            <span class="text-3xl">🔥</span>
+            <h2 class="text-2xl md:text-3xl font-black text-gray-900">실시간 베스트</h2>
+          </div>
+          <p class="text-gray-400 text-sm mt-1 ml-12">지금 누렁이방에서 가장 뜨거운 글</p>
+        </div>
+      </div>
+
+      <div class="grid gap-3">
+        {% for post in hot_posts %}
+        <a href="{{ url_for('boards.view_post', board_type=post.board_type, post_id=post.id) }}"
+           class="group flex items-center gap-4 bg-gray-50 hover:bg-amber-50 rounded-xl px-5 py-4 transition-all duration-200 border border-transparent hover:border-amber-200">
+          
+          <!-- 순위 -->
+          <div class="flex-shrink-0 w-8 text-center">
+            {% if loop.index <= 3 %}
+              <span class="text-lg font-black {% if loop.index == 1 %}text-red-500{% elif loop.index == 2 %}text-orange-500{% else %}text-amber-500{% endif %}">{{ loop.index }}</span>
+            {% else %}
+              <span class="text-lg font-bold text-gray-300">{{ loop.index }}</span>
+            {% endif %}
+          </div>
+
+          <!-- 게시판 태그 -->
+          <div class="flex-shrink-0">
+            {% if post.board_type == 'free' %}
+              <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded-md bg-green-100 text-green-700">자유</span>
+            {% elif post.board_type == 'morpheus' %}
+              <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded-md bg-purple-100 text-purple-700">모피어스</span>
+            {% elif post.board_type == 'aesa' %}
+              <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded-md bg-amber-100 text-amber-700">AESA</span>
+            {% elif post.board_type == 'left' %}
+              <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded-md bg-blue-100 text-blue-700">LEFT</span>
+            {% elif post.board_type == 'right' %}
+              <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded-md bg-red-100 text-red-700">RIGHT</span>
+            {% else %}
+              <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded-md bg-gray-100 text-gray-700">{{ post.board_type }}</span>
+            {% endif %}
+          </div>
+
+          <!-- 제목 -->
+          <div class="flex-1 min-w-0">
+            <p class="text-gray-900 font-medium truncate group-hover:text-amber-700 transition">{{ post.title }}</p>
+          </div>
+
+          <!-- 댓글수 -->
+          {% if post.comments_count > 0 %}
+          <span class="flex-shrink-0 text-red-500 font-bold text-sm">[{{ post.comments_count }}]</span>
+          {% endif %}
+
+          <!-- 메타 정보 -->
+          <div class="hidden sm:flex items-center gap-3 flex-shrink-0 text-xs text-gray-400">
+            <span>👁 {{ post.views }}</span>
+            <span>💬 {{ post.comments_count }}</span>
+            <span>❤ {{ post.likes_count }}</span>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="bg-gray-50 py-16">
     <div class="max-w-6xl mx-auto px-4">
       <div class="text-center mb-12">
