@@ -4,10 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}NR2 Network{% endblock %}</title>
-    <meta name="description" content="정보가 흐르고, 사람이 연결되는 곳 - NR2 Network">
-    <meta property="og:title" content="NR2 Network">
-    <meta property="og:description" content="정보가 흐르고, 사람이 연결되는 곳">
+    <meta name="description" content="정치·시사·AI·코인 정보가 흐르고, 사람이 연결되는 곳 - NR2 Network 누렁이방">
+    <!-- Open Graph -->
+    <meta property="og:title" content="{% block og_title %}NR2 Network - 누렁이방{% endblock %}">
+    <meta property="og:description" content="{% block og_desc %}정치·시사·AI·코인 정보가 흐르고, 사람이 연결되는 곳{% endblock %}">
     <meta property="og:type" content="website">
+    <meta property="og:url" content="https://nr2.kr{{ request.path }}">
+    <meta property="og:site_name" content="NR2 Network">
+    <meta property="og:locale" content="ko_KR">
+    <meta property="og:image" content="{% block og_image %}https://nr2.kr/static/images/nureongi.jpg{% endblock %}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="NR2 Network - 누렁이방">
+    <meta name="twitter:description" content="정치·시사·AI·코인 정보가 흐르고, 사람이 연결되는 곳">
+    <meta name="twitter:image" content="https://nr2.kr/static/images/nureongi.jpg">
+
+    <!-- Naver -->
+    <meta name="naver-site-verification" content="">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
