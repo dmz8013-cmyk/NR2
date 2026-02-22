@@ -32,8 +32,8 @@ logger = logging.getLogger("ai_briefing")
 KST = ZoneInfo("Asia/Seoul")
 HAIKU_MODEL = "claude-haiku-4-5-20251001"
 MAX_ARTICLES_PER_CATEGORY = 15
-BRIEFING_MIN_CHARS = 600
-BRIEFING_MAX_CHARS = 800
+BRIEFING_MIN_CHARS = 1000
+BRIEFING_MAX_CHARS = 1500
 TELEGRAM_MAX_LENGTH = 4096
 
 # ── RSS 피드 설정 (카테고리별) ────────────────────
@@ -187,17 +187,24 @@ def generate_briefing_with_ai(
 
     today_str = datetime.now(KST).strftime("%Y년 %m월 %d일")
 
-    prompt = f"""당신은 '누렁이 정보방'의 뉴스 브리핑 AI입니다.
+    time_str = "06:00" if "아침" in period else "18:00"
+
+    prompt = f"""당신은 '누렁이 정보공유방'의 뉴스 브리핑 AI입니다.
 아래 뉴스 헤드라인들을 바탕으로 {period} 브리핑을 작성하세요.
 
 [작성 규칙]
-1. 첫 줄: "{period} 브리핑 | {today_str}"
-2. 4개 분야(정치/시사, 경제/산업, AI/기술, 기타)별로 핵심 내용을 3~5문장으로 요약
-3. 전체 글자 수: {BRIEFING_MIN_CHARS}~{BRIEFING_MAX_CHARS}자 (한글 기준, 반드시 준수)
-4. 이모지를 분야 제목에 사용하여 가독성 확보 (🏛️ 💰 🤖 🎯 등)
-5. 마지막 줄: "📰 더 많은 정보: nr2.kr"
-6. 공식적이지만 친근한 톤
-7. 각 분야는 빈 줄로 구분
+1. 첫 줄(제목): "{period} 누렁이 정보공유방 브리핑 | {today_str} {time_str}"
+2. 제목 바로 다음 줄에 출처 헤더:
+   출처: https://t.me/gazzzza2025
+   (실시간 텔레그램 정보방)
+3. 한 줄 빈 줄 후 4개 분야(🏛️ 정치/시사, 💰 경제/산업, 🤖 AI/기술, 🎯 기타) 시작
+4. 각 분야별 핵심 내용을 4~6문장으로 충분히 요약 (특히 마지막 '기타' 분야도 반드시 완전한 문장으로 마무리)
+5. 전체 글자 수: {BRIEFING_MIN_CHARS}~{BRIEFING_MAX_CHARS}자 (한글 기준, 반드시 준수)
+6. 공식적이지만 친근한 톤, 각 분야는 빈 줄로 구분
+7. 모든 분야의 모든 문장은 반드시 완결된 형태로 끝나야 합니다 (절대 문장 중간에 끊기지 않도록)
+8. 마지막 분야 요약이 끝난 후 빈 줄을 넣고 출처 푸터:
+   출처: https://buly.kr/7mBN720
+   (실시간 카카오톡 오픈채팅)
 
 [오늘의 뉴스 헤드라인]
 {news_block}"""
@@ -205,7 +212,7 @@ def generate_briefing_with_ai(
     client = anthropic.Anthropic(api_key=api_key)
     response = client.messages.create(
         model=HAIKU_MODEL,
-        max_tokens=1024,
+        max_tokens=2048,
         messages=[{"role": "user", "content": prompt}],
     )
 
