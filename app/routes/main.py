@@ -13,3 +13,8 @@ def index():
 def about():
     """소개 페이지"""
     return render_template('main/about.html')
+
+
+@bp.route('/policy')
+def policy():
+    return render_template('policy.html')
