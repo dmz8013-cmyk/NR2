@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template
+from app.models.bias import NewsArticle
 from app.models.post import Post
 from app.models.comment import Comment
 from app import db
@@ -45,7 +46,11 @@ def get_hot_posts(limit=10):
 def index():
     """메인 페이지"""
     hot_posts = get_hot_posts(10)
-    return render_template('main/index.html', hot_posts=hot_posts)
+    try:
+        articles = NewsArticle.query.order_by(NewsArticle.created_at.desc()).limit(5).all()
+    except Exception:
+        articles = []
+    return render_template('main/index.html', hot_posts=hot_posts, articles=articles)
 
 
 @bp.route('/about')
