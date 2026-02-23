@@ -25,18 +25,14 @@ KST = pytz.timezone('Asia/Seoul')
 
 # ─── 검색 키워드 ───
 SEARCH_QUERIES = [
-    # 정부/여당
     "이재명 대통령",
     "더불어민주당",
     "이재명 정부",
-    # 야당
     "국민의힘",
     "보수 야당",
-    # 법조/국제
     "국회 법안",
     "한미 외교",
     "검찰 수사",
-    # 기타 정치
     "정치 속보",
     "여야 대치",
 ]
@@ -45,8 +41,8 @@ SEARCH_QUERIES = [
 def search_naver_news(query, display=10, sort='date'):
     """네이버 뉴스 검색 API 호출"""
     try:
-        enc_query = urllib.parse.quote(query)
-        url = f"https://openapi.naver.com/v1/search/news.json?query={enc_query}&display={display}&sort={sort}"
+        params = urllib.parse.urlencode({'query': query, 'display': display, 'sort': sort})
+        url = f"https://openapi.naver.com/v1/search/news.json?{params}"
 
         req = urllib.request.Request(url)
         req.add_header("X-Naver-Client-Id", NAVER_CLIENT_ID)
@@ -75,39 +71,31 @@ def collect_political_news(is_afternoon=True):
         items = search_naver_news(query, display=15, sort='date')
 
         for item in items:
-            # HTML 태그 제거
             title = item.get('title', '').replace('<b>', '').replace('</b>', '').replace('&quot;', '"').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
             description = item.get('description', '').replace('<b>', '').replace('</b>', '').replace('&quot;', '"').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
             link = item.get('originallink', '') or item.get('link', '')
             pub_date_str = item.get('pubDate', '')
 
-            # 중복 제거 (제목 유사도)
             title_key = title[:30]
             if title_key in seen_titles:
                 continue
             seen_titles.add(title_key)
 
-            # 발행 시간 파싱
             try:
                 pub_date = datetime.strptime(pub_date_str, '%a, %d %b %Y %H:%M:%S %z')
                 pub_date_kst = pub_date.astimezone(KST)
             except Exception:
-                pub_date_kst = now
                 continue
 
-            # 시간 필터링
             today_9am = now.replace(hour=9, minute=0, second=0, microsecond=0)
 
             if is_afternoon:
-                # 오후 1시 브리핑: 당일 09시 ~ 13시
                 start_time = today_9am
                 end_time = now.replace(hour=13, minute=0, second=0, microsecond=0)
             else:
-                # 오후 10시 브리핑: 당일 13시 ~ 22시
                 start_time = now.replace(hour=13, minute=0, second=0, microsecond=0)
                 end_time = now.replace(hour=22, minute=0, second=0, microsecond=0)
 
-            # 시간 범위 체크 (약간의 여유 -1시간)
             start_time = start_time - timedelta(hours=1)
 
             if start_time <= pub_date_kst <= end_time:
@@ -119,7 +107,6 @@ def collect_political_news(is_afternoon=True):
                     'query': query,
                 })
 
-    # 최신순 정렬 후 상위 40개
     all_articles.sort(key=lambda x: x['pub_date'], reverse=True)
     all_articles = all_articles[:40]
 
@@ -139,10 +126,9 @@ def generate_political_briefing(articles, is_afternoon=True):
 
     now = datetime.now(KST)
     today_str = now.strftime('%y%m%d')
-    period = "오후" if is_afternoon else "저녁"
+    time_label = "13:00" if is_afternoon else "22:00"
     time_range = "09시~13시" if is_afternoon else "13시~22시"
 
-    # 기사 목록 텍스트 구성
     news_block = ""
     for i, article in enumerate(articles, 1):
         news_block += f"{i}. [{article['title']}]\n   {article['description'][:150]}\n\n"
@@ -150,9 +136,9 @@ def generate_political_briefing(articles, is_afternoon=True):
     prompt = f"""당신은 한국 정치 전문 뉴스 브리핑 AI입니다.
 아래 {len(articles)}개의 정치 뉴스 기사를 분석하여 텔레그램용 정치 브리핑을 작성하세요.
 
-[포맷 - 반드시 정확히 따르세요]
+[포맷 - 반드시 정확히 따르세요. 한 글자도 빠짐없이 이 구조를 지키세요]
 
-🔥【한방에 정리하는 정치권 이슈 - 반박시니말이맞음 {today_str}{period}】🔥
+🔥【한방에 정리하는 정치권 이슈 - 반박시니말이맞음({today_str} {time_label})】🔥
 (기사 내용을 종합한 자극적이고 핵심을 찌르는 한줄 제목)
 
 출처: https://buly.kr/7mBN720
@@ -160,45 +146,44 @@ def generate_political_briefing(articles, is_afternoon=True):
 
 ⸻⸻⸻⸻
 
-🔵 [이재명 정부]
-(이재명 대통령/정부 관련 주요 이슈 3~5개를 각각 '-'로 시작하여 한줄 요약. 없으면 최소 2개는 작성)
+🇰🇷 이재명 정부 🇰🇷
+(이재명 대통령/정부 관련 주요 이슈 3~5개를 각각 '-'로 시작하여 한줄 요약)
 
 ⸻⸻⸻⸻
 
-[더불어민주당]
+🟦 더불어민주당 🟦
 (당 내부 이슈, 의원 동향 등 3~5개를 '-'로 요약)
 
 ⸻⸻⸻⸻
 
-[국민의힘]
+🟥 국민의힘 🟥
 (국민의힘 관련 이슈 3~5개를 '-'로 요약)
 
 ⸻⸻⸻⸻
 
-[비교섭단체 및 기타 정치]
+🎸 비교섭단체 및 기타 정치 🪕
 (조국혁신당, 개혁신당, 새로운미래, 기타 정치 이슈 2~4개를 '-'로 요약)
 
 ⸻⸻⸻⸻
 
-[법조 / 국제 등]
+🌐 법조 및 국제 🌐
 (검찰 수사, 법원 판결, 외교, 국제 이슈 중 정치 관련 2~4개를 '-'로 요약)
 
 ⸻⸻⸻⸻
 
-📢누렁이 정보방📢
-🔥국내외 정보·정치·AI·코인 소식을 한눈에🔥
-[오픈카톡] https://buly.kr/7mBN720 (실시간정보)
-[텔레그램] https://t.me/gazzzza2025 (심층정보)
+출처: https://t.me/gazzzza2025
+(텔레그램 실시간 정보방)
 
 ⸻⸻⸻⸻
 
 [작성 규칙]
 1. 각 항목은 '-'로 시작하고 한줄~두줄로 간결하게 (핵심만)
 2. 말투는 단정하고 날카롭게 (예: "~로 파장", "~논란 점화", "~세 과시")
-3. 기사에 없는 내용은 절대 만들지 말것
-4. 각 섹션에 해당 기사가 부족하면 2개까지 줄여도 됨 (0개는 안됨)
-5. 총 분량: 텔레그램 한 메시지에 맞게 (3500자 이내)
-6. 제목은 반드시 자극적이고 흥미를 유발하는 문구로
+3. 마침표 세 개(...) 대신 반드시 유니코드 말줄임표(…)를 사용
+4. 기사에 없는 내용은 절대 만들지 말것
+5. 각 섹션에 해당 기사가 부족하면 2개까지 줄여도 됨 (0개는 안됨)
+6. 총 분량: 텔레그램 한 메시지에 맞게 (3500자 이내)
+7. 제목은 반드시 자극적이고 흥미를 유발하는 문구로
 
 [오늘 {time_range} 정치 뉴스]
 {news_block}"""
@@ -231,9 +216,8 @@ def send_telegram_message(text):
     try:
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
 
-        # 텔레그램 메시지 길이 제한 (4096자)
         if len(text) > 4096:
-            text = text[:4090] + "\n..."
+            text = text[:4090] + "\n…"
 
         data = json.dumps({
             "chat_id": TELEGRAM_CHAT_ID,
@@ -262,26 +246,22 @@ def send_political_briefing(is_afternoon=True):
     period = "오후 1시" if is_afternoon else "오후 10시"
     logger.info(f"=== 정치 브리핑 시작 ({period}) ===")
 
-    # 환경변수 체크
     if not NAVER_CLIENT_ID or not NAVER_CLIENT_SECRET:
         logger.error("네이버 API 키 없음")
         return
 
-    # 1. 뉴스 수집
     articles = collect_political_news(is_afternoon=is_afternoon)
 
     if not articles:
         logger.warning(f"수집된 기사 없음 - {period} 브리핑 건너뜀")
         return
 
-    # 2. Claude로 브리핑 생성
     briefing = generate_political_briefing(articles, is_afternoon=is_afternoon)
 
     if not briefing:
         logger.error("브리핑 생성 실패")
         return
 
-    # 3. 텔레그램 전송
     success = send_telegram_message(briefing)
 
     if success:
@@ -290,7 +270,6 @@ def send_political_briefing(is_afternoon=True):
         logger.error(f"=== 정치 브리핑 전송 실패 ({period}) ===")
 
 
-# 스케줄러에서 호출할 함수
 def afternoon_political_briefing():
     """오후 1시 브리핑"""
     send_political_briefing(is_afternoon=True)
@@ -303,6 +282,5 @@ def evening_political_briefing():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    # 테스트 실행
     print("정치 브리핑 테스트 실행...")
     send_political_briefing(is_afternoon=True)
