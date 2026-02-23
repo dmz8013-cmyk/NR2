@@ -49,7 +49,8 @@ def fetch_google_news(query, limit=10):
             clean_title = title.rsplit(' - ', 1)[0].strip() if ' - ' in title else title
             # 한글 기사만 필터링
             if not any("uac00" <= c <= "ud7a3" for c in clean_title):
-                continue            pub_date = item.select_one('pubDate').text.strip() if item.select_one('pubDate') else ''
+                continue            
+            pub_date = item.select_one('pubDate').text.strip() if item.select_one('pubDate') else ''
             articles.append({
                 'title': clean_title,
                 'source': source,
