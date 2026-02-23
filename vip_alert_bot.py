@@ -1,5 +1,6 @@
 """VIP 알림봇 - 머스크/트럼프 실시간 뉴스 모니터링 (네이버 API)"""
 import os
+import time
 import requests
 import json
 import logging
@@ -79,10 +80,11 @@ def check_and_send():
                     seen_titles.add(art['title'])
                     all_articles.append(art)
 
-        for art in all_articles:if new_count >= 10:
-                break
+        for art in all_articles:
             if art['link'] in sent:
                 continue
+            if new_count >= 10:
+                break
             sent.add(art['link'])
 
             message = (
@@ -102,11 +104,8 @@ def check_and_send():
                 if resp.status_code == 200:
                     print(f"✅ {target['emoji']} {art['title'][:40]}")
                     new_count += 1
-                    import time
                     time.sleep(3)
-                    if new_count >= 10:
-                        break
-                import time; time.sleep(3)                else:
+                else:
                     print(f"❌ 전송 실패: {resp.text}")
             except Exception as e:
                 print(f"❌ 오류: {e}")
