@@ -79,7 +79,8 @@ def check_and_send():
                     seen_titles.add(art['title'])
                     all_articles.append(art)
 
-        for art in all_articles:
+        for art in all_articles:if new_count >= 10:
+                break
             if art['link'] in sent:
                 continue
             sent.add(art['link'])
@@ -101,7 +102,11 @@ def check_and_send():
                 if resp.status_code == 200:
                     print(f"✅ {target['emoji']} {art['title'][:40]}")
                     new_count += 1
-                else:
+                    import time
+                    time.sleep(3)
+                    if new_count >= 10:
+                        break
+                import time; time.sleep(3)                else:
                     print(f"❌ 전송 실패: {resp.text}")
             except Exception as e:
                 print(f"❌ 오류: {e}")
