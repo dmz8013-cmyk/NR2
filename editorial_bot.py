@@ -110,7 +110,7 @@ def send_editorial():
     else:
         parts = [message]
 
-try:
+    try:
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
         for part in parts:
             resp = requests.post(url, json={
@@ -129,6 +129,7 @@ try:
     except Exception as e:
         logger.error(f"사설봇 오류: {e}")
         print(f"오류: {e}")
+
 
 
 if __name__ == "__main__":
