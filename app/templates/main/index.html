@@ -159,6 +159,29 @@ main.max-w-7xl{max-width:100%!important;padding:0!important}
     </div>
   </div>
 
+  <!-- AI 브리핑 위젯 -->
+  <div class="border-t" style="border-color:var(--nr2-border);">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10">
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-3"><span class="section-tag">AI</span><h2 class="text-xl font-bold text-white">AI 브리핑</h2></div>
+        <a href="/briefings" class="text-xs font-semibold" style="color:var(--nr2-gold)">전체보기 →</a>
+      </div>
+      {% if latest_briefings %}
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {% for b in latest_briefings %}
+        <a href="/briefings/{{ b.id }}" class="block rounded-xl p-4 transition hover:scale-[1.02]" style="background:var(--nr2-card);border:1px solid var(--nr2-border)">
+          <span class="text-xs font-semibold px-2 py-0.5 rounded-full text-white" style="background:{{ b.type_badge_color }}">{{ b.type_label }}</span>
+          <p class="text-white text-sm font-medium mt-2 line-clamp-2">{{ b.title[:60] }}</p>
+          <p class="text-zinc-500 text-xs mt-2">{{ b.created_at.strftime("%m/%d %H:%M") }}</p>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-zinc-500 text-sm">아직 브리핑이 없습니다. 매일 자동 생성됩니다.</p>
+      {% endif %}
+    </div>
+  </div>
+
   <div class="border-t" style="border-color:var(--nr2-border);">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10">
       <div class="flex items-center gap-3 mb-6"><span class="section-tag">Boards</span><h2 class="text-xl font-bold text-white">게시판</h2></div>
