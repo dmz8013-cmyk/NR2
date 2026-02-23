@@ -41,7 +41,7 @@ def fetch_google_news(query, limit=10):
     try:
         url = f'https://news.google.com/rss/search?q={requests.utils.quote(query)}&hl=ko&gl=KR&ceid=KR:ko'
         r = requests.get(url, headers=HEADERS, timeout=10)
-        soup = BeautifulSoup(r.text, 'xml')
+        soup = BeautifulSoup(r.text, 'html.parser')
         for item in soup.select('item')[:limit]:
             title = item.select_one('title').text.strip()
             link = item.select_one('link').text.strip() if item.select_one('link') else ''
