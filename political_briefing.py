@@ -264,7 +264,25 @@ def send_political_briefing(is_afternoon=True):
         return
 
     success = send_telegram_message(briefing)
-
+# DB 저장
+    try:
+        from app import create_app, db
+        from app.models.briefing import Briefing as BriefingModel
+        _app = create_app()
+        with _app.app_context():
+            btype = 'political_afternoon' if is_afternoon else 'political_evening'
+            first_line = briefing.split('\n')[0][:200]
+            record = BriefingModel(
+                briefing_type=btype,
+                title=first_line,
+                content=briefing,
+                article_count=len(articles),
+            )
+            db.session.add(record)
+            db.session.commit()
+            logger.info(f"정치 브리핑 DB 저장 완료 (id={record.id})")
+    except Exception as e:
+        logger.error(f"정치 브리핑 DB 저장 실패: {e}")
     if success:
         logger.info(f"=== 정치 브리핑 완료 ({period}) ===")
     else:

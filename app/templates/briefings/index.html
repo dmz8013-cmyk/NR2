@@ -1,0 +1,136 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}AI 브리핑 아카이브 - NR2 Network{% endblock %}
+{% block og_title %}AI 브리핑 아카이브 - NR2 Network{% endblock %}
+{% block og_desc %}매일 AI가 정리하는 뉴스 브리핑을 한눈에 확인하세요{% endblock %}
+
+{% block extra_css %}
+<style>
+    .briefing-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .briefing-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    }
+    .type-badge {
+        font-size: 0.7rem;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        color: white;
+        font-weight: 600;
+    }
+    .filter-btn {
+        transition: all 0.2s;
+    }
+    .filter-btn.active {
+        background-color: #1a1a28;
+        color: #D4A843;
+        border-color: #D4A843;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <!-- 헤더 -->
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">📰 AI 브리핑 아카이브</h1>
+        <p class="text-gray-500">매일 AI가 정리하는 뉴스 브리핑을 한눈에 확인하세요</p>
+    </div>
+
+    <!-- 필터 -->
+    <div class="flex flex-wrap justify-center gap-2 mb-8">
+        <a href="{{ url_for('briefings.index') }}"
+           class="filter-btn px-4 py-2 rounded-full border text-sm font-medium
+                  {% if not current_type %}active{% else %}border-gray-300 text-gray-600 hover:bg-gray-100{% endif %}">
+            전체
+        </a>
+        <a href="{{ url_for('briefings.index', type='ai_morning') }}"
+           class="filter-btn px-4 py-2 rounded-full border text-sm font-medium
+                  {% if current_type == 'ai_morning' %}active{% else %}border-gray-300 text-gray-600 hover:bg-gray-100{% endif %}">
+            🌅 아침 AI
+        </a>
+        <a href="{{ url_for('briefings.index', type='ai_evening') }}"
+           class="filter-btn px-4 py-2 rounded-full border text-sm font-medium
+                  {% if current_type == 'ai_evening' %}active{% else %}border-gray-300 text-gray-600 hover:bg-gray-100{% endif %}">
+            🌆 저녁 AI
+        </a>
+        <a href="{{ url_for('briefings.index', type='political_afternoon') }}"
+           class="filter-btn px-4 py-2 rounded-full border text-sm font-medium
+                  {% if current_type == 'political_afternoon' %}active{% else %}border-gray-300 text-gray-600 hover:bg-gray-100{% endif %}">
+            🏛️ 오후 정치
+        </a>
+        <a href="{{ url_for('briefings.index', type='political_evening') }}"
+           class="filter-btn px-4 py-2 rounded-full border text-sm font-medium
+                  {% if current_type == 'political_evening' %}active{% else %}border-gray-300 text-gray-600 hover:bg-gray-100{% endif %}">
+            🌙 저녁 정치
+        </a>
+    </div>
+
+    <!-- 브리핑 목록 -->
+    {% if briefings.items %}
+    <div class="space-y-4">
+        {% for b in briefings.items %}
+        <a href="{{ url_for('briefings.detail', briefing_id=b.id) }}" class="block">
+            <div class="briefing-card bg-white rounded-xl border border-gray-200 p-5">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="type-badge" style="background-color: {{ b.type_badge_color }}">
+                                {{ b.type_label }}
+                            </span>
+                            <span class="text-xs text-gray-400">
+                                {{ b.created_at.strftime('%Y.%m.%d %H:%M') }}
+                            </span>
+                        </div>
+                        <h2 class="text-lg font-semibold text-gray-800 mb-1 truncate">
+                            {{ b.title or '브리핑' }}
+                        </h2>
+                        <p class="text-sm text-gray-500 line-clamp-2">
+                            {{ b.content[:150] | replace('\n', ' ') }}…
+                        </p>
+                    </div>
+                    <div class="flex-shrink-0 text-gray-300">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- 페이지네이션 -->
+    {% if briefings.pages > 1 %}
+    <div class="flex justify-center items-center gap-2 mt-8">
+        {% if briefings.has_prev %}
+        <a href="{{ url_for('briefings.index', page=briefings.prev_num, type=current_type) }}"
+           class="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-100">
+            ← 이전
+        </a>
+        {% endif %}
+
+        <span class="px-4 py-2 text-sm text-gray-500">
+            {{ briefings.page }} / {{ briefings.pages }}
+        </span>
+
+        {% if briefings.has_next %}
+        <a href="{{ url_for('briefings.index', page=briefings.next_num, type=current_type) }}"
+           class="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-100">
+            다음 →
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-20">
+        <div class="text-6xl mb-4">📭</div>
+        <h3 class="text-xl font-semibold text-gray-600 mb-2">아직 브리핑이 없습니다</h3>
+        <p class="text-gray-400">매일 아침 6시, 오후 1시, 저녁 6시, 밤 10시에 자동 생성됩니다</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

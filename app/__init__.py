@@ -90,6 +90,9 @@ def create_app(config_name='default'):
     app.register_blueprint(news.bp)
     app.register_blueprint(bias.bp)
 
+    from app.routes import briefings
+    app.register_blueprint(briefings.bp)
+
     # Import models for Flask-Migrate
     from app import models
 

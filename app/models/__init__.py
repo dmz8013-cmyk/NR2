@@ -8,6 +8,7 @@ from app.models.breaking_news import BreakingNews
 from app.models.login_attempt import LoginAttempt
 from app.models.bias_metric import BiasMetric
 from app.models.bias import NewsArticle, BiasVote, BoneTransaction
+from app.models.briefing import Briefing
 
 __all__ = [
     'User',
