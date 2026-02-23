@@ -1,21 +1,19 @@
-"""VIP 알림봇 - 머스크/트럼프 실시간 뉴스 모니터링"""
+"""VIP 알림봇 - 머스크/트럼프 실시간 뉴스 모니터링 (네이버 API)"""
 import os
 import requests
 import json
 import logging
-from bs4 import BeautifulSoup
-from datetime import datetime
+import urllib.parse
 
 logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.environ.get('SCHEDULE_BOT_TOKEN', '8734510853:AAHsqC3fQfC0K02-xrWEZgnh9ZDGUIi2P44')
 CHAT_ID = '5132309076'
 SENT_FILE = '/tmp/vip_sent.json'
-HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'}
 
 TARGETS = [
-    {'name': '일론 머스크', 'emoji': '🚀', 'queries': ['일론 머스크', 'Elon Musk']},
-    {'name': '도널드 트럼프', 'emoji': '🇺🇸', 'queries': ['트럼프', 'Donald Trump']},
+    {'name': '일론 머스크', 'emoji': '🚀', 'queries': ['일론 머스크', '머스크']},
+    {'name': '도널드 트럼프', 'emoji': '🇺🇸', 'queries': ['트럼프', '도널드 트럼프']},
 ]
 
 
@@ -35,30 +33,33 @@ def save_sent(sent):
         pass
 
 
-def fetch_google_news(query, limit=10):
-    """Google News RSS 한국어판 크롤링"""
+def fetch_naver_news(query, limit=10):
+    """네이버 뉴스 검색 API"""
     articles = []
+    naver_id = os.environ.get('NAVER_CLIENT_ID', '')
+    naver_secret = os.environ.get('NAVER_CLIENT_SECRET', '')
+    if not naver_id:
+        return articles
     try:
-        url = f'https://news.google.com/rss/search?q={requests.utils.quote(query)}&hl=ko&gl=KR&ceid=KR:ko'
-        r = requests.get(url, headers=HEADERS, timeout=10)
-        soup = BeautifulSoup(r.text, 'html.parser')
-        for item in soup.select('item')[:limit]:
-            title = item.select_one('title').text.strip()
-            link = item.select_one('link').text.strip() if item.select_one('link') else ''
-            source = title.split(' - ')[-1].strip() if ' - ' in title else ''
-            clean_title = title.rsplit(' - ', 1)[0].strip() if ' - ' in title else title
-            # 한글 기사만 필터링
-            if not any("uac00" <= c <= "ud7a3" for c in clean_title):
-                continue            
-            pub_date = item.select_one('pubDate').text.strip() if item.select_one('pubDate') else ''
+        params = urllib.parse.urlencode({'query': query, 'display': limit, 'sort': 'date'})
+        url = f'https://openapi.naver.com/v1/search/news.json?{params}'
+        r = requests.get(url, headers={
+            'X-Naver-Client-Id': naver_id,
+            'X-Naver-Client-Secret': naver_secret,
+        }, timeout=10)
+        data = r.json()
+        for item in data.get('items', []):
+            title = item.get('title', '')
+            title = title.replace('<b>', '').replace('</b>', '')
+            title = title.replace('&quot;', '"').replace('&amp;', '&')
+            title = title.replace('&lt;', '<').replace('&gt;', '>')
+            link = item.get('originallink', item.get('link', ''))
             articles.append({
-                'title': clean_title,
-                'source': source,
+                'title': title,
                 'link': link,
-                'pub_date': pub_date,
             })
     except Exception as e:
-        logger.error(f"Google News 크롤링 실패 [{query}]: {e}")
+        logger.error(f"네이버 검색 실패 [{query}]: {e}")
     return articles
 
 
@@ -72,7 +73,7 @@ def check_and_send():
         seen_titles = set()
 
         for query in target['queries']:
-            articles = fetch_google_news(query, limit=10)
+            articles = fetch_naver_news(query, limit=10)
             for art in articles:
                 if art['title'] not in seen_titles:
                     seen_titles.add(art['title'])
@@ -85,8 +86,7 @@ def check_and_send():
 
             message = (
                 f"{target['emoji']} <b>{target['name']} 관련 뉴스</b>\n\n"
-                f"🏷️ 언론사: {art['source']}\n"
-                f"📝 제목: {art['title']}\n"
+                f"📝 {art['title']}\n"
                 f"🔗 {art['link']}"
             )
 
