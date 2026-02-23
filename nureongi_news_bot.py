@@ -98,7 +98,7 @@ def get_news():
 
     # 1) 속보 페이지 먼저 (최신순)
     for section_name, url in BREAKING_SOURCES:
-        for art in parse_articles(url, section_name, limit=40):
+        for art in parse_articles(url, section_name, limit=60):
             if art['link'] not in seen_links:
                 seen_links.add(art['link'])
                 all_articles.append(art)

@@ -28,7 +28,7 @@ def job():
     logger.info('[Scheduler] 유튜브 RSS 피드 확인 중...')
     check_and_post_new_videos(app)
 
-@scheduler.scheduled_job('interval', minutes=5, id='news_bot',
+@scheduler.scheduled_job('interval', minutes=3, id='news_bot',
                           coalesce=True, max_instances=1)
 def news_job():
     logger.info('[Scheduler] 뉴스 크롤링 중...')
