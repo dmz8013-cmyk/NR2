@@ -110,5 +110,27 @@ def send_editorial():
     else:
         parts = [message]
 
-    try:
-        url = f"https:
+try:
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        for part in parts:
+            resp = requests.post(url, json={
+                'chat_id': CHAT_ID,
+                'text': part,
+                'parse_mode': 'HTML',
+                'disable_web_page_preview': True,
+            }, timeout=10)
+            if resp.status_code == 200:
+                print(f"전송 완료 ({len(part)}자)")
+            else:
+                print(f"전송 실패: {resp.text}")
+
+        logger.info("=== 사설봇 완료 ===")
+        print("사설봇 완료 ✅")
+    except Exception as e:
+        logger.error(f"사설봇 오류: {e}")
+        print(f"오류: {e}")
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    send_editorial()
