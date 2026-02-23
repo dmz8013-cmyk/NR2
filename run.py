@@ -43,10 +43,17 @@ try:
                 user_id INTEGER REFERENCES users(id),
                 article_id INTEGER REFERENCES news_articles(id),
                 UNIQUE(user_id, article_id))""",
-            """CREATE TABLE IF NOT EXISTS bone_transactions (
+"""CREATE TABLE IF NOT EXISTS bone_transactions (
                 id SERIAL PRIMARY KEY, amount FLOAT NOT NULL,
                 reason VARCHAR(100) NOT NULL, created_at TIMESTAMP DEFAULT NOW(),
                 user_id INTEGER REFERENCES users(id))""",
+            """CREATE TABLE IF NOT EXISTS briefings (
+                id SERIAL PRIMARY KEY,
+                briefing_type VARCHAR(20) NOT NULL,
+                title VARCHAR(200),
+                content TEXT NOT NULL,
+                article_count INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT NOW())""",
         ]:
             try:
                 cur.execute(sql)
