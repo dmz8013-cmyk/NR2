@@ -288,7 +288,7 @@ def send_briefing():
 
         # 4) 텔레그램 전송
         send_to_telegram(briefing)
-# 5) DB 저장
+        # 5) DB 저장
         try:
             from app import create_app, db
             from app.models.briefing import Briefing
@@ -307,6 +307,13 @@ def send_briefing():
                 logger.info(f"AI 브리핑 DB 저장 완료 (id={record.id})")
         except Exception as e:
             logger.error(f"AI 브리핑 DB 저장 실패: {e}")
+
+        logger.info("=" * 50)
+        logger.info("AI 브리핑 파이프라인 완료 ✅")
+        logger.info("=" * 50)
+
+    except Exception as e:
+        logger.error(f"AI 브리핑 오류: {e}", exc_info=True)
 
 
 # ── 직접 실행 (테스트용) ──────────────────────────
