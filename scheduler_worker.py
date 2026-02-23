@@ -18,6 +18,8 @@ from app.jobs.youtube_feed import check_and_post_new_videos
 from nureongi_news_bot import run_news_bot
 from ai_briefing import send_briefing
 from political_briefing import afternoon_political_briefing, evening_political_briefing
+from editorial_bot import send_editorial
+from schedule_bot import send_schedule
 
 scheduler = BlockingScheduler(timezone='Asia/Seoul')
 INTERVAL_MINUTES = int(os.environ.get('YOUTUBE_CHECK_INTERVAL', 10))
@@ -53,6 +55,16 @@ def afternoon_political():
 def evening_political():
     logger.info('[Scheduler] 저녁 정치 브리핑 생성 중...')
     evening_political_briefing()
+
+@scheduler.scheduled_job('cron', hour=6, minute=0, id='editorial_bot', timezone='Asia/Seoul')
+def editorial_job():
+    logger.info('[Scheduler] 사설봇 실행 중...')
+    send_editorial()
+
+@scheduler.scheduled_job('cron', hour=6, minute=30, id='schedule_bot', timezone='Asia/Seoul')
+def schedule_job():
+    logger.info('[Scheduler] 일정봇 실행 중...')
+    send_schedule()
 
 if __name__ == '__main__':
     logger.info(f'[Scheduler] 시작 — {INTERVAL_MINUTES}분마다 유튜브 RSS 피드 확인')
