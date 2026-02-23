@@ -5,7 +5,7 @@
     "buildCommand": "pip install -r requirements.txt"
   },
   "deploy": {
-    "startCommand": "gunicorn run:app --bind 0.0.0.0:$PORT --workers 4 --timeout 120",
+    "startCommand": "flask db upgrade && gunicorn run:app --bind 0.0.0.0:$PORT --workers 4 --timeout 120",
     "healthcheckPath": "/",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
