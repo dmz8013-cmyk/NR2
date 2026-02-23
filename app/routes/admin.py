@@ -91,7 +91,7 @@ def dashboard():
                           chart_data=chart_data,
                           popular_posts=popular_posts,
                           recent_users=recent_users,
-                          board_stats=board_statsboard_stats=board_stats,
+                          board_stats=board_stats,
                           total_briefings=total_briefings,
                           today_briefings=today_briefings,
                           total_bias_articles=total_bias_articles,
