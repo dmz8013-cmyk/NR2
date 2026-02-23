@@ -84,6 +84,24 @@
         </div>
     </div>
 
+    <!-- 누렁이 생태계 지표 -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg shadow-lg p-6 text-white">
+            <p class="text-3xl font-bold">{{ mau }}</p>
+            <p class="text-sm opacity-90">MAU (30일 활성)</p>
+        </div>
+        <div class="bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg shadow-lg p-6 text-white">
+            <p class="text-3xl font-bold">{{ total_briefings }}</p>
+            <p class="text-sm opacity-90">AI 브리핑 발행</p>
+            <p class="text-xs mt-1">오늘 +{{ today_briefings }}</p>
+        </div>
+        <div class="bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg shadow-lg p-6 text-white">
+            <p class="text-3xl font-bold">{{ total_bias_votes }}</p>
+            <p class="text-sm opacity-90">편향 투표 참여</p>
+            <p class="text-xs mt-1">등록 기사 {{ total_bias_articles }}개</p>
+        </div>
+    </div>
+
     <!-- 차트 및 통계 -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <!-- 최근 7일 게시글 추이 -->

@@ -96,7 +96,7 @@ def dashboard():
                           today_briefings=today_briefings,
                           total_bias_articles=total_bias_articles,
                           total_bias_votes=total_bias_votes,
-                          mau=mau))
+                          mau=mau)
 
 
 @bp.route('/users')
