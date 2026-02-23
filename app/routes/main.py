@@ -51,11 +51,11 @@ def index():
         articles = NewsArticle.query.order_by(NewsArticle.created_at.desc()).limit(5).all()
     except Exception:
         articles = []
-        try:
+    try:
         latest_briefings = Briefing.query.order_by(Briefing.created_at.desc()).limit(4).all()
     except Exception:
         latest_briefings = []
-return render_template('main/index.html', hot_posts=hot_posts, articles=articles, latest_briefings=latest_briefings)
+    return render_template('main/index.html', hot_posts=hot_posts, articles=articles, latest_briefings=latest_briefings)
 
 
 @bp.route('/about')
