@@ -67,7 +67,7 @@ main.max-w-7xl{max-width:100%!important;padding:0!important}
       <div class="lg:col-span-5">
         <div class="nr2-card p-5">
           <div class="flex items-center justify-between mb-5">
-            <div class="flex items-center gap-2.5"><span class="text-xl">📊</span><h2 class="text-lg font-bold text-white">뉴스 편향 분석</h2></div>
+            <div class="flex items-center gap-2.5"><span class="text-xl">✅</span><h2 class="text-lg font-bold text-white">YouCheck</h2></div>
             <a href="{{ url_for('bias.index') }}" class="text-xs font-semibold px-3 py-1.5 rounded-md transition" style="color:var(--nr2-gold);background:var(--nr2-gold-dim);">전체보기 →</a>
           </div>
           <div class="flex items-center gap-4 mb-4 text-xs" style="color:var(--nr2-text-dim);">
@@ -190,7 +190,7 @@ main.max-w-7xl{max-width:100%!important;padding:0!important}
         <a href="{{ url_for('boards.board', board_type='free') }}" class="board-card-dark fade-in"><div class="flex items-center gap-3"><div class="board-icon text-2xl">📋</div><div><h3 class="font-bold text-white text-sm">자유게시판</h3><p class="text-zinc-500 text-xs mt-0.5">뭐든 써도 되는 곳</p></div></div></a>
         <a href="{{ url_for('boards.board', board_type='morpheus') }}" class="board-card-dark fade-in"><div class="flex items-center gap-3"><div class="board-icon text-2xl">💊</div><div><h3 class="font-bold text-white text-sm">모피어스뉴스</h3><p class="text-zinc-500 text-xs mt-0.5">빨간약 드실 분만</p></div></div></a>
         <a href="{{ url_for('boards.board', board_type='aesa') }}" class="board-card-dark fade-in"><div class="flex items-center gap-3"><div class="board-icon text-2xl">🐕</div><div><h3 class="font-bold text-white text-sm">누렁이 AESA</h3><p class="text-zinc-500 text-xs mt-0.5">360° 레이더급 분석</p></div></div></a>
-        <a href="{{ url_for('bias.index') }}" class="board-card-dark fade-in"><div class="flex items-center gap-3"><div class="board-icon text-2xl">📊</div><div><h3 class="font-bold text-white text-sm">뉴스 편향 분석</h3><p class="text-zinc-500 text-xs mt-0.5">시민이 판단하는 편향</p></div></div></a>
+        <a href="{{ url_for('bias.index') }}" class="board-card-dark fade-in"><div class="flex items-center gap-3"><div class="board-icon text-2xl">✅</div><div><h3 class="font-bold text-white text-sm">YouCheck</h3><p class="text-zinc-500 text-xs mt-0.5">당신의 시선으로 뉴스를 판단하세요</p></div></div></a>
         <a href="{{ url_for('votes.list') }}" class="board-card-dark fade-in"><div class="flex items-center gap-3"><div class="board-icon text-2xl">🗳️</div><div><h3 class="font-bold text-white text-sm">투표</h3><p class="text-zinc-500 text-xs mt-0.5">당신의 한 표가 필요합니다</p></div></div></a>
         <a href="{{ url_for('boards.board', board_type='left') }}" class="board-card-dark fade-in"><div class="flex items-center gap-3"><div class="board-icon text-2xl" style="color:var(--nr2-blue);">◀</div><div><h3 class="font-bold text-white text-sm">LEFT</h3><p class="text-zinc-500 text-xs mt-0.5">진보 시각으로 보는 세상</p></div></div></a>
         <a href="{{ url_for('boards.board', board_type='right') }}" class="board-card-dark fade-in"><div class="flex items-center gap-3"><div class="board-icon text-2xl" style="color:var(--nr2-red);">▶</div><div><h3 class="font-bold text-white text-sm">RIGHT</h3><p class="text-zinc-500 text-xs mt-0.5">보수 시각으로 보는 세상</p></div></div></a>
@@ -205,7 +205,7 @@ main.max-w-7xl{max-width:100%!important;padding:0!important}
   <div class="max-w-7xl mx-auto px-4 sm:px-6 pb-12">
     <div class="nr2-cta rounded-2xl p-10 text-center">
       <h2 class="text-2xl md:text-3xl font-black text-white mb-3">함께 만들어가는 커뮤니티</h2>
-      <p class="text-zinc-400 mb-6">3,100명의 전문가와 시민이 함께 정보를 공유하고 뉴스 편향을 분석합니다</p>
+      <p class="text-zinc-400 mb-6">3,100명의 시민이 함께 뉴스를 읽고, 직접 판단합니다</p>
       <div class="flex gap-3 justify-center">
         <a href="{{ url_for('auth.register') }}" class="px-8 py-3 rounded-xl font-bold text-gray-900 transition shadow-lg" style="background:var(--nr2-gold);">30초 회원가입 →</a>
         <a href="https://t.me/gazzzza2025" target="_blank" class="px-8 py-3 rounded-xl font-semibold text-zinc-300 border border-zinc-700 hover:border-zinc-500 transition">텔레그램 참여</a>

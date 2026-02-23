@@ -66,7 +66,7 @@
                         <a href="{{ url_for('boards.board', board_type='morpheus') }}" class="border-transparent text-purple-600 hover:border-purple-300 hover:text-purple-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">💊모피어스</a>
                         <a href="{{ url_for('boards.board', board_type='aesa') }}" class="border-transparent text-yellow-600 hover:border-yellow-300 hover:text-yellow-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">🐕AESA</a>
                         <a href="{{ url_for('votes.list') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">투표</a>
-                        <a href="/bias" class="border-transparent text-amber-600 hover:border-amber-300 hover:text-amber-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold">📊편향</a>
+                        <a href="/bias" class="border-transparent text-amber-600 hover:border-amber-300 hover:text-amber-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold">✅YouCheck</a>
                         <a href="/briefings" class="border-transparent text-teal-600 hover:border-teal-300 hover:text-teal-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-bold">📰브리핑</a>
                         <a href="{{ url_for('boards.board', board_type='left') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">LEFT</a>
                         <a href="{{ url_for('boards.board', board_type='right') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">RIGHT</a>
@@ -140,7 +140,7 @@
                 <a href="{{ url_for('boards.board', board_type='morpheus') }}" @click="mobileOpen=false" class="block px-3 py-3 text-purple-600 border-b border-gray-100">💊모피어스</a>
                 <a href="{{ url_for('boards.board', board_type='aesa') }}" @click="mobileOpen=false" class="block px-3 py-3 text-yellow-600 border-b border-gray-100">🐕AESA</a>
                 <a href="{{ url_for('votes.list') }}" @click="mobileOpen=false" class="block px-3 py-3 text-gray-700 border-b border-gray-100">🗳️ 투표</a>
-                <a href="/bias" @click="mobileOpen=false" class="block px-3 py-3 text-amber-600 font-bold border-b border-gray-100">📊 편향분석</a>
+                <a href="/bias" @click="mobileOpen=false" class="block px-3 py-3 text-amber-600 font-bold border-b border-gray-100">✅ YouCheck</a>
                 <a href="/briefings" @click="mobileOpen=false" class="block px-3 py-3 text-teal-600 font-bold border-b border-gray-100">📰 AI 브리핑</a>
                 <a href="{{ url_for('boards.board', board_type='left') }}" @click="mobileOpen=false" class="block px-3 py-3 text-blue-600 border-b border-gray-100">◀ LEFT로 가세요</a>
                 <a href="{{ url_for('boards.board', board_type='right') }}" @click="mobileOpen=false" class="block px-3 py-3 text-red-500 border-b border-gray-100">▶ RIGHT로 가세요</a>
