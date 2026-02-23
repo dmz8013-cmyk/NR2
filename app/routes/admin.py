@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from sqlalchemy import func, desc
 from app import db
 from app.models import User, Post, Comment, Like, Vote, VoteResponse, Event, BreakingNews
+from app.models.briefing import Briefing
+from app.models.bias import NewsArticle, BiasVote
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -32,6 +34,12 @@ def dashboard():
     total_likes = Like.query.count()
     total_votes = Vote.query.count()
     total_news = BreakingNews.query.filter_by(is_active=True).count()
+    total_briefings = Briefing.query.count()
+    today_briefings = Briefing.query.filter(Briefing.created_at >= today_start).count()
+    total_bias_articles = NewsArticle.query.count()
+    total_bias_votes = BiasVote.query.count()
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    mau = User.query.filter(User.last_login >= thirty_days_ago).count() if hasattr(User, 'last_login') else 0
 
     # 오늘 통계
     today = datetime.utcnow().date()
@@ -83,7 +91,12 @@ def dashboard():
                           chart_data=chart_data,
                           popular_posts=popular_posts,
                           recent_users=recent_users,
-                          board_stats=board_stats)
+                          board_stats=board_statsboard_stats=board_stats,
+                          total_briefings=total_briefings,
+                          today_briefings=today_briefings,
+                          total_bias_articles=total_bias_articles,
+                          total_bias_votes=total_bias_votes,
+                          mau=mau))
 
 
 @bp.route('/users')
