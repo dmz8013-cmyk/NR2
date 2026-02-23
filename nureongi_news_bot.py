@@ -152,13 +152,17 @@ async def send_news():
         print("NUREONGI_NEWS_BOT_TOKEN 환경변수 없음")
         return
     sent_news = load_sent_news()
+    first_run = len(sent_news) == 0
     bot = Bot(BOT_TOKEN)
     articles = get_news()
     new_count = 0
     for art in articles:
         if art['link'] in sent_news:
             continue
-        sent_news.add(art['link'])
+            if first_run:
+                sent.add(art['link'])
+                continue
+            sent.add(art['link'])
         message = format_message(art)
         try:
             await bot.send_message(

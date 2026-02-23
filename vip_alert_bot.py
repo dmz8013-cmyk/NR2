@@ -67,6 +67,7 @@ def fetch_naver_news(query, limit=10):
 def check_and_send():
     """새 뉴스 확인 후 전송"""
     sent = load_sent()
+    first_run = len(sent) == 0
     new_count = 0
 
     for target in TARGETS:
@@ -85,8 +86,10 @@ def check_and_send():
                 continue
             if new_count >= 10:
                 break
+            if first_run:
+                sent.add(art['link'])
+                continue
             sent.add(art['link'])
-
             message = (
                 f"{target['emoji']} <b>{target['name']} 관련 뉴스</b>\n\n"
                 f"📝 {art['title']}\n"
