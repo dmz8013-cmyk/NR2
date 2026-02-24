@@ -100,6 +100,10 @@ def create_app(config_name='default'):
     from app.tracking import init_tracking
     init_tracking(app)
 
+    # DB 테이블 자동 생성
+    with app.app_context():
+        db.create_all()
+
     # Security headers
     @app.after_request
     def set_security_headers(response):
