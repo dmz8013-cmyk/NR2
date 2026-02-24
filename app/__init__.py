@@ -96,6 +96,10 @@ def create_app(config_name='default'):
     # Import models for Flask-Migrate
     from app import models
 
+    # 방문자 추적
+    from app.tracking import init_tracking
+    init_tracking(app)
+
     # Security headers
     @app.after_request
     def set_security_headers(response):

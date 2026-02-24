@@ -2,11 +2,12 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from functools import wraps
 from datetime import datetime, timedelta
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, distinct
 from app import db
 from app.models import User, Post, Comment, Like, Vote, VoteResponse, Event, BreakingNews
 from app.models.briefing import Briefing
 from app.models.bias import NewsArticle, BiasVote
+from app.models.page_visit import PageVisit
 
 bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -357,3 +358,92 @@ def statistics():
                           board_stats=board_stats,
                           top_posters=top_posters,
                           top_commenters=top_commenters)
+
+
+@bp.route('/dashboard/analytics')
+@admin_required
+def analytics():
+    return render_template('admin/analytics.html')
+
+
+@bp.route('/api/analytics')
+@admin_required
+def api_analytics():
+    days = int(request.args.get('days', 30))
+    today = datetime.utcnow().date()
+
+    dau_data = []
+    for i in range(days - 1, -1, -1):
+        date = today - timedelta(days=i)
+        date_start = datetime.combine(date, datetime.min.time())
+        date_end = datetime.combine(date, datetime.max.time())
+        unique_visitors = db.session.query(func.count(distinct(PageVisit.ip_address))).filter(
+            PageVisit.created_at >= date_start, PageVisit.created_at <= date_end).scalar() or 0
+        logged_in = db.session.query(func.count(distinct(PageVisit.user_id))).filter(
+            PageVisit.created_at >= date_start, PageVisit.created_at <= date_end,
+            PageVisit.user_id.isnot(None)).scalar() or 0
+        pageviews = PageVisit.query.filter(
+            PageVisit.created_at >= date_start, PageVisit.created_at <= date_end).count()
+        dau_data.append({'date': date.strftime('%m/%d'), 'visitors': unique_visitors,
+                         'logged_in': logged_in, 'pageviews': pageviews})
+
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    mau_visitors = db.session.query(func.count(distinct(PageVisit.ip_address))).filter(
+        PageVisit.created_at >= thirty_days_ago).scalar() or 0
+    mau_users = db.session.query(func.count(distinct(PageVisit.user_id))).filter(
+        PageVisit.created_at >= thirty_days_ago, PageVisit.user_id.isnot(None)).scalar() or 0
+
+    growth_data = []
+    cumulative = User.query.filter(
+        User.created_at < datetime.combine(today - timedelta(days=days-1), datetime.min.time())).count()
+    for i in range(days - 1, -1, -1):
+        date = today - timedelta(days=i)
+        date_start = datetime.combine(date, datetime.min.time())
+        date_end = datetime.combine(date, datetime.max.time())
+        new_users = User.query.filter(User.created_at >= date_start, User.created_at <= date_end).count()
+        cumulative += new_users
+        growth_data.append({'date': date.strftime('%m/%d'), 'new_users': new_users, 'total_users': cumulative})
+
+    activity_data = []
+    for i in range(days - 1, -1, -1):
+        date = today - timedelta(days=i)
+        date_start = datetime.combine(date, datetime.min.time())
+        date_end = datetime.combine(date, datetime.max.time())
+        posts = Post.query.filter(Post.created_at >= date_start, Post.created_at <= date_end).count()
+        comments = Comment.query.filter(Comment.created_at >= date_start, Comment.created_at <= date_end).count()
+        likes = Like.query.filter(Like.created_at >= date_start, Like.created_at <= date_end).count()
+        activity_data.append({'date': date.strftime('%m/%d'), 'posts': posts,
+                              'comments': comments, 'likes': likes})
+
+    bias_data = []
+    for i in range(days - 1, -1, -1):
+        date = today - timedelta(days=i)
+        date_start = datetime.combine(date, datetime.min.time())
+        date_end = datetime.combine(date, datetime.max.time())
+        articles = NewsArticle.query.filter(
+            NewsArticle.created_at >= date_start, NewsArticle.created_at <= date_end).count()
+        votes = BiasVote.query.filter(
+            BiasVote.created_at >= date_start, BiasVote.created_at <= date_end).count()
+        bias_data.append({'date': date.strftime('%m/%d'), 'articles': articles, 'votes': votes})
+
+    today_start = datetime.combine(today, datetime.min.time())
+    summary = {
+        'total_users': User.query.count(),
+        'today_new_users': User.query.filter(User.created_at >= today_start).count(),
+        'mau_visitors': mau_visitors, 'mau_users': mau_users,
+        'today_dau': dau_data[-1]['visitors'] if dau_data else 0,
+        'total_posts': Post.query.count(), 'total_comments': Comment.query.count(),
+        'total_briefings': Briefing.query.count(),
+        'total_bias_articles': NewsArticle.query.count(),
+        'total_bias_votes': BiasVote.query.count(),
+    }
+
+    top_pages = db.session.query(PageVisit.path, func.count(PageVisit.id).label('hits')).filter(
+        PageVisit.created_at >= thirty_days_ago
+    ).group_by(PageVisit.path).order_by(desc('hits')).limit(10).all()
+
+    return jsonify({
+        'summary': summary, 'dau': dau_data, 'growth': growth_data,
+        'activity': activity_data, 'bias': bias_data,
+        'top_pages': [{'path': p, 'hits': h} for p, h in top_pages]
+    })
