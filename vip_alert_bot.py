@@ -12,9 +12,11 @@ BOT_TOKEN = os.environ.get('SCHEDULE_BOT_TOKEN', '8734510853:AAHsqC3fQfC0K02-xrW
 CHAT_ID = '5132309076'
 SENT_FILE = '/tmp/vip_sent.json'
 
-TARGETS = [
+TARGETS = [    {'name': '앤트로픽/AI', 'emoji': '🤖', 'queries': ['앤트로픽', 'Anthropic', 'AI 인공지능']},
     {'name': '일론 머스크', 'emoji': '🚀', 'queries': ['일론 머스크', '머스크']},
     {'name': '도널드 트럼프', 'emoji': '🇺🇸', 'queries': ['트럼프', '도널드 트럼프']},
+    {'name': '앤트로픽/AI', 'emoji': '🤖', 'queries': ['앤트로픽', 'Anthropic', 'AI 인공지능']},
+    {'name': '섹스', 'emoji': '🔞', 'queries': ['섹스', '성관계 뉴스']},
 ]
 
 
