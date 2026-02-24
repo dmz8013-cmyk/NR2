@@ -40,6 +40,14 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 
     {% block extra_css %}{% endblock %}
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#f5a623">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="NR2">
+    <link rel="apple-touch-icon" href="/static/icons/icon-152x152.png">
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
 </head>
 <body class="bg-gray-50">
     <!-- Navigation -->
@@ -204,5 +212,6 @@
     </footer>
 
     {% block extra_js %}{% endblock %}
+    <script src="/static/js/pwa-install.js"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, send_file, send_from_directory
 from app.models.bias import NewsArticle
 from app.models.briefing import Briefing
 from app.models.post import Post
@@ -68,6 +68,20 @@ def about():
 @bp.route('/policy')
 def policy():
     return render_template('policy.html')
+import os
+
+@bp.route("/sw.js")
+def service_worker():
+    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    return send_file(os.path.join(root_dir, "sw.js"), mimetype="application/javascript")
+
+@bp.route("/manifest.json")
+def manifest():
+    return send_from_directory("static", "manifest.json", mimetype="application/manifest+json")
+
+@bp.route("/offline")
+def offline():
+    return render_template("offline.html")
 @bp.route('/robots.txt')
 def robots():
     content = """User-agent: *
