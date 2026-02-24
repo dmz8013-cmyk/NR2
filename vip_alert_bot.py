@@ -82,6 +82,7 @@ def check_and_send():
                     seen_titles.add(art['title'])
                     all_articles.append(art)
 
+        target_count = 0
         for art in all_articles:
             if art['link'] in sent:
                 continue
