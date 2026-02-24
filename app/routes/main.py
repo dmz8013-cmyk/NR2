@@ -6,6 +6,7 @@ from app.models.comment import Comment
 from app import db
 from datetime import datetime, timedelta
 from sqlalchemy import func
+from flask import Blueprint, render_template, make_response, request
 
 bp = Blueprint('main', __name__)
 
@@ -67,3 +68,57 @@ def about():
 @bp.route('/policy')
 def policy():
     return render_template('policy.html')
+@bp.route('/robots.txt')
+def robots():
+    content = """User-agent: *
+Allow: /
+Allow: /briefings
+Allow: /boards/
+Disallow: /admin/
+Disallow: /api/
+
+Sitemap: https://nr2.kr/sitemap.xml
+"""
+    resp = make_response(content)
+    resp.headers['Content-Type'] = 'text/plain'
+    return resp
+
+
+@bp.route('/sitemap.xml')
+def sitemap():
+    pages = []
+    # 고정 페이지
+    pages.append({'loc': 'https://nr2.kr/', 'priority': '1.0', 'changefreq': 'daily'})
+    pages.append({'loc': 'https://nr2.kr/briefings', 'priority': '0.9', 'changefreq': 'daily'})
+    pages.append({'loc': 'https://nr2.kr/boards/free', 'priority': '0.7', 'changefreq': 'daily'})
+    pages.append({'loc': 'https://nr2.kr/boards/news', 'priority': '0.7', 'changefreq': 'daily'})
+    pages.append({'loc': 'https://nr2.kr/boards/bias', 'priority': '0.8', 'changefreq': 'daily'})
+
+    # 브리핑 개별 페이지
+    try:
+        briefings = Briefing.query.order_by(Briefing.created_at.desc()).limit(100).all()
+        for b in briefings:
+            pages.append({
+                'loc': f'https://nr2.kr/briefings/{b.id}',
+                'priority': '0.8',
+                'changefreq': 'weekly',
+                'lastmod': b.created_at.strftime('%Y-%m-%d')
+            })
+    except:
+        pass
+
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    for p in pages:
+        xml += '  <url>\n'
+        xml += f'    <loc>{p["loc"]}</loc>\n'
+        if p.get('lastmod'):
+            xml += f'    <lastmod>{p["lastmod"]}</lastmod>\n'
+        xml += f'    <changefreq>{p["changefreq"]}</changefreq>\n'
+        xml += f'    <priority>{p["priority"]}</priority>\n'
+        xml += '  </url>\n'
+    xml += '</urlset>'
+
+    resp = make_response(xml)
+    resp.headers['Content-Type'] = 'application/xml'
+    return resp
