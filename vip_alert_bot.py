@@ -16,6 +16,7 @@ TARGETS = [    {'name': '앤트로픽/AI', 'emoji': '🤖', 'queries': ['앤트�
     {'name': '일론 머스크', 'emoji': '🚀', 'queries': ['일론 머스크', '머스크']},
     {'name': '도널드 트럼프', 'emoji': '🇺🇸', 'queries': ['트럼프', '도널드 트럼프']},
     {'name': '섹스', 'emoji': '🔞', 'queries': ['섹스', '성관계 뉴스']},
+    {'name': '공모사업', 'emoji': '📋', 'queries': ['공모사업', '정부지원사업 공모']},
 ]
 
 
