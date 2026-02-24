@@ -15,7 +15,6 @@ SENT_FILE = '/tmp/vip_sent.json'
 TARGETS = [    {'name': '앤트로픽/AI', 'emoji': '🤖', 'queries': ['앤트로픽', 'Anthropic', 'AI 인공지능']},
     {'name': '일론 머스크', 'emoji': '🚀', 'queries': ['일론 머스크', '머스크']},
     {'name': '도널드 트럼프', 'emoji': '🇺🇸', 'queries': ['트럼프', '도널드 트럼프']},
-    {'name': '앤트로픽/AI', 'emoji': '🤖', 'queries': ['앤트로픽', 'Anthropic', 'AI 인공지능']},
     {'name': '섹스', 'emoji': '🔞', 'queries': ['섹스', '성관계 뉴스']},
 ]
 
@@ -86,7 +85,7 @@ def check_and_send():
         for art in all_articles:
             if art['link'] in sent:
                 continue
-            if new_count >= 10:
+            if target_count >= 3:
                 break
             if first_run:
                 sent.add(art['link'])
@@ -109,6 +108,7 @@ def check_and_send():
                 if resp.status_code == 200:
                     print(f"✅ {target['emoji']} {art['title'][:40]}")
                     new_count += 1
+                    target_count += 1
                     time.sleep(3)
                 else:
                     print(f"❌ 전송 실패: {resp.text}")
