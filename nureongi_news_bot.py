@@ -156,7 +156,7 @@ async def send_news():
     bot = Bot(BOT_TOKEN)
     articles = get_news()
     new_count = 0
-for art in articles:
+    for art in articles:
         if art['link'] in sent_news:
             continue
         if first_run:
@@ -165,7 +165,7 @@ for art in articles:
         sent_news.add(art['link'])
         if new_count >= 15:
             break
-        message = format_message(art)        message = format_message(art)
+        message = format_message(art)
         try:
             await bot.send_message(
                 CHAT_ID, message,
