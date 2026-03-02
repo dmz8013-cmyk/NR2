@@ -155,14 +155,18 @@ async def send_news():
     first_run = len(sent_news) == 0
     bot = Bot(BOT_TOKEN)
     articles = get_news()
+    sent_titles = set()
     new_count = 0
     for art in articles:
         if art['link'] in sent_news:
+            continue
+        if any(t in art['title'] for t in sent_titles):
             continue
         if first_run:
             sent_news.add(art['link'])
             continue
         sent_news.add(art['link'])
+        sent_titles.add(art['title'])
         if new_count >= 15:
             break
         message = format_message(art)
