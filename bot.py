@@ -28,7 +28,7 @@ async def fetch_news():
                 if "[속보]" in title and link not in sent_news:
                     await send_news(bot, title, link)
                     sent_news.add(link)
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(600)
         except Exception as e:
             print(f"❌ {name}: {e}")
 
