@@ -67,7 +67,7 @@ def schedule_job():
     logger.info('[Scheduler] 일정봇 실행 중...')
     send_schedule()
 
-@scheduler.scheduled_job('interval', minutes=5, id='vip_alert', misfire_grace_time=300)
+@scheduler.scheduled_job('interval', minutes=15, id='vip_alert', misfire_grace_time=300)
 def vip_alert_job():
     logger.info('[Scheduler] VIP 알림봇 실행 중...')
     run_vip_alert()
