@@ -35,16 +35,20 @@ def dashboard():
     total_likes = Like.query.count()
     total_votes = Vote.query.count()
     total_news = BreakingNews.query.filter_by(is_active=True).count()
-    total_briefings = Briefing.query.count()
-    today_briefings = Briefing.query.filter(Briefing.created_at >= today_start).count()
-    total_bias_articles = NewsArticle.query.count()
-    total_bias_votes = BiasVote.query.count()
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-    mau = User.query.filter(User.last_login >= thirty_days_ago).count() if hasattr(User, 'last_login') else 0
+    total_briefings = Briefing.query.count()    
 
     # 오늘 통계
     today = datetime.utcnow().date()
     today_start = datetime.combine(today, datetime.min.time())
+
+    today_briefings = Briefing.query.filter(Briefing.created_at >= today_start).count()
+    total_bias_articles = NewsArticle.query.count()
+    total_bias_votes = BiasVote.query.count()
+    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    if hasattr(User, 'last_login'):
+        mau = User.query.filter(User.last_login >= thirty_days_ago).count()
+    else:
+        mau = 0
 
     today_users = User.query.filter(User.created_at >= today_start).count()
     today_posts = Post.query.filter(Post.created_at >= today_start).count()
