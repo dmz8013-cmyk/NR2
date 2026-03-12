@@ -28,11 +28,20 @@ try:
             except Exception:
                 conn.rollback()
                 conn.autocommit = True
+        # source_bias 컬럼 패치
+        for col in ['source_political', 'source_geopolitical', 'source_economic']:
+            try:
+                cur.execute(f"ALTER TABLE news_articles ADD COLUMN {col} FLOAT")
+                print(f"[DB PATCH] Added: news_articles.{col}")
+            except Exception:
+                conn.rollback()
+                conn.autocommit = True
         for sql in [
             """CREATE TABLE IF NOT EXISTS news_articles (
                 id SERIAL PRIMARY KEY, title VARCHAR(300) NOT NULL,
                 url VARCHAR(500) NOT NULL UNIQUE, source VARCHAR(100),
                 summary TEXT, image_url VARCHAR(500),
+                source_political FLOAT, source_geopolitical FLOAT, source_economic FLOAT,
                 vote_left INTEGER DEFAULT 0, vote_center INTEGER DEFAULT 0,
                 vote_right INTEGER DEFAULT 0, vote_total INTEGER DEFAULT 0,
                 confidence FLOAT DEFAULT 0.0, created_at TIMESTAMP DEFAULT NOW(),

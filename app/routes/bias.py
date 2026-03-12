@@ -9,6 +9,35 @@ from datetime import datetime
 bp = Blueprint('bias', __name__, url_prefix='/bias')
 
 
+@bp.route('/debug')
+def debug():
+    """디버그 엔드포인트 - 에러 원인 확인용"""
+    try:
+        from sqlalchemy import text
+        with db.engine.connect() as conn:
+            cols = conn.execute(text(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = 'news_articles' ORDER BY ordinal_position"
+            )).fetchall()
+            col_names = [c[0] for c in cols]
+
+        page = request.args.get('page', 1, type=int)
+        articles = NewsArticle.query.order_by(
+            NewsArticle.created_at.desc()
+        ).paginate(page=page, per_page=20, error_out=False)
+        return jsonify({
+            'status': 'ok',
+            'db_columns': col_names,
+            'article_count': articles.total,
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'traceback': traceback.format_exc(),
+        }), 500
+
+
 @bp.route('/')
 def index():
     """편향 투표 메인 페이지"""
