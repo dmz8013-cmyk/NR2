@@ -1,6 +1,34 @@
 """뉴스 편향 투표 시스템 모델"""
+import json
+import os
 from datetime import datetime
 from app import db
+
+
+def get_media_bias(source_name):
+    """언론사 이름으로 korean_media_bias.json에서 성향 점수를 조회한다.
+    Returns: dict with keys political, geopolitical, economic (or all None)
+    """
+    result = {'political': None, 'geopolitical': None, 'economic': None}
+    if not source_name:
+        return result
+
+    data_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'korean_media_bias.json')
+    try:
+        with open(data_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return result
+
+    name = source_name.strip()
+    for m in data.get('media', []):
+        if name in (m.get('name'), m.get('short'), m.get('id')):
+            return {
+                'political': m.get('political'),
+                'geopolitical': m.get('geopolitical'),
+                'economic': m.get('economic'),
+            }
+    return result
 
 
 class NewsArticle(db.Model):
@@ -12,6 +40,10 @@ class NewsArticle(db.Model):
     source = db.Column(db.String(100), nullable=True)
     summary = db.Column(db.Text, nullable=True)
     image_url = db.Column(db.String(500), nullable=True)
+
+    source_political = db.Column(db.Float, nullable=True)      # 언론사 정치축 -100~100
+    source_geopolitical = db.Column(db.Float, nullable=True)   # 언론사 지정학축 -100~100
+    source_economic = db.Column(db.Float, nullable=True)       # 언론사 경제축 -100~100
 
     vote_left = db.Column(db.Integer, default=0)
     vote_center = db.Column(db.Integer, default=0)
