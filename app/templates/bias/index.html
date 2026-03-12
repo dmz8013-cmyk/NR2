@@ -27,6 +27,13 @@
     {% endif %}
   </div>
 
+  {# --- 필터 탭 --- #}
+  <div class="flex gap-2 mb-6 overflow-x-auto pb-1">
+    <a href="{{ url_for('bias.index', tab='all') }}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition {% if current_tab == 'all' %}bg-amber-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">📰 전체</a>
+    <a href="{{ url_for('bias.index', tab='ranking') }}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition {% if current_tab == 'ranking' %}bg-orange-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">🔥 랭킹</a>
+    <a href="{{ url_for('bias.index', tab='cluster') }}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition {% if current_tab == 'cluster' %}bg-indigo-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">📰 클러스터</a>
+  </div>
+
   {% if not current_user.is_authenticated %}
   <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-800">
     🔒 편향 투표에 참여하려면 <a href="{{ url_for('auth.login') }}" class="font-bold underline">로그인</a> 후 본인인증이 필요합니다.
@@ -45,6 +52,9 @@
           <div class="flex items-center gap-2 mb-2">
             {% if article.source %}
             <span class="text-xs font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600">{{ article.source }}</span>
+            {% endif %}
+            {% if article.is_ranking %}
+            <span class="text-xs font-bold px-2 py-0.5 rounded bg-orange-100 text-orange-700">🔥 {{ article.ranking_section }} {{ article.ranking_rank }}위</span>
             {% endif %}
             {% if article.cluster_id %}
             <a href="{{ url_for('bias.cluster_detail', cluster_id=article.cluster_id) }}" class="text-xs font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition" onclick="event.stopPropagation()">📰 {{ article.cluster.article_count }}개 언론사 보도</a>
@@ -120,7 +130,7 @@
   <div class="flex justify-center gap-2 mt-8">
     {% for p in articles.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
       {% if p %}
-        <a href="{{ url_for('bias.index', page=p) }}" class="px-3 py-1 rounded-lg text-sm {% if p == articles.page %}bg-amber-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">{{ p }}</a>
+        <a href="{{ url_for('bias.index', page=p, tab=current_tab) }}" class="px-3 py-1 rounded-lg text-sm {% if p == articles.page %}bg-amber-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">{{ p }}</a>
       {% else %}
         <span class="px-2 text-gray-400">...</span>
       {% endif %}

@@ -88,6 +88,14 @@ try:
         except Exception:
             conn.rollback()
             conn.autocommit = True
+        # 랭킹 컬럼 패치
+        for col, ctype in [('is_ranking', 'BOOLEAN DEFAULT FALSE'), ('ranking_section', 'VARCHAR(20)'), ('ranking_rank', 'INTEGER')]:
+            try:
+                cur.execute(f"ALTER TABLE news_articles ADD COLUMN {col} {ctype}")
+                print(f"[DB PATCH] Added: news_articles.{col}")
+            except Exception:
+                conn.rollback()
+                conn.autocommit = True
         # 방법론 공지 INSERT (중복 방지)
         try:
             cur.execute("""
