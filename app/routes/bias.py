@@ -60,6 +60,23 @@ def debug():
         }), 500
 
 
+@bp.route('/debug-key')
+@login_required
+def debug_key():
+    """임시: ANTHROPIC_API_KEY 상태 확인 (관리자 전용)"""
+    if not current_user.is_admin:
+        return jsonify({'error': 'admin only'}), 403
+    raw = os.environ.get('ANTHROPIC_API_KEY', '')
+    stripped = raw.strip()
+    return jsonify({
+        'prefix': raw[:10],
+        'raw_length': len(raw),
+        'stripped_length': len(stripped),
+        'repr_first_20': repr(raw[:20]),
+        'has_whitespace': len(raw) != len(stripped),
+    })
+
+
 @bp.route('/')
 def index():
     """편향 투표 메인 페이지"""
