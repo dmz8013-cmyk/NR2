@@ -3,6 +3,7 @@ import os
 import json
 import traceback
 import difflib
+import httpx
 import requests as http_requests
 from bs4 import BeautifulSoup
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
@@ -301,9 +302,6 @@ def _analyze_with_ai(title, body_text, source=''):
     if not api_key:
         raise ValueError('ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다')
 
-    import anthropic
-    client = anthropic.Anthropic(api_key=api_key)
-
     prompt = f"""다음 한국 뉴스 기사의 편향을 3개 축으로 분석해주세요.
 
 기사 제목: {title}
@@ -319,13 +317,26 @@ def _analyze_with_ai(title, body_text, source=''):
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 JSON만 출력하세요:
 {{"political": 점수, "geopolitical": 점수, "economic": 점수, "summary": "2~3문장 요약"}}"""
 
-    message = client.messages.create(
-        model='claude-haiku-4-5-20251001',
-        max_tokens=500,
-        messages=[{'role': 'user', 'content': prompt}],
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json; charset=utf-8",
+    }
+    payload = {
+        "model": "claude-haiku-4-5-20251001",
+        "max_tokens": 500,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    resp = httpx.post(
+        "https://api.anthropic.com/v1/messages",
+        headers=headers,
+        content=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
+        timeout=30,
     )
+    resp.raise_for_status()
+    message = resp.json()
 
-    raw = message.content[0].text.strip()
+    raw = message['content'][0]['text'].strip()
     # JSON 블록 추출
     if '```' in raw:
         raw = raw.split('```')[1]
