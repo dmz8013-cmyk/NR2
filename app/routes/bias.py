@@ -270,12 +270,17 @@ def delete_article(article_id):
 # --- AI 편향 분석 ---
 
 def _scrape_article(url):
-    """기사 URL에서 본문 텍스트 추출"""
-    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'}
-    resp = http_requests.get(url, headers=headers, timeout=15)
-    resp.raise_for_status()
-    resp.encoding = resp.apparent_encoding or 'utf-8'
-    soup = BeautifulSoup(resp.text, 'lxml')
+    """기사 URL에서 본문 텍스트 추출 (urllib 사용)"""
+    import urllib.request
+    req = urllib.request.Request(
+        url,
+        headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'},
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        raw = resp.read()
+        charset = resp.headers.get_content_charset() or 'utf-8'
+        html = raw.decode(charset, errors='replace')
+    soup = BeautifulSoup(html, 'lxml')
 
     # 네이버 뉴스
     body = soup.select_one('#dic_area, #newsct_article, .newsct_body, article#dic_area')
@@ -366,26 +371,40 @@ def analyze(article_id):
 
     article = NewsArticle.query.get_or_404(article_id)
 
+    # 1단계: 기사 스크래핑
     try:
         body_text = _scrape_article(article.url)
-        if not body_text or len(body_text) < 50:
-            flash('기사 본문을 추출할 수 없습니다.', 'error')
-            return redirect(url_for('bias.detail', article_id=article_id))
+    except Exception as e:
+        current_app.logger.error(f'[SCRAPE ERROR] {traceback.format_exc()}')
+        flash(f'기사 수집 실패: {type(e).__name__}', 'error')
+        return redirect(url_for('bias.detail', article_id=article_id))
 
+    if not body_text or len(body_text) < 50:
+        flash('기사 본문을 추출할 수 없습니다.', 'error')
+        return redirect(url_for('bias.detail', article_id=article_id))
+
+    # 2단계: AI 분석
+    try:
         result = _analyze_with_ai(article.title, body_text, article.source or '')
+    except json.JSONDecodeError:
+        flash('AI 응답 파싱 실패. 다시 시도해주세요.', 'error')
+        return redirect(url_for('bias.detail', article_id=article_id))
+    except Exception as e:
+        current_app.logger.error(f'[AI API ERROR] {traceback.format_exc()}')
+        flash(f'AI 분석 실패: {type(e).__name__}', 'error')
+        return redirect(url_for('bias.detail', article_id=article_id))
 
+    # 3단계: DB 저장
+    try:
         article.article_political = result['political']
         article.article_geopolitical = result['geopolitical']
         article.article_economic = result['economic']
         article.ai_summary = result.get('summary', '')
         db.session.commit()
-
         flash('AI 편향 분석이 완료되었습니다.', 'success')
-    except json.JSONDecodeError:
-        flash('AI 응답 파싱 실패. 다시 시도해주세요.', 'error')
     except Exception as e:
-        current_app.logger.error(f'[AI ANALYZE ERROR] {traceback.format_exc()}')
-        flash(f'분석 실패: {str(e)[:100]}', 'error')
+        current_app.logger.error(f'[DB SAVE ERROR] {traceback.format_exc()}')
+        flash(f'결과 저장 실패: {type(e).__name__}', 'error')
 
     return redirect(url_for('bias.detail', article_id=article_id))
 
