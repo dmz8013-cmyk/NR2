@@ -21,6 +21,7 @@ from political_briefing import afternoon_political_briefing, evening_political_b
 from editorial_bot import send_editorial
 from schedule_bot import send_schedule
 from vip_alert_bot import run_vip_alert
+from app.utils.bias_report import generate_weekly_report, send_weekly_report_to_telegram
 
 scheduler = BlockingScheduler(timezone='Asia/Seoul')
 INTERVAL_MINUTES = int(os.environ.get('YOUTUBE_CHECK_INTERVAL', 10))
@@ -71,6 +72,17 @@ def schedule_job():
 def vip_alert_job():
     logger.info('[Scheduler] VIP 알림봇 실행 중...')
     run_vip_alert()
+
+@scheduler.scheduled_job('cron', day_of_week='mon', hour=9, minute=0, id='weekly_bias_report', timezone='Asia/Seoul')
+def weekly_bias_report():
+    logger.info('[Scheduler] 주간 편향 리포트 생성 및 전송 중...')
+    with app.app_context():
+        report = generate_weekly_report()
+        result = send_weekly_report_to_telegram(report['telegram_text'])
+        if result['success']:
+            logger.info('[Scheduler] 주간 편향 리포트 전송 완료')
+        else:
+            logger.error(f'[Scheduler] 주간 편향 리포트 전송 실패: {result["message"]}')
 
 if __name__ == '__main__':
     logger.info(f'[Scheduler] 시작 — {INTERVAL_MINUTES}분마다 유튜브 RSS 피드 확인')
