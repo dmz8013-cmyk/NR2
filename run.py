@@ -69,6 +69,41 @@ try:
             except Exception:
                 conn.rollback()
                 conn.autocommit = True
+        # 방법론 공지 INSERT (중복 방지)
+        try:
+            cur.execute("""
+                INSERT INTO breaking_news (title, content, source, priority, is_active, user_id, created_at, updated_at)
+                SELECT %s, %s, %s, %s, TRUE, 1, NOW(), NOW()
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM breaking_news WHERE title = %s
+                )
+            """, (
+                '📊 NR2 언론사 편향 분류 방법론 공개',
+                '''NR2 YouCheck(뉴스 편향 분석) 기능이 출시되었습니다.
+
+YouCheck은 한국 주요 언론사 50개의 보도 성향을 3개 축(정치, 지정학, 경제)으로 분류하여 시각화합니다.
+
+기존의 단순한 '진보 vs 보수' 이분법을 넘어, 지정학적 입장(친중↔친미)과 경제적 성향(노동친화↔대기업친화)까지 포함한 다면적 분석을 제공합니다.
+
+📌 주요 기능:
+• 기사별 시민 편향 투표 (좌/중/우)
+• 언론사 3축 성향 바 자동 표시
+• 전문가/일반 시민 가중치 차등 반영
+
+📄 분류 방법론 전문 보기:
+https://nr2.kr/methodology
+
+여러분의 적극적인 참여를 부탁드립니다.
+YouCheck 바로가기: https://nr2.kr/bias''',
+                'NR2 운영팀',
+                5,
+                '📊 NR2 언론사 편향 분류 방법론 공개',
+            ))
+            if cur.rowcount > 0:
+                print("[DB PATCH] 방법론 공지 등록 완료")
+        except Exception:
+            conn.rollback()
+            conn.autocommit = True
         cur.close()
         conn.close()
         print("[DB PATCH] Complete!")
