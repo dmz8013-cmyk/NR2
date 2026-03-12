@@ -30,7 +30,9 @@
       "Bash(git -C:*)",
       "Bash(railway status:*)",
       "Bash(/Users/smpark/Desktop/NR2/venv/bin/python:*)",
-      "Bash(./venv/bin/python:*)"
+      "Bash(./venv/bin/python:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }
