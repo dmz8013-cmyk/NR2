@@ -6,6 +6,8 @@
 .bias-bar-lg{height:16px;border-radius:8px;overflow:hidden;display:flex}
 .bias-left{background:#3B82F6}.bias-center{background:#9CA3AF}.bias-right{background:#EF4444}
 .vote-btn{transition:all .2s}.vote-btn:hover{transform:scale(1.03)}
+.ai-axis-bar{position:relative;height:8px;border-radius:4px;background:linear-gradient(to right,#3B82F6,#D1D5DB 50%,#EF4444)}
+.ai-axis-marker{position:absolute;top:-4px;width:16px;height:16px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);transform:translateX(-50%)}
 </style>
 {% endblock %}
 
@@ -29,9 +31,66 @@
 
     <a href="{{ article.url }}" target="_blank" rel="noopener" class="inline-block text-sm text-blue-600 hover:underline mb-6">🔗 원문 보기 →</a>
 
+    {# --- AI 분석 결과 --- #}
+    {% if article.article_political is not none %}
+    <div class="bg-purple-50 border border-purple-200 rounded-xl p-5 mb-6">
+      <p class="text-sm font-bold text-purple-800 mb-3">🤖 AI 편향 분석</p>
+
+      {% if article.ai_summary %}
+      <p class="text-sm text-gray-700 mb-4 leading-relaxed">{{ article.ai_summary }}</p>
+      {% endif %}
+
+      <div class="space-y-3">
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-blue-600 font-bold">진보</span>
+            <span class="text-gray-500 font-mono">{{ article.article_political }}</span>
+            <span class="text-red-600 font-bold">보수</span>
+          </div>
+          <div class="ai-axis-bar">
+            <div class="ai-axis-marker bg-indigo-500" style="left:{{ ((article.article_political + 100) / 200 * 100) }}%"></div>
+          </div>
+        </div>
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-blue-600 font-bold">친중</span>
+            <span class="text-gray-500 font-mono">{{ article.article_geopolitical }}</span>
+            <span class="text-red-600 font-bold">친미</span>
+          </div>
+          <div class="ai-axis-bar">
+            <div class="ai-axis-marker bg-amber-500" style="left:{{ ((article.article_geopolitical + 100) / 200 * 100) }}%"></div>
+          </div>
+        </div>
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-blue-600 font-bold">노동</span>
+            <span class="text-gray-500 font-mono">{{ article.article_economic }}</span>
+            <span class="text-red-600 font-bold">대기업</span>
+          </div>
+          <div class="ai-axis-bar">
+            <div class="ai-axis-marker bg-emerald-500" style="left:{{ ((article.article_economic + 100) / 200 * 100) }}%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {# --- 관리자 AI 분석 버튼 --- #}
+    {% if current_user.is_authenticated and current_user.is_admin %}
+    <div class="mb-6">
+      <form method="POST" action="{{ url_for('bias.analyze', article_id=article.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-xl transition text-sm">
+          🤖 AI 편향 분석 {% if article.article_political is not none %}재{% endif %}실행
+        </button>
+      </form>
+    </div>
+    {% endif %}
+
+    {# --- 시민 투표 결과 --- #}
     {% if article.vote_total >= 10 %}
     <div class="bg-gray-50 rounded-xl p-5 mb-6">
-      <p class="text-sm font-bold text-gray-700 mb-3">📊 편향 분석 결과</p>
+      <p class="text-sm font-bold text-gray-700 mb-3">📊 시민 편향 투표 결과</p>
       <div class="bias-bar-lg w-full mb-3">
         <div class="bias-left" style="width:{{ article.left_pct }}%"></div>
         <div class="bias-center" style="width:{{ article.center_pct }}%"></div>
@@ -47,10 +106,11 @@
     {% else %}
     <div class="bg-yellow-50 rounded-xl p-5 mb-6 text-center">
       <p class="text-amber-700 font-bold mb-1">📊 집계중</p>
-      <p class="text-sm text-amber-600">{{ article.vote_total }}명 참여 · {{ 10 - article.vote_total }}명 더 참여하면 결과가 공개됩니다</p>
+      <p class="text-sm text-amber-600">{{ article.vote_total }}명 참여 · {{ 10 - (article.vote_total or 0) }}명 더 참여하면 결과가 공개됩니다</p>
     </div>
     {% endif %}
 
+    {# --- 투표 UI --- #}
     {% if current_user.is_authenticated and current_user.verify_tier != 'bronze' %}
     <div class="border-t pt-6">
       <p class="text-sm font-bold text-gray-700 mb-4">이 기사의 편향을 판단해주세요</p>
