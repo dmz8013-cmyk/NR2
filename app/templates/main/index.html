@@ -47,9 +47,9 @@ main.max-w-7xl{max-width:100%!important;padding:0!important}
           <p class="text-zinc-400 text-sm md:text-base">정치 · 시사 · AI · 코인 — <span style="color:var(--nr2-gold);">정보가 흐르고, 사람이 연결되는 곳</span></p>
         </div>
         <div class="flex gap-3 flex-shrink-0">
-          <div class="stat-pill"><p style="color:var(--nr2-gold);font-family:var(--nr2-mono);" class="font-bold text-lg">2,220<span class="text-xs">+</span></p><p class="text-zinc-500 text-xs mt-0.5">카카오톡</p></div>
+          <div class="stat-pill"><p style="color:var(--nr2-gold);font-family:var(--nr2-mono);" class="font-bold text-lg">2,400<span class="text-xs">+</span></p><p class="text-zinc-500 text-xs mt-0.5">카카오톡</p></div>
           <div class="stat-pill"><p style="color:var(--nr2-gold);font-family:var(--nr2-mono);" class="font-bold text-lg">888<span class="text-xs">+</span></p><p class="text-zinc-500 text-xs mt-0.5">텔레그램</p></div>
-          <div class="stat-pill"><p style="color:var(--nr2-gold);font-family:var(--nr2-mono);" class="font-bold text-lg">24/7</p><p class="text-zinc-500 text-xs mt-0.5">AI 브리핑</p></div>
+          <div class="stat-pill"><p style="color:var(--nr2-gold);font-family:var(--nr2-mono);" class="font-bold text-lg">{{ youcheck_count }}</p><p class="text-zinc-500 text-xs mt-0.5">YouCheck</p></div>
         </div>
         {% if not current_user.is_authenticated %}
         <div class="flex gap-2 flex-shrink-0">
@@ -60,6 +60,46 @@ main.max-w-7xl{max-width:100%!important;padding:0!important}
       </div>
     </div>
   </div>
+
+  {% if ranking_articles %}
+  <div class="border-b" style="border-color:var(--nr2-border);background:linear-gradient(180deg,rgba(239,68,68,0.03) 0%,transparent 100%);">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2.5"><span class="text-xl">🔥</span><h2 class="text-lg font-bold text-white">지금 가장 뜨거운 뉴스</h2><span class="section-tag" style="color:#EF4444;background:rgba(239,68,68,0.15);">TRENDING</span></div>
+        <a href="{{ url_for('bias.index', tab='ranking') }}" class="text-xs font-semibold px-3 py-1.5 rounded-md transition" style="color:var(--nr2-gold);background:var(--nr2-gold-dim);">전체 랭킹 →</a>
+      </div>
+      <div class="grid sm:grid-cols-3 gap-4">
+        {% for article in ranking_articles %}
+        <a href="{{ url_for('bias.detail', article_id=article.id) }}" class="nr2-card p-4 block group">
+          <div class="flex items-center gap-2 mb-2">
+            {% if article.is_cross_platform %}
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded" style="background:rgba(239,68,68,0.15);color:#F87171;">🔥 네이버·다음 동시</span>
+            {% elif article.is_ranking %}
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded" style="background:rgba(249,115,22,0.15);color:#FB923C;">🔥 {{ article.ranking_section }} {{ article.ranking_rank }}위</span>
+            {% endif %}
+            {% if article.source %}
+            <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded" style="background:rgba(255,255,255,0.06);color:var(--nr2-text-dim);">{{ article.source }}</span>
+            {% endif %}
+          </div>
+          <p class="text-sm font-medium text-zinc-200 leading-snug mb-3 line-clamp-2 group-hover:text-white transition">{{ article.title }}</p>
+          {% if article.source_political is not none %}
+          <div class="flex items-center gap-2">
+            <span class="text-[10px]" style="color:#60A5FA;">진보</span>
+            <div class="flex-1 h-1.5 rounded-full overflow-hidden" style="background:linear-gradient(to right,#3B82F6,#D1D5DB 50%,#EF4444);">
+              <div class="relative h-full">
+                <div class="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border border-white/80" style="left:{{ ((article.source_political + 100) / 200 * 100) }}%;transform:translateX(-50%) translateY(-50%);background:#A78BFA;box-shadow:0 0 6px rgba(167,139,250,0.5);"></div>
+              </div>
+            </div>
+            <span class="text-[10px]" style="color:#F87171;">보수</span>
+          </div>
+          {% endif %}
+          <p class="text-[10px] mt-2 text-right" style="color:var(--nr2-gold);">YouCheck에서 보기 →</p>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
     <div class="grid lg:grid-cols-12 gap-6">
@@ -149,7 +189,7 @@ main.max-w-7xl{max-width:100%!important;padding:0!important}
         <div class="nr2-card p-5">
           <div class="flex items-center gap-2.5 mb-4"><span class="text-xl">🌐</span><h2 class="text-base font-bold text-white">누렁이 생태계</h2></div>
           <div class="space-y-2.5">
-            <a href="https://buly.kr/7mBN720" target="_blank" class="flex items-center gap-3 p-2.5 rounded-lg transition hover:bg-white/[0.03]"><div class="eco-icon" style="background:rgba(250,204,21,0.1);"><span>💬</span></div><div><p class="text-sm font-semibold text-zinc-200">카카오톡</p><p class="text-[11px]" style="color:var(--nr2-text-dim);">2,220+ 오픈채팅</p></div></a>
+            <a href="https://buly.kr/7mBN720" target="_blank" class="flex items-center gap-3 p-2.5 rounded-lg transition hover:bg-white/[0.03]"><div class="eco-icon" style="background:rgba(250,204,21,0.1);"><span>💬</span></div><div><p class="text-sm font-semibold text-zinc-200">카카오톡</p><p class="text-[11px]" style="color:var(--nr2-text-dim);">2,400+ 오픈채팅</p></div></a>
             <a href="https://t.me/gazzzza2025" target="_blank" class="flex items-center gap-3 p-2.5 rounded-lg transition hover:bg-white/[0.03]"><div class="eco-icon" style="background:rgba(59,130,246,0.1);"><span>✈️</span></div><div><p class="text-sm font-semibold text-zinc-200">텔레그램</p><p class="text-[11px]" style="color:var(--nr2-text-dim);">888+ 정보공유방</p></div></a>
             <a href="https://www.youtube.com/@NR2AESA" target="_blank" class="flex items-center gap-3 p-2.5 rounded-lg transition hover:bg-white/[0.03]"><div class="eco-icon" style="background:rgba(239,68,68,0.1);"><span>🎬</span></div><div><p class="text-sm font-semibold text-zinc-200">누렁이 AESA</p><p class="text-[11px]" style="color:var(--nr2-text-dim);">유튜브 채널</p></div></a>
           </div>

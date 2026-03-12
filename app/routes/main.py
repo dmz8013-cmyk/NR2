@@ -1,12 +1,11 @@
-from flask import Blueprint, render_template, send_file, send_from_directory
+from flask import Blueprint, render_template, send_file, send_from_directory, make_response, request
 from app.models.bias import NewsArticle
 from app.models.briefing import Briefing
 from app.models.post import Post
 from app.models.comment import Comment
 from app import db
 from datetime import datetime, timedelta
-from sqlalchemy import func
-from flask import Blueprint, render_template, make_response, request
+from sqlalchemy import func, or_
 
 bp = Blueprint('main', __name__)
 
@@ -56,7 +55,24 @@ def index():
         latest_briefings = Briefing.query.order_by(Briefing.created_at.desc()).limit(4).all()
     except Exception:
         latest_briefings = []
-    return render_template('main/index.html', hot_posts=hot_posts, articles=articles, latest_briefings=latest_briefings)
+    # 랭킹 뉴스 3건 (동시랭킹 우선, 그다음 일반 랭킹)
+    try:
+        ranking_articles = NewsArticle.query.filter(
+            or_(NewsArticle.is_cross_platform == True, NewsArticle.is_ranking == True)
+        ).order_by(
+            NewsArticle.is_cross_platform.desc(),
+            NewsArticle.created_at.desc()
+        ).limit(3).all()
+    except Exception:
+        ranking_articles = []
+    # YouCheck 기사 총 수
+    try:
+        youcheck_count = NewsArticle.query.count()
+    except Exception:
+        youcheck_count = 0
+    return render_template('main/index.html', hot_posts=hot_posts, articles=articles,
+                           latest_briefings=latest_briefings, ranking_articles=ranking_articles,
+                           youcheck_count=youcheck_count)
 
 
 @bp.route('/methodology')
