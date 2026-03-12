@@ -87,22 +87,31 @@ def get_assembly_schedule():
         return None
 
 
+def _trim_to_third(text: str, max_chars: int = 1200) -> str:
+    """전체 텍스트에서 의미 있는 라인의 1/3만 남겨 반환."""
+    lines = [l for l in text.splitlines() if l.strip()]  # 빈 줄 제거
+    keep = max(1, len(lines) // 3)                        # 1/3 라인 수
+    trimmed = '\n'.join(lines[:keep])
+    if len(trimmed) > max_chars:
+        trimmed = trimmed[:max_chars].rsplit('\n', 1)[0]  # 마지막 줄 잘림 방지
+    if len(lines) > keep:
+        trimmed += f'\n\n… (전체 {len(lines)}건 중 {keep}건 표시)'
+    return trimmed
+
+
 def send_schedule():
     """일정 취합 후 텔레그램 전송"""
     today_str = datetime.now().strftime('%Y년 %m월 %d일 (%a)')
     day_names = {'Mon': '월', 'Tue': '화', 'Wed': '수', 'Thu': '목', 'Fri': '금', 'Sat': '토', 'Sun': '일'}
     for eng, kor in day_names.items():
         today_str = today_str.replace(eng, kor)
-    
+
     message_parts = [f"📌 <b>{today_str} 주요 일정</b> 📌\n"]
-    
-    # 뉴스1 일정
+
+    # 뉴스1 일정 (전체의 1/3만 전송)
     news1 = get_news1_schedule()
     if news1:
-        # 너무 길면 앞부분만
-        if len(news1) > 3500:
-            news1 = news1[:3500] + "\n\n... (이하 생략)"
-        message_parts.append(news1)
+        message_parts.append(_trim_to_third(news1))
     else:
         message_parts.append("⚠️ 뉴스1 일정 기사를 찾지 못했습니다.")
     
