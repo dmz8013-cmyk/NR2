@@ -1,5 +1,6 @@
 """뉴스 편향 투표 시스템 라우트"""
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+import traceback
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from app import db
 from app.models.bias import NewsArticle, BiasVote, BoneTransaction, get_media_bias
@@ -11,11 +12,15 @@ bp = Blueprint('bias', __name__, url_prefix='/bias')
 @bp.route('/')
 def index():
     """편향 투표 메인 페이지"""
-    page = request.args.get('page', 1, type=int)
-    articles = NewsArticle.query.order_by(
-        NewsArticle.created_at.desc()
-    ).paginate(page=page, per_page=20, error_out=False)
-    return render_template('bias/index.html', articles=articles)
+    try:
+        page = request.args.get('page', 1, type=int)
+        articles = NewsArticle.query.order_by(
+            NewsArticle.created_at.desc()
+        ).paginate(page=page, per_page=20, error_out=False)
+        return render_template('bias/index.html', articles=articles)
+    except Exception as e:
+        current_app.logger.error(f'[BIAS INDEX ERROR] {traceback.format_exc()}')
+        raise
 
 
 @bp.route('/submit', methods=['GET', 'POST'])
