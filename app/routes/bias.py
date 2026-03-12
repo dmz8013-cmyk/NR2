@@ -2,13 +2,14 @@
 import os
 import json
 import traceback
+import difflib
 import requests as http_requests
 from bs4 import BeautifulSoup
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from app import db
-from app.models.bias import NewsArticle, BiasVote, BoneTransaction, get_media_bias
-from datetime import datetime
+from app.models.bias import NewsArticle, BiasVote, BoneTransaction, ArticleCluster, get_media_bias
+from datetime import datetime, timedelta
 
 bp = Blueprint('bias', __name__, url_prefix='/bias')
 
@@ -105,6 +106,8 @@ def submit():
             source_economic=bias['economic']
         )
         db.session.add(article)
+        db.session.flush()  # article.id 확보
+        _auto_cluster(article)
         current_user.add_bones(2, 'article_submit')
         db.session.commit()
 
@@ -112,6 +115,45 @@ def submit():
         return redirect(url_for('bias.detail', article_id=article.id))
 
     return render_template('bias/submit.html')
+
+
+def _auto_cluster(article):
+    """새 기사를 기존 클러스터에 매칭하거나 새 클러스터 생성"""
+    # 최근 3일 내 기사와 비교
+    cutoff = datetime.utcnow() - timedelta(days=3)
+    recent = NewsArticle.query.filter(
+        NewsArticle.id != article.id,
+        NewsArticle.created_at >= cutoff,
+    ).all()
+
+    best_match = None
+    best_ratio = 0.0
+
+    for other in recent:
+        ratio = difflib.SequenceMatcher(None, article.title, other.title).ratio()
+        if ratio > best_ratio:
+            best_ratio = ratio
+            best_match = other
+
+    if best_ratio >= 0.70 and best_match:
+        if best_match.cluster_id:
+            # 기존 클러스터에 합류
+            article.cluster_id = best_match.cluster_id
+        else:
+            # 새 클러스터 생성, 두 기사 모두 묶기
+            cluster = ArticleCluster(title=best_match.title)
+            db.session.add(cluster)
+            db.session.flush()
+            best_match.cluster_id = cluster.id
+            article.cluster_id = cluster.id
+
+
+@bp.route('/cluster/<int:cluster_id>')
+def cluster_detail(cluster_id):
+    """같은 사건 다른 언론사 비교"""
+    cluster = ArticleCluster.query.get_or_404(cluster_id)
+    articles = cluster.articles.order_by(NewsArticle.created_at.desc()).all()
+    return render_template('bias/cluster.html', cluster=cluster, articles=articles)
 
 
 @bp.route('/<int:article_id>')

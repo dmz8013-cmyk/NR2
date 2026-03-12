@@ -71,6 +71,23 @@ try:
             except Exception:
                 conn.rollback()
                 conn.autocommit = True
+        # article_clusters 테이블 + cluster_id 컬럼 패치
+        for sql in [
+            """CREATE TABLE IF NOT EXISTS article_clusters (
+                id SERIAL PRIMARY KEY, title VARCHAR(300) NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW())""",
+        ]:
+            try:
+                cur.execute(sql)
+            except Exception:
+                conn.rollback()
+                conn.autocommit = True
+        try:
+            cur.execute("ALTER TABLE news_articles ADD COLUMN cluster_id INTEGER REFERENCES article_clusters(id)")
+            print("[DB PATCH] Added: news_articles.cluster_id")
+        except Exception:
+            conn.rollback()
+            conn.autocommit = True
         # 방법론 공지 INSERT (중복 방지)
         try:
             cur.execute("""
