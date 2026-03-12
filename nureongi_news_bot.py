@@ -1,4 +1,4 @@
-"""누렁이 뉴스봇 v2 - 언론사 표시 + 속보/단독 강화"""
+"""누렁이 뉴스봇 v2 - 언론사 표시 + 속보/단독 강화 + DB 저장"""
 import os
 import asyncio
 import requests
@@ -9,6 +9,76 @@ from telegram import Bot
 BOT_TOKEN = os.environ.get('NUREONGI_NEWS_BOT_TOKEN')
 CHAT_ID = "@gazzzza2025"
 SENT_FILE = '/tmp/sent_news.json'
+
+# --- DB 저장용 ---
+BIAS_DATA = None
+
+def _load_bias_data():
+    global BIAS_DATA
+    if BIAS_DATA is not None:
+        return BIAS_DATA
+    data_path = os.path.join(os.path.dirname(__file__), 'app', 'data', 'korean_media_bias.json')
+    try:
+        with open(data_path, 'r', encoding='utf-8') as f:
+            BIAS_DATA = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        BIAS_DATA = {'media': []}
+    return BIAS_DATA
+
+def get_media_bias(source_name):
+    """언론사 이름으로 편향 점수 조회"""
+    result = {'political': None, 'geopolitical': None, 'economic': None}
+    if not source_name:
+        return result
+    data = _load_bias_data()
+    name = source_name.strip()
+    for m in data.get('media', []):
+        if name in (m.get('name'), m.get('short'), m.get('id')):
+            return {
+                'political': m.get('political'),
+                'geopolitical': m.get('geopolitical'),
+                'economic': m.get('economic'),
+            }
+    return result
+
+def _get_db_conn():
+    """PostgreSQL 연결"""
+    try:
+        import psycopg2
+        db_url = os.environ.get('DATABASE_URL') or os.environ.get('DATABASE_PRIVATE_URL', '')
+        if not db_url:
+            return None
+        if db_url.startswith('postgres://'):
+            db_url = db_url.replace('postgres://', 'postgresql://', 1)
+        return psycopg2.connect(db_url)
+    except Exception as e:
+        print(f"[DB] 연결 실패: {e}")
+        return None
+
+def save_article_to_db(art):
+    """기사를 news_articles 테이블에 저장"""
+    conn = _get_db_conn()
+    if not conn:
+        return
+    try:
+        bias = get_media_bias(art['press'])
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO news_articles (title, url, source, source_political, source_geopolitical, source_economic, submitted_by, created_at)
+               VALUES (%s, %s, %s, %s, %s, %s, 1, NOW())
+               ON CONFLICT (url) DO NOTHING""",
+            (art['title'], art['link'], art['press'],
+             bias['political'], bias['geopolitical'], bias['economic'])
+        )
+        conn.commit()
+        if cur.rowcount > 0:
+            print(f"  📥 DB 저장: {art['title'][:30]}")
+        cur.close()
+    except Exception as e:
+        print(f"  ❌ DB 저장 실패: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
 
 def load_sent_news():
     try:
@@ -178,6 +248,7 @@ async def send_news():
             )
             tag = "🚨속보" if art['is_breaking'] else "📰"
             print(f"✅ {tag} [{art['press']}] {art['title'][:30]}")
+            save_article_to_db(art)
             new_count += 1
             await asyncio.sleep(2)
         except Exception as e:
