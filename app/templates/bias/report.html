@@ -1,0 +1,104 @@
+{% extends "layouts/base.html" %}
+{% block title %}주간 편향 리포트 - NR2{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-8">
+  <a href="{{ url_for('bias.index') }}" class="text-gray-400 hover:text-gray-600 text-sm mb-4 inline-block">&larr; YouCheck</a>
+
+  <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-2xl font-black text-gray-900">📊 주간 편향 리포트</h1>
+        <p class="text-gray-500 text-sm mt-1">{{ report.week_start }} ~ {{ report.week_end }} · {{ report.total_articles }}건 분석</p>
+      </div>
+      <form method="POST" action="{{ url_for('bias.send_report') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-xl transition text-sm">📤 텔레그램 전송</button>
+      </form>
+    </div>
+
+    {# --- TOP 클러스터 --- #}
+    {% if report.top_clusters %}
+    <div class="mb-8">
+      <h2 class="text-lg font-bold text-gray-800 mb-4">🔥 가장 많은 언론사가 다룬 사건</h2>
+      <div class="space-y-3">
+        {% for c in report.top_clusters %}
+        <a href="{{ url_for('bias.cluster_detail', cluster_id=c.id) }}" class="block bg-orange-50 rounded-xl p-4 hover:bg-orange-100 transition">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="bg-orange-200 text-orange-800 font-bold text-xs px-2 py-0.5 rounded">{{ c.count }}개 기사</span>
+            <span class="font-bold text-gray-900">{{ c.title }}</span>
+          </div>
+          <p class="text-xs text-gray-500">{{ c.sources | join(', ') }}</p>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {# --- 보수 TOP 3 --- #}
+    {% if report.top_conservative %}
+    <div class="mb-8">
+      <h2 class="text-lg font-bold text-gray-800 mb-4">🔴 보수 성향 TOP 3 언론사</h2>
+      <div class="space-y-2">
+        {% for item in report.top_conservative %}
+        <div class="flex items-center gap-3 bg-red-50 rounded-lg p-3">
+          <span class="font-bold text-gray-800 w-24">{{ item.source }}</span>
+          <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div class="h-full bg-red-500 rounded-full" style="width:{{ ((item.score + 100) / 200 * 100) }}%"></div>
+          </div>
+          <span class="text-xs font-mono text-red-600 w-12 text-right">{{ '%+.0f' | format(item.score) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {# --- 진보 TOP 3 --- #}
+    {% if report.top_progressive %}
+    <div class="mb-8">
+      <h2 class="text-lg font-bold text-gray-800 mb-4">🔵 진보 성향 TOP 3 언론사</h2>
+      <div class="space-y-2">
+        {% for item in report.top_progressive %}
+        <div class="flex items-center gap-3 bg-blue-50 rounded-lg p-3">
+          <span class="font-bold text-gray-800 w-24">{{ item.source }}</span>
+          <div class="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div class="h-full bg-blue-500 rounded-full" style="width:{{ ((item.score + 100) / 200 * 100) }}%"></div>
+          </div>
+          <span class="text-xs font-mono text-blue-600 w-12 text-right">{{ '%+.0f' | format(item.score) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {# --- 가장 다르게 다룬 사건 --- #}
+    {% if report.most_divided_cluster %}
+    <div class="mb-8">
+      <h2 class="text-lg font-bold text-gray-800 mb-4">⚡ 진보↔보수 시각차 가장 큰 사건</h2>
+      <a href="{{ url_for('bias.cluster_detail', cluster_id=report.most_divided_cluster.id) }}" class="block bg-yellow-50 border border-yellow-200 rounded-xl p-5 hover:bg-yellow-100 transition">
+        <p class="font-bold text-gray-900 mb-3">{{ report.most_divided_cluster.title }}</p>
+        <div class="grid grid-cols-2 gap-4 mb-3">
+          <div class="bg-blue-100 rounded-lg p-3 text-center">
+            <p class="text-xs text-blue-600 font-bold mb-1">🔵 진보</p>
+            <p class="font-bold text-gray-800">{{ report.most_divided_cluster.progressive_source }}</p>
+            <p class="text-sm font-mono text-blue-700">{{ '%+.0f' | format(report.most_divided_cluster.progressive_score) }}</p>
+          </div>
+          <div class="bg-red-100 rounded-lg p-3 text-center">
+            <p class="text-xs text-red-600 font-bold mb-1">🔴 보수</p>
+            <p class="font-bold text-gray-800">{{ report.most_divided_cluster.conservative_source }}</p>
+            <p class="text-sm font-mono text-red-700">{{ '%+.0f' | format(report.most_divided_cluster.conservative_score) }}</p>
+          </div>
+        </div>
+        <p class="text-center text-sm text-amber-700 font-bold">📏 편차: {{ report.most_divided_cluster.deviation }}점</p>
+      </a>
+    </div>
+    {% endif %}
+
+    {# --- 텔레그램 미리보기 --- #}
+    <div class="border-t pt-6">
+      <h2 class="text-sm font-bold text-gray-500 mb-3">📱 텔레그램 전송 미리보기</h2>
+      <pre class="bg-gray-900 text-green-400 rounded-xl p-4 text-xs overflow-x-auto whitespace-pre-wrap leading-relaxed">{{ report.telegram_text }}</pre>
+    </div>
+  </div>
+</div>
+{% endblock %}

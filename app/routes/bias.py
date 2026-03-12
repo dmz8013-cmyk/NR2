@@ -315,3 +315,38 @@ def analyze(article_id):
         flash(f'분석 실패: {str(e)[:100]}', 'error')
 
     return redirect(url_for('bias.detail', article_id=article_id))
+
+
+# --- 주간 편향 리포트 ---
+
+@bp.route('/report/weekly')
+@login_required
+def weekly_report():
+    """주간 편향 리포트 미리보기 (관리자 전용)"""
+    if not current_user.is_admin:
+        flash('관리자만 접근할 수 있습니다.', 'error')
+        return redirect(url_for('bias.index'))
+
+    from app.utils.bias_report import generate_weekly_report
+    report = generate_weekly_report()
+    return render_template('bias/report.html', report=report)
+
+
+@bp.route('/report/send', methods=['POST'])
+@login_required
+def send_report():
+    """주간 리포트 텔레그램 전송 (관리자 전용)"""
+    if not current_user.is_admin:
+        flash('관리자만 접근할 수 있습니다.', 'error')
+        return redirect(url_for('bias.index'))
+
+    from app.utils.bias_report import generate_weekly_report, send_weekly_report_to_telegram
+    report = generate_weekly_report()
+    result = send_weekly_report_to_telegram(report['telegram_text'])
+
+    if result['success']:
+        flash('주간 리포트가 텔레그램으로 전송되었습니다.', 'success')
+    else:
+        flash(f'전송 실패: {result["message"]}', 'error')
+
+    return redirect(url_for('bias.weekly_report'))
