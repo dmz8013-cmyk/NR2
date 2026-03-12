@@ -31,6 +31,26 @@ def get_media_bias(source_name):
     return result
 
 
+class ArticleCluster(db.Model):
+    """같은 사건을 다룬 기사들의 묶음"""
+    __tablename__ = 'article_clusters'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(300), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    articles = db.relationship('NewsArticle', backref='cluster', lazy='dynamic')
+
+    @property
+    def article_count(self):
+        return self.articles.count()
+
+    @property
+    def sources(self):
+        """클러스터 내 고유 언론사 목록"""
+        return list(set(a.source for a in self.articles if a.source))
+
+
 class NewsArticle(db.Model):
     __tablename__ = 'news_articles'
 
@@ -49,6 +69,8 @@ class NewsArticle(db.Model):
     article_geopolitical = db.Column(db.Float, nullable=True)  # AI 기사 지정학축 -100~100
     article_economic = db.Column(db.Float, nullable=True)      # AI 기사 경제축 -100~100
     ai_summary = db.Column(db.Text, nullable=True)             # AI 분석 요약
+
+    cluster_id = db.Column(db.Integer, db.ForeignKey('article_clusters.id'), nullable=True)
 
     vote_left = db.Column(db.Integer, default=0)
     vote_center = db.Column(db.Integer, default=0)
