@@ -3,7 +3,6 @@ import os
 import json
 import traceback
 import difflib
-import httpx
 import requests as http_requests
 from bs4 import BeautifulSoup
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
@@ -327,10 +326,10 @@ def _analyze_with_ai(title, body_text, source=''):
         "max_tokens": 500,
         "messages": [{"role": "user", "content": prompt}],
     }
-    resp = httpx.post(
+    resp = http_requests.post(
         "https://api.anthropic.com/v1/messages",
         headers=headers,
-        content=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
+        data=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
         timeout=30,
     )
     resp.raise_for_status()
