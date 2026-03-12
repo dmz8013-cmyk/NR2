@@ -217,6 +217,26 @@ def format_message(art):
     )
 
 
+def _deduplicate_articles(articles, threshold=0.65):
+    """제목 유사도 기반 중복 제거 — 같은 사건은 대표 기사 1건만 선택.
+    속보/단독 우선, 그 다음 통신사(연합뉴스) 우선."""
+    import difflib
+    selected = []
+    for art in articles:
+        is_dup = False
+        for sel in selected:
+            ratio = difflib.SequenceMatcher(None, art['title'], sel['title']).ratio()
+            if ratio >= threshold:
+                is_dup = True
+                break
+        if not is_dup:
+            selected.append(art)
+    return selected
+
+
+MAX_SEND_PER_CYCLE = 3  # 회당 최대 발송 건수 (기존 15 → 3)
+
+
 async def send_news():
     if not BOT_TOKEN:
         print("NUREONGI_NEWS_BOT_TOKEN 환경변수 없음")
@@ -225,20 +245,26 @@ async def send_news():
     first_run = len(sent_news) == 0
     bot = Bot(BOT_TOKEN)
     articles = get_news()
-    sent_titles = set()
-    new_count = 0
-    for art in articles:
-        if art['link'] in sent_news:
-            continue
-        if any(t in art['title'] for t in sent_titles):
-            continue
-        if first_run:
+
+    # 이미 보낸 기사 제외
+    new_articles = [a for a in articles if a['link'] not in sent_news]
+
+    if first_run:
+        for art in new_articles:
             sent_news.add(art['link'])
-            continue
+        save_sent_news(sent_news)
+        print(f"[뉴스봇v2] 첫 실행 — {len(new_articles)}건 기록 (발송 건너뜀)")
+        return
+
+    # 제목 유사도 기반 중복 제거 (같은 사건 → 대표 1건)
+    deduped = _deduplicate_articles(new_articles)
+    print(f"[뉴스봇v2] 신규 {len(new_articles)}건 → 중복제거 {len(deduped)}건 → 최대 {MAX_SEND_PER_CYCLE}건 발송")
+
+    new_count = 0
+    for art in deduped:
         sent_news.add(art['link'])
-        sent_titles.add(art['title'])
-        if new_count >= 15:
-            break
+        if new_count >= MAX_SEND_PER_CYCLE:
+            continue  # 발송은 안 하지만 sent 목록에는 추가 (다음에 중복 방지)
         message = format_message(art)
         try:
             await bot.send_message(
@@ -253,8 +279,13 @@ async def send_news():
             await asyncio.sleep(2)
         except Exception as e:
             print(f"❌ 전송 실패: {e}")
+
+    # 중복제거 후 미발송 기사도 DB에 저장
+    for art in deduped[MAX_SEND_PER_CYCLE:]:
+        save_article_to_db(art)
+
     save_sent_news(sent_news)
-    print(f"[뉴스봇v2] 완료 — {new_count}개 전송")
+    print(f"[뉴스봇v2] 완료 — {new_count}개 발송, {len(deduped) - new_count}개 DB만 저장")
 
     # 랭킹 기사 수집 (네이버 + 다음 교집합 우선, 나머지도 저장)
     try:
@@ -323,7 +354,8 @@ def fetch_naver_ranking():
                     seen_links.add(link)
 
                     title = link_el.get_text(strip=True)
-                    rank = int(rank_el.get_text(strip=True)) if rank_el else 0
+                    rank_str = rank_el.get_text(strip=True) if rank_el else '0'
+                    rank = int(rank_str.replace('위', '').strip())
 
                     if rank >= 1 and rank <= 10:
                         all_ranking.append({
