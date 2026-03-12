@@ -7,6 +7,11 @@
 .bias-left{background:#3B82F6}.bias-center{background:#9CA3AF}.bias-right{background:#EF4444}
 .article-card{transition:all .2s;border:1px solid rgba(0,0,0,.06)}
 .article-card:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,.1)}
+.axis-bar{position:relative;height:6px;border-radius:3px;background:linear-gradient(to right,#3B82F6,#D1D5DB 50%,#EF4444)}
+.axis-marker{position:absolute;top:-3px;width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transform:translateX(-50%)}
+.axis-pol .axis-marker{background:#6366F1}
+.axis-geo .axis-marker{background:#F59E0B}
+.axis-eco .axis-marker{background:#10B981}
 </style>
 {% endblock %}
 
@@ -66,6 +71,33 @@
           </div>
           {% else %}
           <p class="text-xs text-gray-400">{{ article.vote_total }}명 참여 · 10명 이상 시 결과 공개</p>
+          {% endif %}
+
+          {% if article.source_political is not none %}
+          <div class="mt-3 pt-3 border-t border-gray-100 max-w-md space-y-2">
+            <p class="text-xs font-semibold text-gray-500 mb-1">📡 언론사 성향 ({{ article.source }})</p>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] text-blue-500 w-12 text-right shrink-0">진보</span>
+              <div class="axis-bar axis-pol flex-1">
+                <div class="axis-marker" style="left:{{ ((article.source_political + 100) / 200 * 100) }}%"></div>
+              </div>
+              <span class="text-[10px] text-red-500 w-12 shrink-0">보수</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] text-blue-500 w-12 text-right shrink-0">친중</span>
+              <div class="axis-bar axis-geo flex-1">
+                <div class="axis-marker" style="left:{{ ((article.source_geopolitical + 100) / 200 * 100) }}%"></div>
+              </div>
+              <span class="text-[10px] text-red-500 w-12 shrink-0">친미</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] text-blue-500 w-12 text-right shrink-0">노동</span>
+              <div class="axis-bar axis-eco flex-1">
+                <div class="axis-marker" style="left:{{ ((article.source_economic + 100) / 200 * 100) }}%"></div>
+              </div>
+              <span class="text-[10px] text-red-500 w-12 shrink-0">대기업</span>
+            </div>
+          </div>
           {% endif %}
         </div>
       </div>

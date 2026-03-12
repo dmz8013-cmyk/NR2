@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from app import db
-from app.models.bias import NewsArticle, BiasVote, BoneTransaction
+from app.models.bias import NewsArticle, BiasVote, BoneTransaction, get_media_bias
 from datetime import datetime
 
 bp = Blueprint('bias', __name__, url_prefix='/bias')
@@ -41,9 +41,13 @@ def submit():
             flash('이미 등록된 기사입니다.', 'warning')
             return redirect(url_for('bias.detail', article_id=existing.id))
 
+        bias = get_media_bias(source)
         article = NewsArticle(
             url=url, title=title, source=source,
-            summary=summary, submitted_by=current_user.id
+            summary=summary, submitted_by=current_user.id,
+            source_political=bias['political'],
+            source_geopolitical=bias['geopolitical'],
+            source_economic=bias['economic']
         )
         db.session.add(article)
         current_user.add_bones(2, 'article_submit')
