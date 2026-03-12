@@ -22,6 +22,7 @@ from editorial_bot import send_editorial
 from schedule_bot import send_schedule
 from vip_alert_bot import run_vip_alert
 from app.utils.bias_report import generate_weekly_report, send_weekly_report_to_telegram
+from scripts.daily_scrap import run as daily_scrap_run
 
 scheduler = BlockingScheduler(timezone='Asia/Seoul')
 INTERVAL_MINUTES = int(os.environ.get('YOUTUBE_CHECK_INTERVAL', 10))
@@ -83,6 +84,16 @@ def weekly_bias_report():
             logger.info('[Scheduler] 주간 편향 리포트 전송 완료')
         else:
             logger.error(f'[Scheduler] 주간 편향 리포트 전송 실패: {result["message"]}')
+
+@scheduler.scheduled_job('cron', hour=7, minute=30, id='daily_scrap_morning', timezone='Asia/Seoul')
+def daily_scrap_morning():
+    logger.info('[Scheduler] 단독 뉴스 스크랩 — 오전판 실행 중...')
+    daily_scrap_run('morning')
+
+@scheduler.scheduled_job('cron', hour=16, minute=30, id='daily_scrap_afternoon', timezone='Asia/Seoul')
+def daily_scrap_afternoon():
+    logger.info('[Scheduler] 단독 뉴스 스크랩 — 오후판 실행 중...')
+    daily_scrap_run('afternoon')
 
 if __name__ == '__main__':
     logger.info(f'[Scheduler] 시작 — {INTERVAL_MINUTES}분마다 유튜브 RSS 피드 확인')
