@@ -65,10 +65,18 @@ def index():
     """편향 투표 메인 페이지"""
     try:
         page = request.args.get('page', 1, type=int)
-        articles = NewsArticle.query.order_by(
+        tab = request.args.get('tab', 'all')
+
+        query = NewsArticle.query
+        if tab == 'ranking':
+            query = query.filter(NewsArticle.is_ranking == True)
+        elif tab == 'cluster':
+            query = query.filter(NewsArticle.cluster_id.isnot(None))
+
+        articles = query.order_by(
             NewsArticle.created_at.desc()
         ).paginate(page=page, per_page=20, error_out=False)
-        return render_template('bias/index.html', articles=articles)
+        return render_template('bias/index.html', articles=articles, current_tab=tab)
     except Exception as e:
         current_app.logger.error(f'[BIAS INDEX ERROR] {traceback.format_exc()}')
         raise

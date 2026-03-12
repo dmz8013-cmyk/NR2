@@ -256,6 +256,120 @@ async def send_news():
     save_sent_news(sent_news)
     print(f"[뉴스봇v2] 완료 — {new_count}개 전송")
 
+    # 랭킹 기사 수집 (키워드 필터 없이 무조건 DB 저장)
+    try:
+        ranking_articles = fetch_naver_ranking()
+        for art in ranking_articles:
+            save_ranking_to_db(art)
+        print(f"[랭킹] DB 저장 완료 — {len(ranking_articles)}건")
+    except Exception as e:
+        print(f"[랭킹] 수집 오류: {e}")
+
+
+# --- 네이버 랭킹 수집 ---
+
+RANKING_SECTIONS = {
+    '정치': 100,
+    '경제': 101,
+    '사회': 102,
+    '국제': 104,
+}
+
+
+def fetch_naver_ranking():
+    """네이버 뉴스 분야별 많이 본 뉴스 TOP 10 수집
+
+    Returns:
+        list of dicts with keys: title, link, press, section, rank, is_ranking
+    """
+    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'}
+    all_ranking = []
+
+    for section_name, section_id in RANKING_SECTIONS.items():
+        url = f'https://news.naver.com/main/ranking/popularDay.naver?rankingType=popular_day&sectionId={section_id}'
+        try:
+            res = requests.get(url, headers=headers, timeout=10)
+            res.raise_for_status()
+            soup = BeautifulSoup(res.text, 'html.parser')
+
+            boxes = soup.select('.rankingnews_box')
+            seen_links = set()
+
+            for box in boxes:
+                press_el = box.select_one('.rankingnews_name')
+                press = press_el.get_text(strip=True) if press_el else '미상'
+
+                items = box.select('.rankingnews_list li')
+                for item in items:
+                    link_el = item.select_one('a.list_title')
+                    rank_el = item.select_one('.list_ranking_num')
+                    if not link_el:
+                        continue
+
+                    link = link_el.get('href', '')
+                    if not link.startswith('http') or link in seen_links:
+                        continue
+                    seen_links.add(link)
+
+                    title = link_el.get_text(strip=True)
+                    rank = int(rank_el.get_text(strip=True)) if rank_el else 0
+
+                    if rank >= 1 and rank <= 10:
+                        all_ranking.append({
+                            'title': title,
+                            'link': link,
+                            'press': press,
+                            'section': section_name,
+                            'rank': rank,
+                            'is_ranking': True,
+                        })
+
+            print(f"[랭킹] {section_name}: {sum(1 for a in all_ranking if a['section'] == section_name)}건")
+        except Exception as e:
+            print(f"[랭킹] {section_name} 수집 오류: {e}")
+
+    return all_ranking
+
+
+def save_ranking_to_db(art):
+    """랭킹 기사를 news_articles에 저장 (무조건 저장, 키워드 필터 X)"""
+    conn = _get_db_conn()
+    if not conn:
+        return
+    try:
+        bias = get_media_bias(art['press'])
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO news_articles
+               (title, url, source, source_political, source_geopolitical, source_economic,
+                is_ranking, ranking_section, ranking_rank, submitted_by, created_at)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 1, NOW())
+               ON CONFLICT (url) DO UPDATE SET
+                 is_ranking = EXCLUDED.is_ranking,
+                 ranking_section = EXCLUDED.ranking_section,
+                 ranking_rank = EXCLUDED.ranking_rank""",
+            (art['title'], art['link'], art['press'],
+             bias['political'], bias['geopolitical'], bias['economic'],
+             True, art['section'], art.get('rank'))
+        )
+        conn.commit()
+        if cur.rowcount > 0:
+            print(f"  📥 랭킹 DB: [{art['section']}{art.get('rank', '')}위] {art['title'][:30]}")
+        cur.close()
+    except Exception as e:
+        print(f"  ❌ 랭킹 DB 실패: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
+
 
 def run_news_bot():
     asyncio.run(send_news())
+
+
+def run_ranking_collector():
+    """랭킹 수집만 별도 실행"""
+    articles = fetch_naver_ranking()
+    for art in articles:
+        save_ranking_to_db(art)
+    print(f"[랭킹 수집] 완료 — {len(articles)}건")
