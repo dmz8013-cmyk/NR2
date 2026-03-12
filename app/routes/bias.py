@@ -298,7 +298,14 @@ def _scrape_article(url):
         tag.decompose()
 
     text = body.get_text('\n', strip=True)
-    return text[:5000]
+    return text[:5000].encode('utf-8', errors='ignore').decode('utf-8')
+
+
+def _sanitize_text(text):
+    """JSON 직렬화가 불가능한 문자(서로게이트 등) 제거"""
+    if not text:
+        return ''
+    return text.encode('utf-8', errors='ignore').decode('utf-8')
 
 
 def _analyze_with_ai(title, body_text, source=''):
@@ -308,6 +315,11 @@ def _analyze_with_ai(title, body_text, source=''):
     api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
     if not api_key:
         raise ValueError('ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다')
+
+    # 깨진 유니코드 문자 제거
+    title = _sanitize_text(title)
+    body_text = _sanitize_text(body_text)
+    source = _sanitize_text(source)
 
     prompt = (
         "다음 한국 뉴스 기사의 편향을 3개 축으로 분석해주세요.\n\n"
