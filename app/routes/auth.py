@@ -221,5 +221,43 @@ def update_nickname():
         current_user.nickname = new_nickname
         db.session.commit()
         flash(f'닉네임이 "{old_nickname}"에서 "{new_nickname}"(으)로 변경되었습니다!', 'success')
-    
+
+    return redirect(url_for('auth.profile'))
+
+
+VERIFY_CATEGORIES = {
+    'congress': '국회',
+    'government': '정부',
+    'public_org': '공공기관',
+    'local_gov': '지자체',
+    'party': '정당',
+    'media': '언론',
+    'pr': '홍보/대관',
+    'research': '연구/학계',
+    'legal': '법조',
+    'citizen': '시민',
+}
+
+
+@bp.route('/profile/verify', methods=['POST'])
+@login_required
+def request_verify():
+    """본인인증 요청 — 카테고리 선택 시 silver 자동 승급"""
+    if current_user.verified_at:
+        flash('이미 인증이 완료되었습니다.', 'info')
+        return redirect(url_for('auth.profile'))
+
+    category = request.form.get('category', '').strip()
+    if category not in VERIFY_CATEGORIES:
+        flash('올바른 카테고리를 선택해주세요.', 'error')
+        return redirect(url_for('auth.profile'))
+
+    from datetime import datetime
+    current_user.verify_tier = 'silver'
+    current_user.verify_category = category
+    current_user.verify_badge = VERIFY_CATEGORIES[category]
+    current_user.verified_at = datetime.utcnow()
+    db.session.commit()
+
+    flash(f'✅ 본인인증이 완료되었습니다! ({VERIFY_CATEGORIES[category]})', 'success')
     return redirect(url_for('auth.profile'))
