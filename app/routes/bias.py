@@ -319,7 +319,6 @@ def _analyze_with_ai(title, body_text, source=''):
     headers = {
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
-        "content-type": "application/json; charset=utf-8",
     }
     payload = {
         "model": "claude-haiku-4-5-20251001",
@@ -329,7 +328,7 @@ def _analyze_with_ai(title, body_text, source=''):
     resp = http_requests.post(
         "https://api.anthropic.com/v1/messages",
         headers=headers,
-        data=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
+        json=payload,
         timeout=30,
     )
     resp.raise_for_status()
