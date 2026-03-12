@@ -59,6 +59,12 @@ def index():
     return render_template('main/index.html', hot_posts=hot_posts, articles=articles, latest_briefings=latest_briefings)
 
 
+@bp.route('/methodology')
+def methodology():
+    """편향 분류 방법론 페이지"""
+    return render_template('methodology.html')
+
+
 @bp.route('/about')
 def about():
     """소개 페이지"""
