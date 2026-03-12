@@ -81,6 +81,56 @@
 
             <hr class="my-8">
 
+            <!-- 본인인증 섹션 -->
+            <div class="mb-8">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">🛡️ 본인인증</h2>
+                {% if current_user.verified_at %}
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-2xl">✅</span>
+                        <div>
+                            <p class="font-bold text-green-800">인증 완료</p>
+                            <p class="text-sm text-green-600">
+                                {{ current_user.verify_badge }} · {{ current_user.verify_tier }} 등급
+                                · {{ current_user.verified_at.strftime('%Y.%m.%d') }} 인증
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p class="text-yellow-800 font-medium mb-3">
+                        🔒 YouCheck 편향 투표에 참여하려면 본인인증이 필요합니다.
+                    </p>
+                    <form method="POST" action="{{ url_for('auth.request_verify') }}" class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">소속 카테고리 선택</label>
+                            <select name="category" required
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                                <option value="">-- 선택해주세요 --</option>
+                                <option value="citizen">시민</option>
+                                <option value="media">언론</option>
+                                <option value="congress">국회</option>
+                                <option value="government">정부</option>
+                                <option value="public_org">공공기관</option>
+                                <option value="local_gov">지자체</option>
+                                <option value="party">정당</option>
+                                <option value="pr">홍보/대관</option>
+                                <option value="research">연구/학계</option>
+                                <option value="legal">법조</option>
+                            </select>
+                        </div>
+                        <button type="submit"
+                                class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition">
+                            🛡️ 본인인증 하기
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+
+            <hr class="my-8">
+
             <!-- User Information -->
             <div>
                 <h2 class="text-xl font-bold text-gray-900 mb-4">계정 정보</h2>

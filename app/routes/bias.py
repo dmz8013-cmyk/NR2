@@ -274,6 +274,7 @@ def _scrape_article(url):
     headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'}
     resp = http_requests.get(url, headers=headers, timeout=15)
     resp.raise_for_status()
+    resp.encoding = resp.apparent_encoding or 'utf-8'
     soup = BeautifulSoup(resp.text, 'lxml')
 
     # 네이버 뉴스
@@ -301,6 +302,9 @@ def _analyze_with_ai(title, body_text, source=''):
     if not api_key:
         raise ValueError('ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다')
 
+    import anthropic
+    client = anthropic.Anthropic(api_key=api_key)
+
     prompt = f"""다음 한국 뉴스 기사의 편향을 3개 축으로 분석해주세요.
 
 기사 제목: {title}
@@ -316,25 +320,13 @@ def _analyze_with_ai(title, body_text, source=''):
 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 JSON만 출력하세요:
 {{"political": 점수, "geopolitical": 점수, "economic": 점수, "summary": "2~3문장 요약"}}"""
 
-    headers = {
-        "x-api-key": api_key,
-        "anthropic-version": "2023-06-01",
-    }
-    payload = {
-        "model": "claude-haiku-4-5-20251001",
-        "max_tokens": 500,
-        "messages": [{"role": "user", "content": prompt}],
-    }
-    resp = http_requests.post(
-        "https://api.anthropic.com/v1/messages",
-        headers=headers,
-        json=payload,
-        timeout=30,
+    message = client.messages.create(
+        model='claude-haiku-4-5-20251001',
+        max_tokens=500,
+        messages=[{'role': 'user', 'content': prompt}],
     )
-    resp.raise_for_status()
-    message = resp.json()
 
-    raw = message['content'][0]['text'].strip()
+    raw = message.content[0].text.strip()
     # JSON 블록 추출
     if '```' in raw:
         raw = raw.split('```')[1]
