@@ -297,36 +297,48 @@ def _scrape_article(url):
 
 
 def _analyze_with_ai(title, body_text, source=''):
-    """Claude Haiku로 3축 편향 분석"""
+    """Claude Haiku로 3축 편향 분석 (urllib 사용 — 인코딩 안전)"""
+    import urllib.request
+
     api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
     if not api_key:
         raise ValueError('ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다')
 
-    import anthropic
-    client = anthropic.Anthropic(api_key=api_key)
-
-    prompt = f"""다음 한국 뉴스 기사의 편향을 3개 축으로 분석해주세요.
-
-기사 제목: {title}
-언론사: {source}
-기사 본문:
-{body_text}
-
-각 축에 대해 -100 ~ +100 점수와 근거를 제시하세요:
-1. 정치축 (political): 진보(-100) ↔ 보수(+100)
-2. 지정학축 (geopolitical): 친중(-100) ↔ 친미(+100)
-3. 경제축 (economic): 노동친화(-100) ↔ 대기업친화(+100)
-
-반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 JSON만 출력하세요:
-{{"political": 점수, "geopolitical": 점수, "economic": 점수, "summary": "2~3문장 요약"}}"""
-
-    message = client.messages.create(
-        model='claude-haiku-4-5-20251001',
-        max_tokens=500,
-        messages=[{'role': 'user', 'content': prompt}],
+    prompt = (
+        "다음 한국 뉴스 기사의 편향을 3개 축으로 분석해주세요.\n\n"
+        f"기사 제목: {title}\n"
+        f"언론사: {source}\n"
+        f"기사 본문:\n{body_text}\n\n"
+        "각 축에 대해 -100 ~ +100 점수와 근거를 제시하세요:\n"
+        "1. 정치축 (political): 진보(-100) ↔ 보수(+100)\n"
+        "2. 지정학축 (geopolitical): 친중(-100) ↔ 친미(+100)\n"
+        "3. 경제축 (economic): 노동친화(-100) ↔ 대기업친화(+100)\n\n"
+        '반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 JSON만 출력하세요:\n'
+        '{"political": 점수, "geopolitical": 점수, "economic": 점수, "summary": "2~3문장 요약"}'
     )
 
-    raw = message.content[0].text.strip()
+    payload = {
+        "model": "claude-haiku-4-5-20251001",
+        "max_tokens": 500,
+        "messages": [{"role": "user", "content": prompt}],
+    }
+    # json.dumps 기본값 ensure_ascii=True → 한글이 \uXXXX 이스케이프 → 순수 ASCII
+    data = json.dumps(payload).encode('utf-8')
+
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=data,
+        headers={
+            "X-Api-Key": api_key,
+            "Anthropic-Version": "2023-06-01",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        message = json.loads(resp.read().decode('utf-8'))
+
+    raw = message['content'][0]['text'].strip()
     # JSON 블록 추출
     if '```' in raw:
         raw = raw.split('```')[1]
