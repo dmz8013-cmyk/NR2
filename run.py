@@ -28,10 +28,12 @@ try:
             except Exception:
                 conn.rollback()
                 conn.autocommit = True
-        # source_bias 컬럼 패치
-        for col in ['source_political', 'source_geopolitical', 'source_economic']:
+        # source_bias + article_bias 컬럼 패치
+        for col in ['source_political', 'source_geopolitical', 'source_economic',
+                     'article_political', 'article_geopolitical', 'article_economic', 'ai_summary']:
             try:
-                cur.execute(f"ALTER TABLE news_articles ADD COLUMN {col} FLOAT")
+                ctype = 'TEXT' if col == 'ai_summary' else 'FLOAT'
+                cur.execute(f"ALTER TABLE news_articles ADD COLUMN {col} {ctype}")
                 print(f"[DB PATCH] Added: news_articles.{col}")
             except Exception:
                 conn.rollback()

@@ -45,6 +45,11 @@ class NewsArticle(db.Model):
     source_geopolitical = db.Column(db.Float, nullable=True)   # 언론사 지정학축 -100~100
     source_economic = db.Column(db.Float, nullable=True)       # 언론사 경제축 -100~100
 
+    article_political = db.Column(db.Float, nullable=True)     # AI 기사 정치축 -100~100
+    article_geopolitical = db.Column(db.Float, nullable=True)  # AI 기사 지정학축 -100~100
+    article_economic = db.Column(db.Float, nullable=True)      # AI 기사 경제축 -100~100
+    ai_summary = db.Column(db.Text, nullable=True)             # AI 분석 요약
+
     vote_left = db.Column(db.Integer, default=0)
     vote_center = db.Column(db.Integer, default=0)
     vote_right = db.Column(db.Integer, default=0)

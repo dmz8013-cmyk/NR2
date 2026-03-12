@@ -1,5 +1,9 @@
 """뉴스 편향 투표 시스템 라우트"""
+import os
+import json
 import traceback
+import requests as http_requests
+from bs4 import BeautifulSoup
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from app import db
@@ -157,5 +161,115 @@ def vote(article_id):
 
     article.recalculate()
     db.session.commit()
+
+    return redirect(url_for('bias.detail', article_id=article_id))
+
+
+# --- AI 편향 분석 ---
+
+def _scrape_article(url):
+    """기사 URL에서 본문 텍스트 추출"""
+    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'}
+    resp = http_requests.get(url, headers=headers, timeout=15)
+    resp.raise_for_status()
+    soup = BeautifulSoup(resp.text, 'lxml')
+
+    # 네이버 뉴스
+    body = soup.select_one('#dic_area, #newsct_article, .newsct_body, article#dic_area')
+    if not body:
+        # 일반 기사 사이트
+        body = soup.select_one('article, .article-body, .article_body, .story-body, #article-body, .news_end')
+    if not body:
+        # 최후 수단: 가장 긴 <p> 그룹
+        paragraphs = soup.find_all('p')
+        text = '\n'.join(p.get_text(strip=True) for p in paragraphs if len(p.get_text(strip=True)) > 30)
+        return text[:5000] if text else ''
+
+    # 불필요 요소 제거
+    for tag in body.select('script, style, .ad, .adsbygoogle, .journalist_area, .byline'):
+        tag.decompose()
+
+    text = body.get_text('\n', strip=True)
+    return text[:5000]
+
+
+def _analyze_with_ai(title, body_text, source=''):
+    """Claude Haiku로 3축 편향 분석"""
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        raise ValueError('ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다')
+
+    import anthropic
+    client = anthropic.Anthropic(api_key=api_key)
+
+    prompt = f"""다음 한국 뉴스 기사의 편향을 3개 축으로 분석해주세요.
+
+기사 제목: {title}
+언론사: {source}
+기사 본문:
+{body_text}
+
+각 축에 대해 -100 ~ +100 점수와 근거를 제시하세요:
+1. 정치축 (political): 진보(-100) ↔ 보수(+100)
+2. 지정학축 (geopolitical): 친중(-100) ↔ 친미(+100)
+3. 경제축 (economic): 노동친화(-100) ↔ 대기업친화(+100)
+
+반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 JSON만 출력하세요:
+{{"political": 점수, "geopolitical": 점수, "economic": 점수, "summary": "2~3문장 요약"}}"""
+
+    message = client.messages.create(
+        model='claude-haiku-4-5-20251001',
+        max_tokens=500,
+        messages=[{'role': 'user', 'content': prompt}],
+    )
+
+    raw = message.content[0].text.strip()
+    # JSON 블록 추출
+    if '```' in raw:
+        raw = raw.split('```')[1]
+        if raw.startswith('json'):
+            raw = raw[4:]
+        raw = raw.strip()
+
+    result = json.loads(raw)
+
+    # 범위 클램핑
+    for key in ('political', 'geopolitical', 'economic'):
+        val = result.get(key, 0)
+        result[key] = max(-100, min(100, int(val)))
+
+    return result
+
+
+@bp.route('/<int:article_id>/analyze', methods=['POST'])
+@login_required
+def analyze(article_id):
+    """AI 편향 분석 실행"""
+    if not current_user.is_admin:
+        flash('관리자만 AI 분석을 실행할 수 있습니다.', 'error')
+        return redirect(url_for('bias.detail', article_id=article_id))
+
+    article = NewsArticle.query.get_or_404(article_id)
+
+    try:
+        body_text = _scrape_article(article.url)
+        if not body_text or len(body_text) < 50:
+            flash('기사 본문을 추출할 수 없습니다.', 'error')
+            return redirect(url_for('bias.detail', article_id=article_id))
+
+        result = _analyze_with_ai(article.title, body_text, article.source or '')
+
+        article.article_political = result['political']
+        article.article_geopolitical = result['geopolitical']
+        article.article_economic = result['economic']
+        article.ai_summary = result.get('summary', '')
+        db.session.commit()
+
+        flash('AI 편향 분석이 완료되었습니다.', 'success')
+    except json.JSONDecodeError:
+        flash('AI 응답 파싱 실패. 다시 시도해주세요.', 'error')
+    except Exception as e:
+        current_app.logger.error(f'[AI ANALYZE ERROR] {traceback.format_exc()}')
+        flash(f'분석 실패: {str(e)[:100]}', 'error')
 
     return redirect(url_for('bias.detail', article_id=article_id))
