@@ -215,6 +215,21 @@ def vote(article_id):
     return redirect(url_for('bias.detail', article_id=article_id))
 
 
+@bp.route('/<int:article_id>/delete', methods=['POST'])
+@login_required
+def delete_article(article_id):
+    """관리자 전용 기사 삭제"""
+    if not current_user.is_admin:
+        flash('관리자만 삭제할 수 있습니다.', 'error')
+        return redirect(url_for('bias.detail', article_id=article_id))
+
+    article = NewsArticle.query.get_or_404(article_id)
+    db.session.delete(article)
+    db.session.commit()
+    flash('기사가 삭제되었습니다.', 'success')
+    return redirect(url_for('bias.index'))
+
+
 # --- AI 편향 분석 ---
 
 def _scrape_article(url):

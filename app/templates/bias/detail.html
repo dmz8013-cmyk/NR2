@@ -150,6 +150,16 @@
       <p class="text-gray-500 text-sm">🔒 본인인증 후 투표에 참여할 수 있습니다</p>
     </div>
     {% endif %}
+
+    {# --- 관리자 삭제 버튼 --- #}
+    {% if current_user.is_authenticated and current_user.is_admin %}
+    <div class="border-t pt-4 mt-4 flex justify-end">
+      <form method="POST" action="{{ url_for('bias.delete_article', article_id=article.id) }}" onsubmit="return confirm('정말 삭제하시겠습니까?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-xl transition text-sm">🗑️ 삭제</button>
+      </form>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
