@@ -58,19 +58,22 @@ class NewsArticle(db.Model):
 
     @property
     def left_pct(self):
-        return round(self.vote_left / self.vote_total * 100) if self.vote_total > 0 else 0
+        total = self.vote_total or 0
+        return round((self.vote_left or 0) / total * 100) if total > 0 else 0
 
     @property
     def center_pct(self):
-        return round(self.vote_center / self.vote_total * 100) if self.vote_total > 0 else 0
+        total = self.vote_total or 0
+        return round((self.vote_center or 0) / total * 100) if total > 0 else 0
 
     @property
     def right_pct(self):
-        return round(self.vote_right / self.vote_total * 100) if self.vote_total > 0 else 0
+        total = self.vote_total or 0
+        return round((self.vote_right or 0) / total * 100) if total > 0 else 0
 
     @property
     def bias_label(self):
-        if self.vote_total < 10:
+        if (self.vote_total or 0) < 10:
             return 'collecting'
         if self.left_pct >= 50:
             return 'left'

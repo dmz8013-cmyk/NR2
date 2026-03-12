@@ -25,10 +25,27 @@ def debug():
         articles = NewsArticle.query.order_by(
             NewsArticle.created_at.desc()
         ).paginate(page=page, per_page=20, error_out=False)
+        # 프로퍼티 접근 테스트
+        prop_test = []
+        for a in articles.items:
+            prop_test.append({
+                'id': a.id,
+                'vote_total': a.vote_total,
+                'vote_total_type': type(a.vote_total).__name__,
+                'bias_label': a.bias_label,
+                'left_pct': a.left_pct,
+            })
+
+        # 템플릿 렌더링 테스트
+        html = render_template('bias/index.html', articles=articles)
+
         return jsonify({
             'status': 'ok',
             'db_columns': col_names,
             'article_count': articles.total,
+            'prop_test': prop_test,
+            'template_ok': True,
+            'html_length': len(html),
         })
     except Exception as e:
         return jsonify({
