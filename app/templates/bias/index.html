@@ -31,7 +31,9 @@
   <div class="flex gap-2 mb-6 overflow-x-auto pb-1">
     <a href="{{ url_for('bias.index', tab='all') }}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition {% if current_tab == 'all' %}bg-amber-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">📰 전체</a>
     <a href="{{ url_for('bias.index', tab='ranking') }}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition {% if current_tab == 'ranking' %}bg-orange-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">🔥 랭킹</a>
-    <a href="{{ url_for('bias.index', tab='cluster') }}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition {% if current_tab == 'cluster' %}bg-indigo-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">📰 클러스터</a>
+    <a href="{{ url_for('bias.index', tab='politics') }}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition {% if current_tab == 'politics' %}bg-blue-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">🏛️ 정치</a>
+    <a href="{{ url_for('bias.index', tab='economy') }}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition {% if current_tab == 'economy' %}bg-green-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">💰 경제</a>
+    <a href="{{ url_for('bias.index', tab='world') }}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition {% if current_tab == 'world' %}bg-purple-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">🌏 국제</a>
   </div>
 
   {% if not current_user.is_authenticated %}

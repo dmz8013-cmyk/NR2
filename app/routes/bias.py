@@ -72,6 +72,43 @@ def index():
             query = query.filter(NewsArticle.is_ranking == True)
         elif tab == 'cluster':
             query = query.filter(NewsArticle.cluster_id.isnot(None))
+        elif tab == 'politics':
+            query = query.filter(
+                db.or_(
+                    NewsArticle.ranking_section == '정치',
+                    NewsArticle.title.ilike('%정치%'),
+                    NewsArticle.title.ilike('%대통령%'),
+                    NewsArticle.title.ilike('%국회%'),
+                    NewsArticle.title.ilike('%선거%'),
+                    NewsArticle.title.ilike('%여당%'),
+                    NewsArticle.title.ilike('%야당%'),
+                )
+            )
+        elif tab == 'economy':
+            query = query.filter(
+                db.or_(
+                    NewsArticle.ranking_section == '경제',
+                    NewsArticle.title.ilike('%경제%'),
+                    NewsArticle.title.ilike('%증시%'),
+                    NewsArticle.title.ilike('%환율%'),
+                    NewsArticle.title.ilike('%부동산%'),
+                    NewsArticle.title.ilike('%금리%'),
+                    NewsArticle.title.ilike('%주가%'),
+                )
+            )
+        elif tab == 'world':
+            query = query.filter(
+                db.or_(
+                    NewsArticle.ranking_section == '세계',
+                    NewsArticle.title.ilike('%미국%'),
+                    NewsArticle.title.ilike('%중국%'),
+                    NewsArticle.title.ilike('%일본%'),
+                    NewsArticle.title.ilike('%러시아%'),
+                    NewsArticle.title.ilike('%우크라%'),
+                    NewsArticle.title.ilike('%북한%'),
+                    NewsArticle.title.ilike('%트럼프%'),
+                )
+            )
 
         articles = query.order_by(
             NewsArticle.created_at.desc()
@@ -260,7 +297,7 @@ def _scrape_article(url):
 
 def _analyze_with_ai(title, body_text, source=''):
     """Claude Haiku로 3축 편향 분석"""
-    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
     if not api_key:
         raise ValueError('ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다')
 
