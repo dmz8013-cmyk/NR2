@@ -75,6 +75,7 @@ class NewsArticle(db.Model):
     is_ranking = db.Column(db.Boolean, default=False)            # 네이버 랭킹 기사 여부
     ranking_section = db.Column(db.String(20), nullable=True)    # 정치/경제/사회/국제
     ranking_rank = db.Column(db.Integer, nullable=True)          # 1~10위
+    is_cross_platform = db.Column(db.Boolean, default=False)     # 네이버·다음 동시랭킹
 
     vote_left = db.Column(db.Integer, default=0)
     vote_center = db.Column(db.Integer, default=0)

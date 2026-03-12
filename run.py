@@ -89,7 +89,7 @@ try:
             conn.rollback()
             conn.autocommit = True
         # 랭킹 컬럼 패치
-        for col, ctype in [('is_ranking', 'BOOLEAN DEFAULT FALSE'), ('ranking_section', 'VARCHAR(20)'), ('ranking_rank', 'INTEGER')]:
+        for col, ctype in [('is_ranking', 'BOOLEAN DEFAULT FALSE'), ('ranking_section', 'VARCHAR(20)'), ('ranking_rank', 'INTEGER'), ('is_cross_platform', 'BOOLEAN DEFAULT FALSE')]:
             try:
                 cur.execute(f"ALTER TABLE news_articles ADD COLUMN {col} {ctype}")
                 print(f"[DB PATCH] Added: news_articles.{col}")

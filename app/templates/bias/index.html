@@ -53,7 +53,9 @@
             {% if article.source %}
             <span class="text-xs font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600">{{ article.source }}</span>
             {% endif %}
-            {% if article.is_ranking %}
+            {% if article.is_cross_platform %}
+            <span class="text-xs font-bold px-2 py-0.5 rounded bg-red-100 text-red-700">🔥 네이버·다음 동시랭킹</span>
+            {% elif article.is_ranking %}
             <span class="text-xs font-bold px-2 py-0.5 rounded bg-orange-100 text-orange-700">🔥 {{ article.ranking_section }} {{ article.ranking_rank }}위</span>
             {% endif %}
             {% if article.cluster_id %}

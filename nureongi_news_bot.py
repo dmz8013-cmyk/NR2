@@ -256,12 +256,23 @@ async def send_news():
     save_sent_news(sent_news)
     print(f"[뉴스봇v2] 완료 — {new_count}개 전송")
 
-    # 랭킹 기사 수집 (키워드 필터 없이 무조건 DB 저장)
+    # 랭킹 기사 수집 (네이버 + 다음 교집합 우선, 나머지도 저장)
     try:
-        ranking_articles = fetch_naver_ranking()
-        for art in ranking_articles:
+        naver_ranking = fetch_naver_ranking()
+        daum_ranking = fetch_daum_ranking()
+        cross = cross_platform_ranking(naver_ranking, daum_ranking)
+
+        # 교집합 기사 우선 저장
+        for art in cross:
             save_ranking_to_db(art)
-        print(f"[랭킹] DB 저장 완료 — {len(ranking_articles)}건")
+
+        # 나머지 네이버 랭킹도 저장
+        cross_links = {a['link'] for a in cross}
+        for art in naver_ranking:
+            if art['link'] not in cross_links:
+                save_ranking_to_db(art)
+
+        print(f"[랭킹] 완료 — 네이버 {len(naver_ranking)}건, 다음 {len(daum_ranking)}건, 교집합 {len(cross)}건")
     except Exception as e:
         print(f"[랭킹] 수집 오류: {e}")
 
@@ -331,6 +342,89 @@ def fetch_naver_ranking():
     return all_ranking
 
 
+DAUM_SECTIONS = {
+    '정치': 'https://news.daum.net/politics',
+    '경제': 'https://news.daum.net/economic',
+    '사회': 'https://news.daum.net/society',
+    '국제': 'https://news.daum.net/foreign',
+}
+
+
+def fetch_daum_ranking():
+    """다음 뉴스 섹션별 상위 기사 수집 (에디터 큐레이션 기반)
+
+    Returns:
+        list of dicts with keys: title, link, press, section
+    """
+    import re
+    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'}
+    all_articles = []
+
+    for section_name, url in DAUM_SECTIONS.items():
+        try:
+            res = requests.get(url, headers=headers, timeout=10)
+            res.encoding = 'utf-8'
+            res.raise_for_status()
+            soup = BeautifulSoup(res.text, 'html.parser')
+
+            items = soup.select('.cont_thumb')[:10]
+            for item in items:
+                title_el = item.select_one('.tit_txt')
+                link_el = item.select_one('a')
+                info_el = item.select_one('.info_txt')
+
+                if not title_el:
+                    continue
+
+                title = title_el.get_text(strip=True)
+                href = link_el.get('href', '') if link_el else ''
+
+                # 언론사 이름 추출 (시간 정보 제거)
+                press = ''
+                if info_el:
+                    raw = info_el.get_text(strip=True)
+                    press = re.sub(r'\d+[분시간일]+\s*전$', '', raw).strip()
+
+                if title and href:
+                    all_articles.append({
+                        'title': title,
+                        'link': href,
+                        'press': press or '미상',
+                        'section': section_name,
+                    })
+
+            print(f"[다음] {section_name}: {sum(1 for a in all_articles if a['section'] == section_name)}건")
+        except Exception as e:
+            print(f"[다음] {section_name} 수집 오류: {e}")
+
+    return all_articles
+
+
+def cross_platform_ranking(naver_articles, daum_articles):
+    """네이버·다음 교집합 기사 계산 (제목 유사도 70% 이상)
+
+    Returns:
+        list of naver article dicts that also appear on daum
+    """
+    import difflib
+    cross = []
+    used_daum = set()
+
+    for nav in naver_articles:
+        for i, daum in enumerate(daum_articles):
+            if i in used_daum:
+                continue
+            ratio = difflib.SequenceMatcher(None, nav['title'], daum['title']).ratio()
+            if ratio >= 0.70:
+                nav['is_cross_platform'] = True
+                cross.append(nav)
+                used_daum.add(i)
+                break
+
+    print(f"[교집합] 네이버 {len(naver_articles)}건 × 다음 {len(daum_articles)}건 → 교집합 {len(cross)}건")
+    return cross
+
+
 def save_ranking_to_db(art):
     """랭킹 기사를 news_articles에 저장 (무조건 저장, 키워드 필터 X)"""
     conn = _get_db_conn()
@@ -339,18 +433,20 @@ def save_ranking_to_db(art):
     try:
         bias = get_media_bias(art['press'])
         cur = conn.cursor()
+        is_cross = art.get('is_cross_platform', False)
         cur.execute(
             """INSERT INTO news_articles
                (title, url, source, source_political, source_geopolitical, source_economic,
-                is_ranking, ranking_section, ranking_rank, submitted_by, created_at)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 1, NOW())
+                is_ranking, ranking_section, ranking_rank, is_cross_platform, submitted_by, created_at)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1, NOW())
                ON CONFLICT (url) DO UPDATE SET
                  is_ranking = EXCLUDED.is_ranking,
                  ranking_section = EXCLUDED.ranking_section,
-                 ranking_rank = EXCLUDED.ranking_rank""",
+                 ranking_rank = EXCLUDED.ranking_rank,
+                 is_cross_platform = EXCLUDED.is_cross_platform""",
             (art['title'], art['link'], art['press'],
              bias['political'], bias['geopolitical'], bias['economic'],
-             True, art['section'], art.get('rank'))
+             True, art['section'], art.get('rank'), is_cross)
         )
         conn.commit()
         if cur.rowcount > 0:
@@ -368,8 +464,16 @@ def run_news_bot():
 
 
 def run_ranking_collector():
-    """랭킹 수집만 별도 실행"""
-    articles = fetch_naver_ranking()
-    for art in articles:
+    """랭킹 수집만 별도 실행 (네이버 + 다음 교집합)"""
+    naver = fetch_naver_ranking()
+    daum = fetch_daum_ranking()
+    cross = cross_platform_ranking(naver, daum)
+
+    for art in cross:
         save_ranking_to_db(art)
-    print(f"[랭킹 수집] 완료 — {len(articles)}건")
+    cross_links = {a['link'] for a in cross}
+    for art in naver:
+        if art['link'] not in cross_links:
+            save_ranking_to_db(art)
+
+    print(f"[랭킹 수집] 완료 — 네이버 {len(naver)}건, 다음 {len(daum)}건, 교집합 {len(cross)}건")
