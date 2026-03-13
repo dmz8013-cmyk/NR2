@@ -6,50 +6,47 @@
 <div>
 
   {# ═══════════════════════════════════════════
-     HERO — Masthead + Bias Gauge
+     HERO — Dark navy (유일한 다크 영역)
+     시민 편향 지수 + 생태계 통계
      ═══════════════════════════════════════════ #}
-  <section class="border-b border-[#e5e5e5] bg-white">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 md:py-10">
-      <div class="flex flex-col md:flex-row items-center gap-6">
-        <!-- Logo + tagline -->
-        <div class="flex items-center gap-4 flex-shrink-0">
-          <img src="{{ url_for('static', filename='images/nureongi.jpg') }}" alt="NR2" class="w-20 h-20 md:w-24 md:h-24 rounded-2xl object-cover shadow-sm">
-          <div>
-            <h1 class="font-serif text-2xl md:text-3xl font-black text-[#1a1a1a] tracking-tight">NR2 Network</h1>
-            <p class="text-[#9ca3af] text-sm mt-0.5">정보가 흐르고, 사람이 연결되는 곳</p>
+  <section class="bg-[#0D1B2A]">
+    <div class="max-w-[1200px] mx-auto px-4 sm:px-6 py-12 md:py-16">
+      <div class="grid md:grid-cols-3 gap-10 items-center">
+
+        <!-- 좌측 2/3: 편향 지수 -->
+        <div class="md:col-span-2">
+          <p class="text-[12px] font-bold uppercase tracking-[0.15em] text-[#C1121F] mb-4">시민 편향 지수</p>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[13px] font-medium text-blue-400">진보</span>
+            <span class="text-[13px] font-medium text-red-400">보수</span>
+          </div>
+          <div class="w-full h-2 rounded-sm overflow-hidden flex">
+            <div class="bg-blue-500" style="width:35%;"></div>
+            <div class="bg-gray-500" style="width:30%;"></div>
+            <div class="bg-red-500" style="width:35%;"></div>
+          </div>
+          <div class="flex items-center justify-between mt-3">
+            <span class="text-white text-[28px] font-serif-kr font-bold">{{ youcheck_count }}<span class="text-[14px] font-normal text-gray-400 ml-1">건 분석</span></span>
+            <a href="/bias" class="text-[13px] text-[#C1121F] hover:text-red-400 transition">YouCheck에서 참여 &rarr;</a>
           </div>
         </div>
 
-        <!-- Center: Bias gauge -->
-        <div class="flex-1 max-w-md mx-auto md:mx-0">
-          <div class="flex items-center justify-between mb-1.5">
-            <span class="text-xs font-medium text-blue-600">진보</span>
-            <span class="text-[10px] font-medium text-[#9ca3af] uppercase tracking-wider">시민 편향 지수</span>
-            <span class="text-xs font-medium text-red-600">보수</span>
-          </div>
-          <div class="bias-bar-lg w-full" style="height:6px;border-radius:3px;">
-            <div class="bias-l" style="width:35%;"></div>
-            <div class="bias-c" style="width:30%;"></div>
-            <div class="bias-r" style="width:35%;"></div>
-          </div>
-          <div class="flex items-center justify-between mt-1.5">
-            <span class="text-[10px] text-[#9ca3af]">{{ youcheck_count }}건 분석</span>
-            <a href="/bias" class="text-[10px] font-semibold text-[#C1121F] hover:text-[#a00e1a] transition">YouCheck에서 참여 &rarr;</a>
-          </div>
-        </div>
-
-        <!-- Stats + CTA -->
-        <div class="flex items-center gap-3 flex-shrink-0">
-          <div class="stat-pill">
-            <p class="text-[#1a1a1a] font-bold text-lg">2.4K<span class="text-[10px] text-[#9ca3af]">+</span></p>
-            <p class="text-[#9ca3af] text-[10px] mt-0.5">카카오톡</p>
-          </div>
-          <div class="stat-pill">
-            <p class="text-[#1a1a1a] font-bold text-lg">888<span class="text-[10px] text-[#9ca3af]">+</span></p>
-            <p class="text-[#9ca3af] text-[10px] mt-0.5">텔레그램</p>
+        <!-- 우측 1/3: 통계 + 가입 -->
+        <div class="space-y-4">
+          <div class="flex gap-4">
+            <div class="stat-pill flex-1">
+              <p class="text-white font-bold text-xl font-serif-kr">2.4K</p>
+              <p class="text-gray-400 text-[11px] mt-0.5">카카오톡</p>
+            </div>
+            <div class="stat-pill flex-1">
+              <p class="text-white font-bold text-xl font-serif-kr">888</p>
+              <p class="text-gray-400 text-[11px] mt-0.5">텔레그램</p>
+            </div>
           </div>
           {% if not current_user.is_authenticated %}
-          <a href="{{ url_for('auth.register') }}" class="ml-2 px-5 py-2.5 rounded-lg text-sm font-bold bg-[#C1121F] text-white hover:bg-[#a00e1a] transition">가입</a>
+          <a href="{{ url_for('auth.register') }}" class="block text-center py-3 text-[13px] font-bold text-white border border-white/40 hover:bg-white hover:text-[#0D1B2A] transition">
+            회원가입
+          </a>
           {% endif %}
         </div>
       </div>
@@ -57,41 +54,42 @@
   </section>
 
   {# ═══════════════════════════════════════════
-     TRENDING — Top news ticker
+     TRENDING — 순위 위계가 있는 뉴스
      ═══════════════════════════════════════════ #}
   {% if ranking_articles %}
-  <section class="border-b border-[#e5e5e5]">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-      <div class="flex items-center gap-3 mb-4">
-        <span class="section-tag">TRENDING</span>
-        <h2 class="font-serif text-base font-bold text-[#1a1a1a]">지금 뜨는 뉴스</h2>
-        <a href="{{ url_for('bias.index', tab='ranking') }}" class="ml-auto text-[11px] font-semibold text-[#C1121F] hover:text-[#a00e1a] transition">전체 랭킹 &rarr;</a>
+  <section class="mt-20">
+    <div class="max-w-[1200px] mx-auto px-4 sm:px-6">
+      <div class="section-header">
+        <div class="flex items-center justify-between">
+          <span class="section-header-label">TRENDING</span>
+          <a href="{{ url_for('bias.index', tab='ranking') }}" class="text-[11px] text-[#767676] hover:text-[#1a1a1a] transition">전체 랭킹 &rarr;</a>
+        </div>
       </div>
-      <div class="grid sm:grid-cols-3 gap-4">
+
+      <div class="space-y-0">
         {% for article in ranking_articles %}
-        <a href="{{ url_for('bias.detail', article_id=article.id) }}" class="block group border-t border-[#e5e5e5] pt-4">
-          <div class="flex items-center gap-2 mb-2">
-            {% if article.is_cross_platform %}
-            <span class="text-[10px] font-bold text-[#C1121F]">네이버·다음 동시</span>
-            {% elif article.is_ranking %}
-            <span class="text-[10px] font-bold text-[#555]">{{ article.ranking_section }} {{ article.ranking_rank }}위</span>
-            {% endif %}
-            {% if article.source %}
-            <span class="text-[10px] text-[#9ca3af]">{{ article.source }}</span>
-            {% endif %}
-          </div>
-          <p class="text-sm font-medium text-[#1a1a1a] leading-snug mb-3 line-clamp-2 group-hover:text-[#C1121F] transition">{{ article.title }}</p>
-          {% if article.source_political is not none %}
-          <div class="flex items-center gap-2">
-            <span class="text-[10px] text-blue-600">진보</span>
-            <div class="flex-1 h-1.5 rounded-full overflow-hidden bg-[#f0f0f0]">
-              <div class="relative h-full" style="background:linear-gradient(to right,#3B82F6,#9CA3AF 50%,#EF4444);">
-                <div class="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[#C1121F] border-2 border-white" style="left:{{ ((article.source_political + 100) / 200 * 100) }}%;transform:translateX(-50%) translateY(-50%);box-shadow:0 1px 3px rgba(0,0,0,0.2);"></div>
+        <a href="{{ url_for('bias.detail', article_id=article.id) }}" class="block group border-b border-[#E0E0E0] py-5">
+          <div class="flex items-start gap-5">
+            <!-- 순위 숫자 -->
+            <span class="font-serif-kr font-bold text-[#C1121F] leading-none
+              {% if loop.index == 1 %}text-[36px]{% elif loop.index == 2 %}text-[28px]{% else %}text-[22px]{% endif %}
+            ">{{ loop.index }}</span>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                {% if article.is_cross_platform %}
+                <span class="text-[10px] font-bold text-[#C1121F] tracking-[0.1em] uppercase">네이버·다음 동시</span>
+                {% elif article.is_ranking %}
+                <span class="text-[10px] font-bold text-[#767676]">{{ article.ranking_section }} {{ article.ranking_rank }}위</span>
+                {% endif %}
+                {% if article.source %}
+                <span class="text-[10px] text-[#bbb]">{{ article.source }}</span>
+                {% endif %}
               </div>
+              <p class="font-serif-kr font-semibold text-[#1a1a1a] leading-snug line-clamp-2 group-hover:text-[#C1121F] transition
+                {% if loop.index == 1 %}text-[22px]{% elif loop.index == 2 %}text-[17px]{% else %}text-[14px] text-[#767676]{% endif %}
+              ">{{ article.title }}</p>
             </div>
-            <span class="text-[10px] text-red-600">보수</span>
           </div>
-          {% endif %}
         </a>
         {% endfor %}
       </div>
@@ -103,159 +101,133 @@
      MAIN 3-COLUMN LAYOUT
      Left: YouCheck / Center: Hot Posts / Right: Editor's Pick + Briefing
      ═══════════════════════════════════════════ #}
-  <section class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-    <div class="grid lg:grid-cols-12 gap-8">
+  <section class="mt-20">
+    <div class="max-w-[1200px] mx-auto px-4 sm:px-6">
+      <div class="grid lg:grid-cols-12 gap-10">
 
-      {# ── LEFT: YouCheck (Bias Analysis) ──── #}
-      <div class="lg:col-span-5">
-        <div class="border-t-2 border-[#1a1a1a] pt-4">
-          <div class="flex items-center justify-between mb-5">
-            <div class="flex items-center gap-2">
-              <span class="section-tag">YOUCHECK</span>
-              <h2 class="font-serif text-lg font-bold text-[#1a1a1a]">시민 편향 분석</h2>
+        {# ── LEFT: YouCheck (Bias Analysis) ──── #}
+        <div class="lg:col-span-5">
+          <div class="section-header">
+            <div class="flex items-center justify-between">
+              <span class="section-header-label">YOUCHECK</span>
+              <a href="{{ url_for('bias.index') }}" class="text-[11px] text-[#767676] hover:text-[#1a1a1a] transition">전체보기 &rarr;</a>
             </div>
-            <a href="{{ url_for('bias.index') }}" class="text-[11px] font-semibold text-[#C1121F] hover:text-[#a00e1a] transition">전체보기 &rarr;</a>
           </div>
-          <div class="flex items-center gap-4 mb-4 text-[11px] text-[#9ca3af]">
-            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-blue-500"></span> 진보</span>
-            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-gray-400"></span> 중도</span>
-            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-sm bg-red-500"></span> 보수</span>
+          <p class="text-[12px] text-[#767676] mb-5 tracking-[0.05em]">시민 편향 분석</p>
+
+          <div class="flex items-center gap-4 mb-4 text-[10px] text-[#bbb] tracking-[0.05em]">
+            <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-blue-500"></span> 진보</span>
+            <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-gray-400"></span> 중도</span>
+            <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 bg-red-500"></span> 보수</span>
             <span class="ml-auto">시민 판단</span>
           </div>
-          <div class="space-y-0">
-            {% if articles %}
-              {% for article in articles[:5] %}
-              <a href="{{ url_for('bias.detail', article_id=article.id) }}" class="article-row block">
-                <div class="flex items-center gap-2 mb-1.5">
-                  {% if article.source %}<span class="text-[10px] text-[#9ca3af]">{{ article.source }}</span>{% endif %}
-                  {% if article.bias_label == 'left' %}<span class="text-[10px] font-bold text-blue-600">진보</span>
-                  {% elif article.bias_label == 'right' %}<span class="text-[10px] font-bold text-red-600">보수</span>
-                  {% elif article.bias_label == 'center' %}<span class="text-[10px] font-bold text-[#6b7280]">중도</span>
-                  {% else %}<span class="text-[10px] font-bold text-[#9ca3af]">집계중</span>{% endif %}
-                  <span class="text-[10px] ml-auto text-[#9ca3af]">{{ article.vote_total }}표</span>
-                </div>
-                <p class="text-sm font-medium text-[#1a1a1a] leading-snug mb-2 line-clamp-2 group-hover:text-[#C1121F]">{{ article.title }}</p>
-                {% if article.vote_total >= 10 %}
-                <div class="bias-bar-lg w-full"><div class="bias-l" style="width:{{ article.left_pct }}%"></div><div class="bias-c" style="width:{{ article.center_pct }}%"></div><div class="bias-r" style="width:{{ article.right_pct }}%"></div></div>
-                {% else %}
-                <div class="bias-bar-lg w-full" style="opacity:0.3;"><div class="bias-l" style="width:33%"></div><div class="bias-c" style="width:34%"></div><div class="bias-r" style="width:33%"></div></div>
-                {% endif %}
-              </a>
-              {% endfor %}
-            {% else %}
-              <div class="text-center py-10">
-                <p class="text-[#9ca3af] text-sm">아직 등록된 기사가 없습니다</p>
-                {% if current_user.is_authenticated %}<a href="{{ url_for('bias.submit') }}" class="inline-block mt-3 text-sm font-semibold text-[#C1121F]">첫 기사 등록하기 &rarr;</a>{% endif %}
+
+          {% if articles %}
+            {% for article in articles[:5] %}
+            <a href="{{ url_for('bias.detail', article_id=article.id) }}" class="article-row block group">
+              <div class="flex items-center gap-2 mb-1.5">
+                {% if article.source %}<span class="text-[10px] text-[#bbb]">{{ article.source }}</span>{% endif %}
+                {% if article.bias_label == 'left' %}<span class="text-[10px] font-bold text-blue-600">진보</span>
+                {% elif article.bias_label == 'right' %}<span class="text-[10px] font-bold text-red-600">보수</span>
+                {% elif article.bias_label == 'center' %}<span class="text-[10px] font-bold text-[#767676]">중도</span>
+                {% else %}<span class="text-[10px] text-[#bbb]">집계중</span>{% endif %}
+                <span class="text-[10px] ml-auto text-[#bbb]">{{ article.vote_total }}표</span>
               </div>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-
-      {# ── CENTER: Hot Posts ───────────────── #}
-      <div class="lg:col-span-4">
-        <div class="border-t-2 border-[#1a1a1a] pt-4">
-          <div class="flex items-center gap-2 mb-5">
-            <span class="section-tag" style="color:#EF4444;">HOT</span>
-            <h2 class="font-serif text-lg font-bold text-[#1a1a1a]">실시간 베스트</h2>
-          </div>
-          <div class="space-y-0">
-            {% if hot_posts %}
-              {% for post in hot_posts[:8] %}
-              <a href="{{ url_for('boards.view', board_type=post.board_type, post_id=post.id) }}" class="hot-item flex items-center gap-3 group block">
-                <div class="flex-shrink-0">
-                  {% if loop.index == 1 %}<div class="rank-badge rank-1">1</div>
-                  {% elif loop.index == 2 %}<div class="rank-badge rank-2">2</div>
-                  {% elif loop.index == 3 %}<div class="rank-badge rank-3">3</div>
-                  {% else %}<div class="rank-badge rank-n">{{ loop.index }}</div>{% endif %}
-                </div>
-                <div class="flex-shrink-0">
-                  {% if post.board_type == 'free' %}<span class="text-[10px] font-medium text-[#6b7280]">자유</span>
-                  {% elif post.board_type == 'morpheus' %}<span class="text-[10px] font-medium text-[#6b7280]">모피</span>
-                  {% elif post.board_type == 'aesa' %}<span class="text-[10px] font-medium text-[#6b7280]">AESA</span>
-                  {% elif post.board_type == 'left' %}<span class="text-[10px] font-medium text-blue-600">LEFT</span>
-                  {% elif post.board_type == 'right' %}<span class="text-[10px] font-medium text-red-600">RIGHT</span>
-                  {% else %}<span class="text-[10px] font-medium text-[#9ca3af]">{{ post.board_type }}</span>{% endif %}
-                </div>
-                <p class="flex-1 text-sm text-[#555] truncate group-hover:text-[#1a1a1a] transition">{{ post.title }}</p>
-                {% if post.comments_count > 0 %}<span class="flex-shrink-0 text-[11px] font-bold text-[#C1121F]">[{{ post.comments_count }}]</span>{% endif %}
-              </a>
-              {% endfor %}
-            {% else %}
-              <div class="text-center py-10"><p class="text-[#9ca3af] text-sm">아직 게시글이 없습니다</p></div>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-
-      {# ── RIGHT: Editor's Pick + Briefing ── #}
-      <div class="lg:col-span-3 space-y-6">
-        <!-- Editor's Pick -->
-        <div class="border-t-2 border-[#1a1a1a] pt-4">
-          <div class="flex items-center gap-2 mb-1">
-            <span class="section-tag">PICK</span>
-            <h2 class="font-serif text-base font-bold text-[#1a1a1a]">누렁이의 선택</h2>
-          </div>
-          <p class="text-[11px] text-[#9ca3af] mb-4">박종원 에디터 큐레이션</p>
-          <div class="space-y-3">
-            <a href="https://buly.kr/7mBN720" target="_blank" class="block p-3 border border-[#e5e5e5] hover:border-[#C1121F]/30 transition">
-              <p class="text-[10px] font-bold uppercase tracking-wider text-[#C1121F] mb-1">EDITOR'S NOTE</p>
-              <p class="text-sm text-[#555] leading-relaxed">카카오톡 오픈채팅에서 매일 업데이트되는 에디터 픽을 확인하세요</p>
-              <p class="text-[10px] text-[#C1121F]/60 mt-2">오픈채팅 바로가기 &rarr;</p>
-            </a>
-            <a href="https://t.me/gazzzza2025" target="_blank" class="block p-3 border border-[#e5e5e5] hover:border-blue-300 transition">
-              <p class="text-[10px] font-bold uppercase tracking-wider text-blue-600 mb-1">TELEGRAM</p>
-              <p class="text-sm text-[#555] leading-relaxed">실시간 속보와 단독 분석을 텔레그램에서 먼저 받아보세요</p>
-              <p class="text-[10px] text-blue-500/60 mt-2">텔레그램 참여 &rarr;</p>
-            </a>
-          </div>
-        </div>
-
-        <!-- Briefing summary -->
-        <div class="border-t border-[#e5e5e5] pt-4">
-          <div class="flex items-center gap-2 mb-4">
-            <span class="section-tag">BRIEFING</span>
-            <h2 class="font-serif text-base font-bold text-[#1a1a1a]">오늘의 브리핑</h2>
-          </div>
-          <p class="text-[11px] text-[#9ca3af] mb-3">매일 06:00 / 13:00 / 18:00 / 22:00</p>
-          {% if latest_briefings %}
-          <div class="space-y-2">
-            {% for b in latest_briefings[:3] %}
-            <a href="/briefings/{{ b.id }}" class="block p-3 border-b border-[#f0f0f0] hover:bg-[#fafaf8] transition">
-              <div class="flex items-center gap-2 mb-1">
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded text-white" style="background:{{ b.type_badge_color }};">{{ b.type_label }}</span>
-                <span class="text-[10px] text-[#9ca3af]">{{ b.created_at.strftime("%m/%d %H:%M") }}</span>
-              </div>
-              <p class="text-xs text-[#555] line-clamp-2">{{ b.title[:60] }}</p>
+              <p class="text-[15px] font-serif-kr font-medium text-[#1a1a1a] leading-snug mb-2 line-clamp-2 group-hover:text-[#C1121F] transition">{{ article.title }}</p>
+              {% if article.vote_total >= 10 %}
+              <div class="bias-bar w-full"><div class="bias-l" style="width:{{ article.left_pct }}%"></div><div class="bias-c" style="width:{{ article.center_pct }}%"></div><div class="bias-r" style="width:{{ article.right_pct }}%"></div></div>
+              {% else %}
+              <div class="bias-bar w-full" style="opacity:0.2;"><div class="bias-l" style="width:33%"></div><div class="bias-c" style="width:34%"></div><div class="bias-r" style="width:33%"></div></div>
+              {% endif %}
             </a>
             {% endfor %}
-          </div>
-          <a href="/briefings" class="block mt-3 text-center text-[11px] font-semibold text-[#C1121F] hover:text-[#a00e1a] transition">브리핑 아카이브 &rarr;</a>
           {% else %}
-          <p class="text-[#9ca3af] text-xs">아직 브리핑이 없습니다.</p>
+            <div class="text-center py-12">
+              <p class="text-[#bbb] text-[13px]">아직 등록된 기사가 없습니다</p>
+              {% if current_user.is_authenticated %}<a href="{{ url_for('bias.submit') }}" class="inline-block mt-3 text-[13px] text-[#C1121F]">첫 기사 등록하기 &rarr;</a>{% endif %}
+            </div>
           {% endif %}
         </div>
 
-        <!-- Ecosystem links -->
-        <div class="border-t border-[#e5e5e5] pt-4">
-          <h3 class="text-[11px] font-bold text-[#9ca3af] uppercase tracking-wider mb-3">Ecosystem</h3>
-          <div class="space-y-2">
-            <a href="https://buly.kr/7mBN720" target="_blank" class="flex items-center gap-3 p-2 hover:bg-[#f9fafb] transition rounded">
-              <div class="eco-icon"><span>💬</span></div>
-              <div><p class="text-sm font-medium text-[#1a1a1a]">카카오톡</p><p class="text-[10px] text-[#9ca3af]">2,400+ 오픈채팅</p></div>
+        {# ── CENTER: Hot Posts ───────────────── #}
+        <div class="lg:col-span-4">
+          <div class="section-header">
+            <span class="section-header-label">실시간 베스트</span>
+          </div>
+
+          {% if hot_posts %}
+            {% for post in hot_posts[:8] %}
+            <a href="{{ url_for('boards.view', board_type=post.board_type, post_id=post.id) }}" class="hot-item flex items-start gap-4 group block">
+              <!-- 순위: 1위만 빨간, 2-3위 검정, 나머지 회색 -->
+              <span class="flex-shrink-0 font-serif-kr font-bold leading-none mt-0.5
+                {% if loop.index == 1 %}text-[32px] text-[#C1121F]
+                {% elif loop.index <= 3 %}text-[20px] text-[#1a1a1a]
+                {% else %}text-[14px] text-[#bbb]{% endif %}
+              ">{{ loop.index }}</span>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-0.5">
+                  {% if post.board_type == 'left' %}<span class="text-[10px] text-blue-600">LEFT</span>
+                  {% elif post.board_type == 'right' %}<span class="text-[10px] text-red-600">RIGHT</span>
+                  {% else %}<span class="text-[10px] text-[#bbb]">{{ post.board_type }}</span>{% endif %}
+                </div>
+                <p class="text-[14px] text-[#1a1a1a] truncate group-hover:text-[#C1121F] transition
+                  {% if loop.index == 1 %}font-serif-kr font-semibold text-[17px]{% endif %}
+                ">{{ post.title }}</p>
+              </div>
+              {% if post.comments_count > 0 %}<span class="flex-shrink-0 text-[11px] font-bold text-[#C1121F] mt-1">[{{ post.comments_count }}]</span>{% endif %}
             </a>
-            <a href="https://t.me/gazzzza2025" target="_blank" class="flex items-center gap-3 p-2 hover:bg-[#f9fafb] transition rounded">
-              <div class="eco-icon"><span>✈️</span></div>
-              <div><p class="text-sm font-medium text-[#1a1a1a]">텔레그램</p><p class="text-[10px] text-[#9ca3af]">888+ 정보공유방</p></div>
-            </a>
-            <a href="https://www.youtube.com/@NR2AESA" target="_blank" class="flex items-center gap-3 p-2 hover:bg-[#f9fafb] transition rounded">
-              <div class="eco-icon"><span>🎬</span></div>
-              <div><p class="text-sm font-medium text-[#1a1a1a]">누렁이 AESA</p><p class="text-[10px] text-[#9ca3af]">유튜브 채널</p></div>
-            </a>
+            {% endfor %}
+          {% else %}
+            <div class="text-center py-12"><p class="text-[#bbb] text-[13px]">아직 게시글이 없습니다</p></div>
+          {% endif %}
+        </div>
+
+        {# ── RIGHT: Editor's Pick + Briefing ── #}
+        <div class="lg:col-span-3 space-y-10">
+          <!-- Editor's Pick -->
+          <div>
+            <div class="section-header">
+              <span class="section-header-label">누렁이의 선택</span>
+            </div>
+            <p class="text-[11px] text-[#bbb] mb-5 tracking-[0.05em]">박종원 에디터 큐레이션</p>
+
+            <div class="space-y-4">
+              <a href="https://buly.kr/7mBN720" target="_blank" class="block border-b border-[#E0E0E0] pb-4">
+                <p class="text-[10px] font-bold uppercase tracking-[0.15em] text-[#1a1a1a] bg-[#1a1a1a] text-white inline-block px-2 py-0.5 mb-2">EDITOR'S NOTE</p>
+                <p class="text-[13px] text-[#767676] leading-relaxed">카카오톡 오픈채팅에서 매일 업데이트되는 에디터 픽을 확인하세요</p>
+                <p class="text-[11px] text-[#C1121F] mt-2">오픈채팅 &rarr;</p>
+              </a>
+              <a href="https://t.me/gazzzza2025" target="_blank" class="block border-b border-[#E0E0E0] pb-4">
+                <p class="text-[10px] font-bold uppercase tracking-[0.15em] text-[#1a1a1a] bg-[#1a1a1a] text-white inline-block px-2 py-0.5 mb-2">TELEGRAM</p>
+                <p class="text-[13px] text-[#767676] leading-relaxed">실시간 속보와 단독 분석을 텔레그램에서 먼저 받아보세요</p>
+                <p class="text-[11px] text-[#C1121F] mt-2">텔레그램 &rarr;</p>
+              </a>
+            </div>
+          </div>
+
+          <!-- Briefing summary -->
+          <div>
+            <div class="section-header">
+              <span class="section-header-label">BRIEFING</span>
+            </div>
+            <p class="text-[11px] text-[#bbb] mb-4 tracking-[0.05em]">매일 06:00 · 13:00 · 18:00 · 22:00</p>
+            {% if latest_briefings %}
+            <div class="space-y-0">
+              {% for b in latest_briefings[:3] %}
+              <a href="/briefings/{{ b.id }}" class="block border-b border-[#E0E0E0] py-3 group">
+                <span class="text-[10px] text-[#bbb]">{{ b.created_at.strftime("%m/%d %H:%M") }}</span>
+                <p class="text-[13px] text-[#1a1a1a] font-serif-kr mt-1 line-clamp-2 group-hover:text-[#C1121F] transition">{{ b.title[:60] }}</p>
+              </a>
+              {% endfor %}
+            </div>
+            <a href="/briefings" class="block mt-4 text-[11px] text-[#C1121F]">브리핑 아카이브 &rarr;</a>
+            {% else %}
+            <p class="text-[#bbb] text-[12px]">아직 브리핑이 없습니다.</p>
+            {% endif %}
           </div>
         </div>
-      </div>
 
+      </div>
     </div>
   </section>
 
@@ -263,21 +235,21 @@
      AI BRIEFING ARCHIVE
      ═══════════════════════════════════════════ #}
   {% if latest_briefings %}
-  <section class="border-t border-[#e5e5e5]">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-      <div class="flex items-center justify-between mb-5">
-        <div class="flex items-center gap-3">
-          <span class="section-tag">ARCHIVE</span>
-          <h2 class="font-serif text-lg font-bold text-[#1a1a1a]">브리핑 아카이브</h2>
+  <section class="mt-20">
+    <div class="max-w-[1200px] mx-auto px-4 sm:px-6">
+      <div class="section-header">
+        <div class="flex items-center justify-between">
+          <span class="section-header-label">ARCHIVE</span>
+          <a href="/briefings" class="text-[11px] text-[#767676] hover:text-[#1a1a1a] transition">전체보기 &rarr;</a>
         </div>
-        <a href="/briefings" class="text-[11px] font-semibold text-[#C1121F] hover:text-[#a00e1a] transition">전체보기 &rarr;</a>
       </div>
-      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {% for b in latest_briefings %}
-        <a href="/briefings/{{ b.id }}" class="block border-t border-[#e5e5e5] pt-4 hover:bg-[#f9fafb] transition">
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded text-white" style="background:{{ b.type_badge_color }};">{{ b.type_label }}</span>
-          <p class="text-[#1a1a1a] text-sm font-medium mt-2 line-clamp-2">{{ b.title[:60] }}</p>
-          <p class="text-[#9ca3af] text-[10px] mt-2">{{ b.created_at.strftime("%m/%d %H:%M") }}</p>
+        <a href="/briefings/{{ b.id }}" class="block group">
+          <span class="text-[10px] text-[#bbb]">{{ b.created_at.strftime("%m/%d %H:%M") }}</span>
+          <p class="text-[14px] font-serif-kr font-medium text-[#1a1a1a] mt-1 line-clamp-2 group-hover:text-[#C1121F] transition">{{ b.title[:60] }}</p>
+          <div class="border-b border-[#E0E0E0] mt-4"></div>
         </a>
         {% endfor %}
       </div>
@@ -288,40 +260,40 @@
   {# ═══════════════════════════════════════════
      BOARDS GRID
      ═══════════════════════════════════════════ #}
-  <section class="border-t border-[#e5e5e5]">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-      <div class="flex items-center gap-3 mb-5">
-        <span class="section-tag">BOARDS</span>
-        <h2 class="font-serif text-lg font-bold text-[#1a1a1a]">게시판</h2>
+  <section class="mt-20">
+    <div class="max-w-[1200px] mx-auto px-4 sm:px-6">
+      <div class="section-header">
+        <span class="section-header-label">BOARDS</span>
       </div>
+
       <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-0">
         <a href="{{ url_for('news.breaking') }}" class="board-card fade-in">
-          <div class="flex items-center gap-3 px-2"><div class="text-lg">📢</div><div><h3 class="font-bold text-[#1a1a1a] text-sm">공지</h3><p class="text-[#9ca3af] text-xs mt-0.5">놓치면 안 되는 소식</p></div></div>
+          <div class="flex items-center gap-3"><span class="text-[14px]">📢</span><div><h3 class="font-serif-kr font-bold text-[#1a1a1a] text-[14px]">공지</h3><p class="text-[#bbb] text-[11px] mt-0.5">놓치면 안 되는 소식</p></div></div>
         </a>
         <a href="{{ url_for('boards.board', board_type='free') }}" class="board-card fade-in">
-          <div class="flex items-center gap-3 px-2"><div class="text-lg">📋</div><div><h3 class="font-bold text-[#1a1a1a] text-sm">자유게시판</h3><p class="text-[#9ca3af] text-xs mt-0.5">뭐든 써도 되는 곳</p></div></div>
+          <div class="flex items-center gap-3"><span class="text-[14px]">📋</span><div><h3 class="font-serif-kr font-bold text-[#1a1a1a] text-[14px]">자유게시판</h3><p class="text-[#bbb] text-[11px] mt-0.5">뭐든 써도 되는 곳</p></div></div>
         </a>
         <a href="{{ url_for('boards.board', board_type='morpheus') }}" class="board-card fade-in">
-          <div class="flex items-center gap-3 px-2"><div class="text-lg">💊</div><div><h3 class="font-bold text-[#1a1a1a] text-sm">모피어스뉴스</h3><p class="text-[#9ca3af] text-xs mt-0.5">빨간약 드실 분만</p></div></div>
+          <div class="flex items-center gap-3"><span class="text-[14px]">💊</span><div><h3 class="font-serif-kr font-bold text-[#1a1a1a] text-[14px]">모피어스뉴스</h3><p class="text-[#bbb] text-[11px] mt-0.5">빨간약 드실 분만</p></div></div>
         </a>
         <a href="{{ url_for('boards.board', board_type='aesa') }}" class="board-card fade-in">
-          <div class="flex items-center gap-3 px-2"><div class="text-lg">🐕</div><div><h3 class="font-bold text-[#1a1a1a] text-sm">누렁이 AESA</h3><p class="text-[#9ca3af] text-xs mt-0.5">360° 레이더급 분석</p></div></div>
+          <div class="flex items-center gap-3"><span class="text-[14px]">🐕</span><div><h3 class="font-serif-kr font-bold text-[#1a1a1a] text-[14px]">누렁이 AESA</h3><p class="text-[#bbb] text-[11px] mt-0.5">360° 레이더급 분석</p></div></div>
         </a>
         <a href="{{ url_for('bias.index') }}" class="board-card fade-in">
-          <div class="flex items-center gap-3 px-2"><div class="text-lg">✅</div><div><h3 class="font-bold text-[#1a1a1a] text-sm">YouCheck</h3><p class="text-[#9ca3af] text-xs mt-0.5">당신의 시선으로 판단하세요</p></div></div>
+          <div class="flex items-center gap-3"><span class="text-[14px]">✅</span><div><h3 class="font-serif-kr font-bold text-[#1a1a1a] text-[14px]">YouCheck</h3><p class="text-[#bbb] text-[11px] mt-0.5">당신의 시선으로 판단하세요</p></div></div>
         </a>
         <a href="{{ url_for('votes.list') }}" class="board-card fade-in">
-          <div class="flex items-center gap-3 px-2"><div class="text-lg">🗳️</div><div><h3 class="font-bold text-[#1a1a1a] text-sm">투표</h3><p class="text-[#9ca3af] text-xs mt-0.5">당신의 한 표가 필요합니다</p></div></div>
+          <div class="flex items-center gap-3"><span class="text-[14px]">🗳️</span><div><h3 class="font-serif-kr font-bold text-[#1a1a1a] text-[14px]">투표</h3><p class="text-[#bbb] text-[11px] mt-0.5">당신의 한 표가 필요합니다</p></div></div>
         </a>
         <a href="{{ url_for('boards.board', board_type='left') }}" class="board-card fade-in">
-          <div class="flex items-center gap-3 px-2"><div class="text-lg text-blue-600">◀</div><div><h3 class="font-bold text-[#1a1a1a] text-sm">LEFT</h3><p class="text-[#9ca3af] text-xs mt-0.5">진보 시각으로 보는 세상</p></div></div>
+          <div class="flex items-center gap-3"><span class="text-[14px] text-blue-600">◀</span><div><h3 class="font-serif-kr font-bold text-[#1a1a1a] text-[14px]">LEFT</h3><p class="text-[#bbb] text-[11px] mt-0.5">진보 시각으로 보는 세상</p></div></div>
         </a>
         <a href="{{ url_for('boards.board', board_type='right') }}" class="board-card fade-in">
-          <div class="flex items-center gap-3 px-2"><div class="text-lg text-red-600">▶</div><div><h3 class="font-bold text-[#1a1a1a] text-sm">RIGHT</h3><p class="text-[#9ca3af] text-xs mt-0.5">보수 시각으로 보는 세상</p></div></div>
+          <div class="flex items-center gap-3"><span class="text-[14px] text-red-600">▶</span><div><h3 class="font-serif-kr font-bold text-[#1a1a1a] text-[14px]">RIGHT</h3><p class="text-[#bbb] text-[11px] mt-0.5">보수 시각으로 보는 세상</p></div></div>
         </a>
         {% if current_user.is_authenticated %}
         <a href="{{ url_for('calendar.index') }}" class="board-card fade-in">
-          <div class="flex items-center gap-3 px-2"><div class="text-lg">📅</div><div><h3 class="font-bold text-[#1a1a1a] text-sm">캘린더</h3><p class="text-[#9ca3af] text-xs mt-0.5">놓치기 싫은 일정 모음</p></div></div>
+          <div class="flex items-center gap-3"><span class="text-[14px]">📅</span><div><h3 class="font-serif-kr font-bold text-[#1a1a1a] text-[14px]">캘린더</h3><p class="text-[#bbb] text-[11px] mt-0.5">놓치기 싫은 일정 모음</p></div></div>
         </a>
         {% endif %}
       </div>
@@ -332,13 +304,15 @@
      CTA (non-authenticated)
      ═══════════════════════════════════════════ #}
   {% if not current_user.is_authenticated %}
-  <section class="max-w-7xl mx-auto px-4 sm:px-6 pb-12">
-    <div class="border border-[#e5e5e5] p-10 text-center">
-      <h2 class="font-serif text-2xl md:text-3xl font-black text-[#1a1a1a] mb-3">함께 만들어가는 커뮤니티</h2>
-      <p class="text-[#6b7280] mb-6">3,100명의 시민이 함께 뉴스를 읽고, 직접 판단합니다</p>
-      <div class="flex gap-3 justify-center">
-        <a href="{{ url_for('auth.register') }}" class="px-8 py-3 font-bold bg-[#C1121F] text-white hover:bg-[#a00e1a] transition">30초 회원가입 &rarr;</a>
-        <a href="https://t.me/gazzzza2025" target="_blank" class="px-8 py-3 font-semibold text-[#555] border border-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-white transition">텔레그램 참여</a>
+  <section class="mt-20 mb-20">
+    <div class="max-w-[1200px] mx-auto px-4 sm:px-6">
+      <div class="border-t-2 border-[#1a1a1a] pt-12 text-center">
+        <h2 class="font-serif-kr text-2xl md:text-3xl font-bold text-[#1a1a1a] mb-3">함께 만들어가는 커뮤니티</h2>
+        <p class="text-[#767676] text-[15px] mb-8">3,100명의 시민이 함께 뉴스를 읽고, 직접 판단합니다</p>
+        <div class="flex gap-4 justify-center">
+          <a href="{{ url_for('auth.register') }}" class="px-8 py-3 text-[13px] font-bold bg-[#C1121F] text-white hover:bg-[#8b0d16] transition">30초 회원가입 &rarr;</a>
+          <a href="https://t.me/gazzzza2025" target="_blank" class="px-8 py-3 text-[13px] font-semibold text-[#1a1a1a] border border-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-white transition">텔레그램 참여</a>
+        </div>
       </div>
     </div>
   </section>

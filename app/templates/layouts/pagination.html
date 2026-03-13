@@ -4,13 +4,13 @@
     <!-- 이전 페이지 -->
     {% if pagination.has_prev %}
     <a href="{{ url_for(endpoint, board_type=board_type, page=pagination.prev_num, q=search_query, type=search_type) if board_type else url_for(endpoint, page=pagination.prev_num, q=search_query, type=search_type) }}"
-       class="px-3 py-2 border border-[#e5e5e5] text-[#6b7280] hover:bg-[#f9fafb] transition">
+       class="px-3 py-2 border border-[#E0E0E0] text-[#767676] hover:text-[#1a1a1a] transition">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
         </svg>
     </a>
     {% else %}
-    <span class="px-3 py-2 border border-[#f0f0f0] text-[#e5e5e5] cursor-not-allowed">
+    <span class="px-3 py-2 border border-[#E0E0E0] text-[#E0E0E0] cursor-not-allowed">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
         </svg>
@@ -23,22 +23,22 @@
 
     {% if start_page > 1 %}
     <a href="{{ url_for(endpoint, board_type=board_type, page=1, q=search_query, type=search_type) if board_type else url_for(endpoint, page=1, q=search_query, type=search_type) }}"
-       class="px-3 py-2 border border-[#e5e5e5] text-[#6b7280] hover:bg-[#f9fafb] transition">
+       class="px-3 py-2 border border-[#E0E0E0] text-[#767676] hover:text-[#1a1a1a] transition">
         1
     </a>
     {% if start_page > 2 %}
-    <span class="px-3 py-2 text-[#9ca3af]">...</span>
+    <span class="px-3 py-2 text-[#767676]">...</span>
     {% endif %}
     {% endif %}
 
     {% for page_num in range(start_page, end_page + 1) %}
     {% if page_num == pagination.page %}
-    <span class="px-3 py-2 border border-[#C1121F] bg-[#C1121F] text-white font-semibold">
+    <span class="px-3 py-2 border border-[#1a1a1a] bg-[#1a1a1a] text-white font-semibold">
         {{ page_num }}
     </span>
     {% else %}
     <a href="{{ url_for(endpoint, board_type=board_type, page=page_num, q=search_query, type=search_type) if board_type else url_for(endpoint, page=page_num, q=search_query, type=search_type) }}"
-       class="px-3 py-2 border border-[#e5e5e5] text-[#6b7280] hover:bg-[#f9fafb] transition">
+       class="px-3 py-2 border border-[#E0E0E0] text-[#767676] hover:text-[#1a1a1a] transition">
         {{ page_num }}
     </a>
     {% endif %}
@@ -46,10 +46,10 @@
 
     {% if end_page < pagination.pages %}
     {% if end_page < pagination.pages - 1 %}
-    <span class="px-3 py-2 text-[#9ca3af]">...</span>
+    <span class="px-3 py-2 text-[#767676]">...</span>
     {% endif %}
     <a href="{{ url_for(endpoint, board_type=board_type, page=pagination.pages, q=search_query, type=search_type) if board_type else url_for(endpoint, page=pagination.pages, q=search_query, type=search_type) }}"
-       class="px-3 py-2 border border-[#e5e5e5] text-[#6b7280] hover:bg-[#f9fafb] transition">
+       class="px-3 py-2 border border-[#E0E0E0] text-[#767676] hover:text-[#1a1a1a] transition">
         {{ pagination.pages }}
     </a>
     {% endif %}
@@ -57,13 +57,13 @@
     <!-- 다음 페이지 -->
     {% if pagination.has_next %}
     <a href="{{ url_for(endpoint, board_type=board_type, page=pagination.next_num, q=search_query, type=search_type) if board_type else url_for(endpoint, page=pagination.next_num, q=search_query, type=search_type) }}"
-       class="px-3 py-2 border border-[#e5e5e5] text-[#6b7280] hover:bg-[#f9fafb] transition">
+       class="px-3 py-2 border border-[#E0E0E0] text-[#767676] hover:text-[#1a1a1a] transition">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
         </svg>
     </a>
     {% else %}
-    <span class="px-3 py-2 border border-[#f0f0f0] text-[#e5e5e5] cursor-not-allowed">
+    <span class="px-3 py-2 border border-[#E0E0E0] text-[#E0E0E0] cursor-not-allowed">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
         </svg>
@@ -72,7 +72,7 @@
 </div>
 
 <!-- 페이지 정보 -->
-<div class="text-center text-[11px] text-[#9ca3af] mt-4">
+<div class="text-center text-[11px] text-[#767676] mt-4">
     {{ pagination.total }}개 중 {{ ((pagination.page - 1) * pagination.per_page) + 1 }}-{{ [pagination.page * pagination.per_page, pagination.total]|min }}번째 표시
 </div>
 {% endif %}
