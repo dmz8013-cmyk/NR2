@@ -482,5 +482,3 @@ def toggle_like(board_type, post_id):
     })
 
 
-# 텔레그램 알림 import (파일 상단에 추가 필요)
-# from app.utils.telegram_notify import notify_new_post
