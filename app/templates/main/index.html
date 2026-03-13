@@ -163,7 +163,7 @@
           <div class="space-y-0.5">
             {% if hot_posts %}
               {% for post in hot_posts[:8] %}
-              <a href="{{ url_for('boards.view_post', board_type=post.board_type, post_id=post.id) }}" class="hot-item flex items-center gap-3 group block">
+              <a href="{{ url_for('boards.view', board_type=post.board_type, post_id=post.id) }}" class="hot-item flex items-center gap-3 group block">
                 <div class="flex-shrink-0">
                   {% if loop.index == 1 %}<div class="rank-badge rank-1">1</div>
                   {% elif loop.index == 2 %}<div class="rank-badge rank-2">2</div>
