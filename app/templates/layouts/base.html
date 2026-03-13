@@ -29,7 +29,7 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&family=Nanum+Gothic&family=Nanum+Myeongjo&family=Nanum+Pen+Script&family=Nanum+Brush+Script&family=IBM+Plex+Sans+KR:wght@400;700&family=Gowun+Batang&family=Playfair+Display:wght@400;700&family=Inter:wght@400;700&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700;900&family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&family=Nanum+Gothic&family=Nanum+Myeongjo&family=Nanum+Pen+Script&family=Nanum+Brush+Script&family=IBM+Plex+Sans+KR:wght@400;700&family=Gowun+Batang&family=Playfair+Display:wght@400;700&family=Inter:wght@400;700&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -39,11 +39,18 @@
         extend: {
           colors: {
             'nr2-navy': '#0D1B2A',
-            'nr2-navy-light': '#1B2A3D',
-            'nr2-navy-card': '#142231',
-            'nr2-cream': '#F5F0E8',
-            'nr2-gold': '#D4A843',
-            'nr2-gold-dim': '#B8922F',
+            'nr2-navy-light': '#f9fafb',
+            'nr2-navy-card': '#FFFFFF',
+            'nr2-cream': '#1a1a1a',
+            'nr2-gold': '#C1121F',
+            'nr2-gold-dim': '#a00e1a',
+            'ed-bg': '#FAFAF8',
+            'ed-surface': '#FFFFFF',
+            'ed-text': '#1a1a1a',
+            'ed-muted': '#6b7280',
+            'ed-faint': '#9ca3af',
+            'ed-border': '#e5e5e5',
+            'ed-accent': '#C1121F',
           },
           fontFamily: {
             'serif-kr': ['"Noto Serif KR"', 'Georgia', 'serif'],
@@ -64,14 +71,14 @@
     {% block extra_css %}{% endblock %}
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#0D1B2A">
+    <meta name="theme-color" content="#FFFFFF">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="NR2">
     <link rel="apple-touch-icon" href="/static/icons/icon-152x152.png">
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
 </head>
-<body class="bg-nr2-navy text-nr2-cream font-sans-kr">
+<body class="bg-[#FAFAF8] text-[#1a1a1a] font-sans-kr">
     <!-- Navigation -->
     <nav x-data="{ mobileOpen: false }" class="nr2-nav sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -79,7 +86,7 @@
                 <div class="flex items-center">
                     <!-- Hamburger (mobile) -->
                     <button @click="mobileOpen = !mobileOpen"
-                            class="lg:hidden mr-3 text-nr2-cream/60 hover:text-nr2-gold focus:outline-none transition">
+                            class="lg:hidden mr-3 text-[#6b7280] hover:text-[#1a1a1a] focus:outline-none transition">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path x-show="!mobileOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                             <path x-show="mobileOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -88,8 +95,8 @@
 
                     <!-- Logo -->
                     <a href="{{ url_for('main.index') }}" class="flex items-center gap-2">
-                        <span class="font-serif-kr text-xl font-black text-nr2-cream tracking-tight">NR2</span>
-                        <span class="hidden sm:inline text-xs text-nr2-cream/40 font-light border-l border-nr2-cream/10 pl-2">Network</span>
+                        <span class="font-serif-kr text-2xl font-bold text-[#1a1a1a] tracking-tight">NR2</span>
+                        <span class="hidden sm:inline text-[10px] text-[#9ca3af] font-light tracking-[0.15em] uppercase border-l border-[#e5e5e5] pl-2">Network</span>
                     </a>
 
                     <!-- PC menu -->
@@ -99,7 +106,7 @@
                         <a href="{{ url_for('boards.board', board_type='morpheus') }}" class="nav-link">모피어스</a>
                         <a href="{{ url_for('boards.board', board_type='aesa') }}" class="nav-link">AESA</a>
                         <a href="{{ url_for('votes.list') }}" class="nav-link">투표</a>
-                        <span class="w-px h-4 bg-nr2-cream/10 mx-1"></span>
+                        <span class="w-px h-4 bg-[#e5e5e5] mx-1"></span>
                         <a href="/bias" class="nav-link nav-link-gold">YouCheck</a>
                         <a href="/bias/my-report" class="nav-link">내 리포트</a>
                         <a href="/briefings" class="nav-link">브리핑</a>
@@ -118,22 +125,22 @@
                             <button @click="open = !open" class="flex items-center space-x-2 focus:outline-none">
                                 <img src="{% if current_user.profile_image and 'cloudinary.com' in current_user.profile_image %}{{ current_user.profile_image }}{% else %}{{ url_for('static', filename='uploads/profiles/' + current_user.profile_image) }}{% endif %}"
                                      alt="{{ current_user.nickname }}"
-                                     class="w-7 h-7 rounded-full object-cover border border-nr2-cream/20">
-                                <span class="text-nr2-cream/80 text-sm">{{ current_user.nickname }}</span>
+                                     class="w-7 h-7 rounded-full object-cover border border-[#e5e5e5]">
+                                <span class="text-[#4b5563] text-sm">{{ current_user.nickname }}</span>
                             </button>
                             <div x-show="open" @click.away="open = false" x-transition
-                                 class="absolute right-0 mt-2 w-48 bg-nr2-navy-light border border-white/10 rounded-lg shadow-2xl py-1 z-50">
-                                <a href="{{ url_for('auth.profile') }}" class="block px-4 py-2 text-sm text-nr2-cream/70 hover:bg-white/5 hover:text-nr2-cream">프로필</a>
+                                 class="absolute right-0 mt-2 w-48 bg-white border border-[#e5e5e5] rounded-lg shadow-lg py-1 z-50">
+                                <a href="{{ url_for('auth.profile') }}" class="block px-4 py-2 text-sm text-[#4b5563] hover:bg-[#f5f5f5] hover:text-[#1a1a1a]">프로필</a>
                                 {% if current_user.is_admin %}
-                                <a href="{{ url_for('admin.dashboard') }}" class="block px-4 py-2 text-sm text-nr2-cream/70 hover:bg-white/5 hover:text-nr2-cream">관리자</a>
+                                <a href="{{ url_for('admin.dashboard') }}" class="block px-4 py-2 text-sm text-[#4b5563] hover:bg-[#f5f5f5] hover:text-[#1a1a1a]">관리자</a>
                                 {% endif %}
-                                <hr class="my-1 border-white/5">
-                                <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-nr2-cream/70 hover:bg-white/5 hover:text-nr2-cream">로그아웃</a>
+                                <hr class="my-1 border-[#f0f0f0]">
+                                <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-[#4b5563] hover:bg-[#f5f5f5] hover:text-[#1a1a1a]">로그아웃</a>
                             </div>
                         </div>
                     {% else %}
-                        <a href="{{ url_for('auth.login') }}" class="text-sm text-nr2-cream/60 hover:text-nr2-cream mr-4 transition">로그인</a>
-                        <a href="{{ url_for('auth.register') }}" class="px-4 py-1.5 text-sm font-semibold rounded-md bg-nr2-gold text-nr2-navy hover:bg-nr2-gold-dim transition">가입</a>
+                        <a href="{{ url_for('auth.login') }}" class="text-sm text-[#6b7280] hover:text-[#1a1a1a] mr-4 transition">로그인</a>
+                        <a href="{{ url_for('auth.register') }}" class="px-4 py-1.5 text-sm font-semibold rounded-md border border-[#1a1a1a] text-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-white transition">가입</a>
                     {% endif %}
                 </div>
 
@@ -144,20 +151,20 @@
                             <button @click="open = !open" class="flex items-center focus:outline-none">
                                 <img src="{% if current_user.profile_image and 'cloudinary.com' in current_user.profile_image %}{{ current_user.profile_image }}{% else %}{{ url_for('static', filename='uploads/profiles/' + current_user.profile_image) }}{% endif %}"
                                      alt="{{ current_user.nickname }}"
-                                     class="w-7 h-7 rounded-full object-cover border border-nr2-cream/20">
+                                     class="w-7 h-7 rounded-full object-cover border border-[#e5e5e5]">
                             </button>
                             <div x-show="open" @click.away="open = false" x-transition
-                                 class="absolute right-0 mt-2 w-48 bg-nr2-navy-light border border-white/10 rounded-lg shadow-2xl py-1 z-50">
-                                <a href="{{ url_for('auth.profile') }}" class="block px-4 py-2 text-sm text-nr2-cream/70 hover:bg-white/5">프로필</a>
+                                 class="absolute right-0 mt-2 w-48 bg-white border border-[#e5e5e5] rounded-lg shadow-lg py-1 z-50">
+                                <a href="{{ url_for('auth.profile') }}" class="block px-4 py-2 text-sm text-[#4b5563] hover:bg-[#f5f5f5]">프로필</a>
                                 {% if current_user.is_admin %}
-                                <a href="{{ url_for('admin.dashboard') }}" class="block px-4 py-2 text-sm text-nr2-cream/70 hover:bg-white/5">관리자</a>
+                                <a href="{{ url_for('admin.dashboard') }}" class="block px-4 py-2 text-sm text-[#4b5563] hover:bg-[#f5f5f5]">관리자</a>
                                 {% endif %}
-                                <hr class="my-1 border-white/5">
-                                <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-nr2-cream/70 hover:bg-white/5">로그아웃</a>
+                                <hr class="my-1 border-[#f0f0f0]">
+                                <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-sm text-[#4b5563] hover:bg-[#f5f5f5]">로그아웃</a>
                             </div>
                         </div>
                     {% else %}
-                        <a href="{{ url_for('auth.register') }}" class="px-3 py-1.5 text-sm font-semibold rounded-md bg-nr2-gold text-nr2-navy">가입</a>
+                        <a href="{{ url_for('auth.register') }}" class="px-3 py-1.5 text-sm font-semibold rounded-md border border-[#1a1a1a] text-[#1a1a1a]">가입</a>
                     {% endif %}
                 </div>
             </div>
@@ -167,14 +174,14 @@
         <div x-show="mobileOpen"
              @click.away="mobileOpen = false"
              x-transition
-             class="lg:hidden absolute w-full bg-nr2-navy-light border-t border-white/5 shadow-2xl z-50">
+             class="lg:hidden absolute w-full bg-white border-t border-[#e5e5e5] shadow-lg z-50">
             <div class="px-4 py-2 space-y-0.5">
-                <a href="{{ url_for('news.breaking') }}" @click="mobileOpen=false" class="mobile-nav-link text-nr2-gold font-bold">공지</a>
+                <a href="{{ url_for('news.breaking') }}" @click="mobileOpen=false" class="mobile-nav-link text-[#C1121F] font-semibold">공지</a>
                 <a href="{{ url_for('boards.board', board_type='free') }}" @click="mobileOpen=false" class="mobile-nav-link">자유게시판</a>
                 <a href="{{ url_for('boards.board', board_type='morpheus') }}" @click="mobileOpen=false" class="mobile-nav-link">모피어스</a>
                 <a href="{{ url_for('boards.board', board_type='aesa') }}" @click="mobileOpen=false" class="mobile-nav-link">AESA</a>
                 <a href="{{ url_for('votes.list') }}" @click="mobileOpen=false" class="mobile-nav-link">투표</a>
-                <a href="/bias" @click="mobileOpen=false" class="mobile-nav-link text-nr2-gold font-bold">YouCheck</a>
+                <a href="/bias" @click="mobileOpen=false" class="mobile-nav-link text-[#C1121F] font-semibold">YouCheck</a>
                 <a href="/bias/my-report" @click="mobileOpen=false" class="mobile-nav-link">내 리포트</a>
                 <a href="/briefings" @click="mobileOpen=false" class="mobile-nav-link">브리핑</a>
                 <a href="{{ url_for('boards.board', board_type='left') }}" @click="mobileOpen=false" class="mobile-nav-link">LEFT</a>
@@ -183,8 +190,8 @@
                 <a href="{{ url_for('calendar.index') }}" @click="mobileOpen=false" class="mobile-nav-link">캘린더</a>
                 {% else %}
                 <div class="flex gap-3 py-3 px-3">
-                    <a href="{{ url_for('auth.login') }}" class="flex-1 text-center py-2 border border-nr2-cream/10 rounded-lg text-nr2-cream/70 text-sm">로그인</a>
-                    <a href="{{ url_for('auth.register') }}" class="flex-1 text-center py-2 bg-nr2-gold rounded-lg text-nr2-navy text-sm font-semibold">가입</a>
+                    <a href="{{ url_for('auth.login') }}" class="flex-1 text-center py-2 border border-[#e5e5e5] rounded-lg text-[#6b7280] text-sm">로그인</a>
+                    <a href="{{ url_for('auth.register') }}" class="flex-1 text-center py-2 bg-[#1a1a1a] rounded-lg text-white text-sm font-semibold">가입</a>
                 </div>
                 {% endif %}
             </div>
@@ -200,10 +207,10 @@
                          x-show="show"
                          x-transition
                          class="rounded-lg p-4 mb-3 border
-                                {% if category == 'error' %}bg-red-900/30 text-red-300 border-red-800/40
-                                {% elif category == 'success' %}bg-green-900/30 text-green-300 border-green-800/40
-                                {% elif category == 'warning' %}bg-yellow-900/30 text-yellow-300 border-yellow-800/40
-                                {% else %}bg-blue-900/30 text-blue-300 border-blue-800/40{% endif %}">
+                                {% if category == 'error' %}bg-red-50 text-red-700 border-red-200
+                                {% elif category == 'success' %}bg-green-50 text-green-700 border-green-200
+                                {% elif category == 'warning' %}bg-yellow-50 text-yellow-700 border-yellow-200
+                                {% else %}bg-blue-50 text-blue-700 border-blue-200{% endif %}">
                         <div class="flex justify-between items-center">
                             <p class="text-sm">{{ message }}</p>
                             <button @click="show = false" class="ml-4 text-lg opacity-50 hover:opacity-100">&times;</button>
@@ -220,19 +227,19 @@
     </main>
 
     <!-- Footer -->
-    <footer class="border-t border-white/5 mt-12">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <footer class="border-t border-[#e5e5e5] mt-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
             <div class="text-center">
-                <p class="font-serif-kr font-bold text-nr2-cream/90 mb-1">NR2 Network</p>
-                <p class="text-nr2-cream/40 text-sm mb-3">정보가 흐르고, 사람이 연결되는 곳</p>
-                <div class="flex justify-center gap-4 text-xs text-nr2-cream/25 mb-3">
-                    <a href="/policy#terms" class="hover:text-nr2-gold transition">이용약관</a>
-                    <span>·</span>
-                    <a href="/policy#privacy" class="hover:text-nr2-gold transition">개인정보처리방침</a>
-                    <span>·</span>
-                    <a href="/policy#boards" class="hover:text-nr2-gold transition">운영정책</a>
+                <p class="font-serif-kr font-bold text-[#1a1a1a] text-lg mb-1">NR2 Network</p>
+                <p class="text-[#9ca3af] text-sm mb-4">정보가 흐르고, 사람이 연결되는 곳</p>
+                <div class="flex justify-center gap-4 text-xs text-[#9ca3af] mb-4">
+                    <a href="/policy#terms" class="hover:text-[#C1121F] transition">이용약관</a>
+                    <span class="text-[#e5e5e5]">·</span>
+                    <a href="/policy#privacy" class="hover:text-[#C1121F] transition">개인정보처리방침</a>
+                    <span class="text-[#e5e5e5]">·</span>
+                    <a href="/policy#boards" class="hover:text-[#C1121F] transition">운영정책</a>
                 </div>
-                <p class="text-nr2-cream/15 text-xs">&copy; 2026 NR2 Network. All rights reserved.</p>
+                <p class="text-[#d1d5db] text-xs">&copy; 2026 NR2 Network. All rights reserved.</p>
             </div>
         </div>
     </footer>

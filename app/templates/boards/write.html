@@ -5,35 +5,35 @@
 {% block extra_css %}
 <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
 <style>
-/* ── Quill 다크 테마 커스텀 ── */
+/* ── Quill 라이트 테마 커스텀 ── */
 .ql-toolbar.ql-snow {
-    background: #1B2A3D;
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 10px 10px 0 0;
+    background: #f9fafb;
+    border: 1px solid #e5e5e5;
+    border-radius: 0;
     padding: 8px;
     flex-wrap: wrap;
 }
-.ql-toolbar .ql-stroke { stroke: #F5F0E8; }
-.ql-toolbar .ql-fill { fill: #F5F0E8; }
-.ql-toolbar .ql-picker-label { color: #F5F0E8; }
+.ql-toolbar .ql-stroke { stroke: #555; }
+.ql-toolbar .ql-fill { fill: #555; }
+.ql-toolbar .ql-picker-label { color: #555; }
 .ql-toolbar .ql-picker-options {
-    background: #1B2A3D;
-    border: 1px solid rgba(255,255,255,0.1);
+    background: #fff;
+    border: 1px solid #e5e5e5;
 }
-.ql-toolbar .ql-picker-item { color: #F5F0E8; }
+.ql-toolbar .ql-picker-item { color: #1a1a1a; }
 .ql-toolbar button:hover .ql-stroke,
-.ql-toolbar .ql-picker-label:hover .ql-stroke { stroke: #D4A843; }
+.ql-toolbar .ql-picker-label:hover .ql-stroke { stroke: #C1121F; }
 .ql-toolbar button:hover .ql-fill,
-.ql-toolbar .ql-picker-label:hover .ql-fill { fill: #D4A843; }
-.ql-toolbar button.ql-active .ql-stroke { stroke: #D4A843; }
-.ql-toolbar button.ql-active .ql-fill { fill: #D4A843; }
+.ql-toolbar .ql-picker-label:hover .ql-fill { fill: #C1121F; }
+.ql-toolbar button.ql-active .ql-stroke { stroke: #C1121F; }
+.ql-toolbar button.ql-active .ql-fill { fill: #C1121F; }
 .ql-toolbar .ql-picker-label:hover,
-.ql-toolbar .ql-picker-item:hover { color: #D4A843; }
+.ql-toolbar .ql-picker-item:hover { color: #C1121F; }
 
 .ql-container.ql-snow {
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid #e5e5e5;
     border-top: none;
-    border-radius: 0 0 10px 10px;
+    border-radius: 0;
     background: #ffffff;
     min-height: 350px;
     font-size: 16px;
@@ -121,20 +121,12 @@
 
 /* ── 에디터 텍스트 선택(드래그) 스타일 ── */
 .ql-editor ::selection {
-    background-color: #D4A843 !important;
-    color: #0D1B2A !important;
+    background-color: rgba(193,18,31,0.15) !important;
+    color: #1a1a1a !important;
 }
 .ql-editor ::-moz-selection {
-    background-color: #D4A843 !important;
-    color: #0D1B2A !important;
-}
-input[name="title"]::selection {
-    background-color: #D4A843 !important;
-    color: #0D1B2A !important;
-}
-input[name="title"]::-moz-selection {
-    background-color: #D4A843 !important;
-    color: #0D1B2A !important;
+    background-color: rgba(193,18,31,0.15) !important;
+    color: #1a1a1a !important;
 }
 
 /* ── 한국어 툴팁 ── */
@@ -145,8 +137,8 @@ input[name="title"]::-moz-selection {
     bottom: calc(100% + 6px);
     left: 50%;
     transform: translateX(-50%);
-    background: #0D1B2A;
-    color: #F5F0E8;
+    background: #1a1a1a;
+    color: #fff;
     font-size: 11px;
     padding: 4px 8px;
     border-radius: 4px;
@@ -155,7 +147,6 @@ input[name="title"]::-moz-selection {
     pointer-events: none;
     transition: opacity 0.15s;
     z-index: 100;
-    border: 1px solid rgba(255,255,255,0.15);
 }
 .ql-toolbar button:hover::after, .ql-toolbar .ql-picker:hover::after {
     opacity: 1;
@@ -165,25 +156,25 @@ input[name="title"]::-moz-selection {
 
 {% block content %}
 <div class="max-w-4xl mx-auto">
-    <div class="bg-nr2-navy-card rounded-2xl border border-white/5 p-6 md:p-8">
-        <h1 class="font-serif-kr text-2xl font-black text-nr2-cream mb-6">{{ board_name }} — 글쓰기</h1>
+    <div class="bg-white border border-[#e5e5e5] p-6 md:p-8">
+        <h1 class="font-serif text-2xl font-bold text-[#1a1a1a] mb-6">{{ board_name }} — 글쓰기</h1>
 
         <form id="postForm" method="POST" enctype="multipart/form-data" x-data="{ imageCount: 0, maxImages: 5 }">
             <!-- 제목 -->
             <div class="mb-6">
-                <label for="title" class="block text-sm font-bold text-nr2-cream/70 mb-2">
-                    제목 <span class="text-red-400">*</span>
+                <label for="title" class="block text-sm font-bold text-[#555] mb-2">
+                    제목 <span class="text-[#C1121F]">*</span>
                 </label>
                 <input type="text" id="title" name="title"
                        value="{{ title or '' }}" required maxlength="200"
-                       class="w-full px-4 py-3 bg-white border border-white/10 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-nr2-gold"
+                       class="w-full px-4 py-3 bg-white border border-[#e5e5e5] text-[#1a1a1a] placeholder-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#C1121F]/20 focus:border-[#C1121F]"
                        placeholder="제목을 입력하세요">
             </div>
 
             <!-- Quill 에디터 -->
             <div class="mb-6">
-                <label class="block text-sm font-bold text-nr2-cream/70 mb-2">
-                    내용 <span class="text-red-400">*</span>
+                <label class="block text-sm font-bold text-[#555] mb-2">
+                    내용 <span class="text-[#C1121F]">*</span>
                 </label>
                 <div id="quill-editor">{{ content or '' }}</div>
                 <input type="hidden" id="content" name="content">
@@ -192,31 +183,31 @@ input[name="title"]::-moz-selection {
             <!-- 유튜브 URL (AESA 게시판 전용) -->
             {% if board_type == 'aesa' %}
             <div class="mb-6">
-                <label for="youtube_url" class="block text-sm font-bold text-nr2-cream/70 mb-2">유튜브 URL</label>
+                <label for="youtube_url" class="block text-sm font-bold text-[#555] mb-2">유튜브 URL</label>
                 <input type="url" id="youtube_url" name="youtube_url"
                        value="{{ youtube_url or '' }}"
-                       class="w-full px-4 py-3 bg-white border border-white/10 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-nr2-gold"
+                       class="w-full px-4 py-3 bg-white border border-[#e5e5e5] text-[#1a1a1a] placeholder-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#C1121F]/20 focus:border-[#C1121F]"
                        placeholder="https://www.youtube.com/watch?v=...">
-                <p class="text-xs text-nr2-cream/30 mt-1">유튜브 영상 링크를 입력하면 게시글에 영상이 임베드됩니다.</p>
+                <p class="text-xs text-[#9ca3af] mt-1">유튜브 영상 링크를 입력하면 게시글에 영상이 임베드됩니다.</p>
             </div>
             {% endif %}
 
             <!-- 이미지 업로드 -->
             <div class="mb-6">
-                <label class="block text-sm font-bold text-nr2-cream/70 mb-2">이미지 (최대 5개)</label>
-                <div class="border-2 border-dashed border-white/10 rounded-xl p-6 text-center hover:border-nr2-gold/30 transition">
+                <label class="block text-sm font-bold text-[#555] mb-2">이미지 (최대 5개)</label>
+                <div class="border-2 border-dashed border-[#e5e5e5] p-6 text-center hover:border-[#C1121F]/30 transition">
                     <input type="file" id="images" name="images" accept="image/*" multiple class="hidden"
                            @change="imageCount = $event.target.files.length">
                     <label for="images" class="cursor-pointer">
-                        <div class="text-nr2-cream/40">
+                        <div class="text-[#9ca3af]">
                             <svg class="mx-auto h-10 w-10 mb-2" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                                 <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
-                            <p class="text-sm"><span class="text-nr2-gold">파일 선택</span> 또는 드래그 앤 드롭</p>
+                            <p class="text-sm"><span class="text-[#C1121F] font-medium">파일 선택</span> 또는 드래그 앤 드롭</p>
                             <p class="text-xs mt-1">PNG, JPG, GIF, WEBP (최대 5개)</p>
                         </div>
                     </label>
-                    <div x-show="imageCount > 0" class="mt-3 text-sm text-nr2-gold">
+                    <div x-show="imageCount > 0" class="mt-3 text-sm text-[#C1121F]">
                         <span x-text="imageCount"></span>개 파일 선택됨
                     </div>
                 </div>
@@ -226,11 +217,11 @@ input[name="title"]::-moz-selection {
             <!-- 버튼 -->
             <div class="flex justify-end space-x-3">
                 <a href="{{ url_for('boards.board', board_type=board_type) }}"
-                   class="px-6 py-2.5 border border-white/10 rounded-xl text-nr2-cream/60 hover:text-nr2-cream hover:border-white/20 transition">
+                   class="px-6 py-2.5 border border-[#e5e5e5] text-[#6b7280] hover:bg-[#f9fafb] transition">
                     취소
                 </a>
                 <button type="submit"
-                        class="px-6 py-2.5 bg-nr2-gold text-nr2-navy font-bold rounded-xl hover:bg-nr2-gold-dim transition">
+                        class="px-6 py-2.5 bg-[#C1121F] text-white font-bold hover:bg-[#a00e1a] transition">
                     작성하기
                 </button>
             </div>
@@ -325,8 +316,8 @@ document.getElementById('images').addEventListener('change', function(e) {
             reader.onload = function(ev) {
                 var div = document.createElement('div');
                 div.className = 'relative';
-                div.innerHTML = '<img src="' + ev.target.result + '" class="w-full h-24 object-cover rounded-lg border border-white/10" alt="Preview">' +
-                    '<div class="absolute top-1 right-1 bg-nr2-navy/80 text-nr2-cream text-xs px-2 py-0.5 rounded">' + (index + 1) + '</div>';
+                div.innerHTML = '<img src="' + ev.target.result + '" class="w-full h-24 object-cover border border-[#e5e5e5]" alt="Preview">' +
+                    '<div class="absolute top-1 right-1 bg-[#1a1a1a]/80 text-white text-xs px-2 py-0.5 rounded">' + (index + 1) + '</div>';
                 preview.appendChild(div);
             };
             reader.readAsDataURL(file);

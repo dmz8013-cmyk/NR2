@@ -3,29 +3,18 @@
 
 {% block title %}{{ board_name }} - NR2 Network{% endblock %}
 
-{% block extra_css %}
-<style>
-/* 검색 드롭다운 option 스타일 */
-select option {
-    background-color: #0D1B2A;
-    color: #E8E8E8;
-}
-select option:checked {
-    background-color: #D4A843 !important;
-    color: #0D1B2A !important;
-}
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="max-w-4xl mx-auto">
     <!-- Board Header -->
-    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <div class="flex justify-between items-center mb-4">
-            <h1 class="text-3xl font-bold text-gray-900">{{ board_name }}</h1>
+    <div class="mb-8">
+        <div class="flex justify-between items-end mb-4">
+            <div>
+                <h1 class="font-serif text-3xl font-bold text-[#1a1a1a] tracking-tight">{{ board_name }}</h1>
+                <div class="gold-underline mt-2"></div>
+            </div>
             {% if current_user.is_authenticated and (board_type != 'aesa' or current_user.is_admin) %}
             <a href="{{ url_for('boards.write', board_type=board_type) }}"
-               class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+               class="inline-flex items-center px-4 py-2 text-sm font-bold bg-[#C1121F] text-white hover:bg-[#a00e1a] transition">
                 글쓰기
             </a>
             {% endif %}
@@ -34,7 +23,7 @@ select option:checked {
         <!-- Search Form -->
         <form method="GET" action="{{ url_for('boards.board', board_type=board_type) }}" class="mt-4">
             <div class="flex gap-2">
-                <select name="type" class="px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-nr2-gold" style="background-color:#0D1B2A; color:#E8E8E8; border:1px solid #2A3F5F;">
+                <select name="type" class="px-3 py-2 border border-[#e5e5e5] bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#C1121F]/20 focus:border-[#C1121F]">
                     <option value="all" {% if search_type == 'all' %}selected{% endif %}>전체</option>
                     <option value="title" {% if search_type == 'title' %}selected{% endif %}>제목</option>
                     <option value="content" {% if search_type == 'content' %}selected{% endif %}>내용</option>
@@ -45,9 +34,8 @@ select option:checked {
                            name="q"
                            value="{{ search_query or '' }}"
                            placeholder="검색어를 입력하세요..."
-                           class="w-full px-4 py-2 pr-10 rounded-md focus:outline-none focus:ring-2 focus:ring-nr2-gold"
-                           style="background-color:#0D1B2A; color:#E8E8E8; border:1px solid #2A3F5F;"
-                    <button type="submit" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                           class="w-full px-4 py-2 pr-10 border border-[#e5e5e5] bg-white text-[#1a1a1a] text-sm focus:outline-none focus:ring-2 focus:ring-[#C1121F]/20 focus:border-[#C1121F]">
+                    <button type="submit" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-[#9ca3af] hover:text-[#1a1a1a]">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                         </svg>
@@ -55,7 +43,7 @@ select option:checked {
                 </div>
                 {% if search_query %}
                 <a href="{{ url_for('boards.board', board_type=board_type) }}"
-                   class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                   class="px-4 py-2 border border-[#e5e5e5] text-[#6b7280] hover:bg-[#f9fafb] text-sm transition">
                     초기화
                 </a>
                 {% endif %}
@@ -64,8 +52,8 @@ select option:checked {
 
         <!-- Search Result Info -->
         {% if search_query %}
-        <div class="mt-3 text-sm text-gray-600">
-            <span class="font-semibold">"{{ search_query }}"</span> 검색 결과
+        <div class="mt-3 text-sm text-[#6b7280]">
+            <span class="font-semibold text-[#1a1a1a]">"{{ search_query }}"</span> 검색 결과
             {% if search_type != 'all' %}
             ({{ {'title': '제목', 'content': '내용', 'author': '작성자'}[search_type] }}에서)
             {% endif %}
@@ -74,35 +62,35 @@ select option:checked {
     </div>
 
     <!-- Posts List -->
-    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+    <div class="border-t border-[#1a1a1a]">
         {% if posts %}
-        <div class="divide-y divide-gray-200">
+        <div>
             {% for post in posts %}
             <a href="{{ url_for('boards.view', board_type=board_type, post_id=post.id) }}"
-               class="block hover:bg-gray-50 transition-colors p-6">
+               class="block border-b border-[#f0f0f0] py-5 hover:bg-[#f9fafb] transition-colors px-2 group">
                 <div class="flex justify-between items-start">
                     <div class="flex-1">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                        <h3 class="font-serif text-[17px] font-medium text-[#1a1a1a] mb-2 group-hover:text-[#C1121F] transition">
                             {{ post.title }}
                         </h3>
-                        <div class="flex items-center text-sm text-gray-500 space-x-4">
-                            <span>{{ post.author.nickname }}</span>
+                        <div class="flex items-center text-[11px] text-[#9ca3af] space-x-3">
+                            <span class="text-[#6b7280]">{{ post.author.nickname }}</span>
                             <span>{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
-                            <span class="flex items-center">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <span class="flex items-center gap-0.5">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
                                 </svg>
                                 {{ post.views }}
                             </span>
-                            <span class="flex items-center text-red-500">
-                                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <span class="flex items-center gap-0.5 text-[#C1121F]">
+                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd"/>
                                 </svg>
                                 {{ post.likes_count }}
                             </span>
-                            <span class="flex items-center">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <span class="flex items-center gap-0.5">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                                 </svg>
                                 {{ post.comments_count }}
@@ -113,7 +101,7 @@ select option:checked {
                     <div class="ml-4">
                         <img src="{{ post.images.first().filename if 'cloudinary.com' in (post.images.first().filename or '') else url_for('static', filename='uploads/' + post.images.first().filename) }}"
                              alt="Thumbnail"
-                             class="w-16 h-16 object-cover rounded">
+                             class="w-16 h-16 object-cover">
                     </div>
                     {% endif %}
                 </div>
@@ -121,10 +109,10 @@ select option:checked {
             {% endfor %}
         </div>
         {% else %}
-        <div class="text-center py-12 text-gray-500">
-            <p class="text-lg">아직 게시글이 없습니다.</p>
+        <div class="text-center py-16 text-[#9ca3af]">
+            <p class="text-base">아직 게시글이 없습니다.</p>
             {% if current_user.is_authenticated %}
-            <p class="mt-2">첫 번째 게시글을 작성해보세요!</p>
+            <p class="mt-2 text-sm">첫 번째 게시글을 작성해보세요!</p>
             {% endif %}
         </div>
         {% endif %}
