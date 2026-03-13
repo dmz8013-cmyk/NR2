@@ -11,6 +11,7 @@
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 10px 10px 0 0;
     padding: 8px;
+    flex-wrap: wrap;
 }
 .ql-toolbar .ql-stroke { stroke: #F5F0E8; }
 .ql-toolbar .ql-fill { fill: #F5F0E8; }
@@ -47,28 +48,100 @@
     color: #9ca3af;
     font-style: normal;
 }
-.ql-snow .ql-picker.ql-font { width: 130px; }
-.ql-snow .ql-picker.ql-size { width: 80px; }
 
-.ql-font-noto-sans-kr { font-family: 'Noto Sans KR', sans-serif; }
-.ql-font-noto-serif-kr { font-family: 'Noto Serif KR', serif; }
-.ql-font-monospace { font-family: 'JetBrains Mono', monospace; }
+/* ── 글꼴/크기 드롭다운 너비 ── */
+.ql-snow .ql-picker.ql-font { width: 140px; }
+.ql-snow .ql-picker.ql-size { width: 90px; }
 
-.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="noto-sans-kr"]::before,
-.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="noto-sans-kr"]::before { content: "고딕"; font-family: 'Noto Sans KR'; }
+/* ── 12 글꼴 CSS 클래스 ── */
+.ql-font-noto-serif-kr, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="noto-serif-kr"]::before { font-family: 'Noto Serif KR', serif; }
+.ql-font-noto-sans-kr, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="noto-sans-kr"]::before { font-family: 'Noto Sans KR', sans-serif; }
+.ql-font-nanum-gothic, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="nanum-gothic"]::before { font-family: 'Nanum Gothic', sans-serif; }
+.ql-font-nanum-myeongjo, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="nanum-myeongjo"]::before { font-family: 'Nanum Myeongjo', serif; }
+.ql-font-nanum-pen, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="nanum-pen"]::before { font-family: 'Nanum Pen Script', cursive; }
+.ql-font-nanum-brush, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="nanum-brush"]::before { font-family: 'Nanum Brush Script', cursive; }
+.ql-font-ibm-plex, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="ibm-plex"]::before { font-family: 'IBM Plex Sans KR', sans-serif; }
+.ql-font-gowun-batang, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="gowun-batang"]::before { font-family: 'Gowun Batang', serif; }
+.ql-font-monospace, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="monospace"]::before { font-family: 'JetBrains Mono', monospace; }
+.ql-font-playfair, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="playfair"]::before { font-family: 'Playfair Display', serif; }
+.ql-font-inter, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="inter"]::before { font-family: 'Inter', sans-serif; }
+.ql-font-space-grotesk, .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="space-grotesk"]::before { font-family: 'Space Grotesk', sans-serif; }
+
+/* ── 글꼴 드롭다운 라벨 (한국어 이름) ── */
 .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="noto-serif-kr"]::before,
-.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="noto-serif-kr"]::before { content: "명조"; font-family: 'Noto Serif KR'; }
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="noto-serif-kr"]::before { content: "명조"; }
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="noto-sans-kr"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="noto-sans-kr"]::before { content: "고딕"; }
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="nanum-gothic"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="nanum-gothic"]::before { content: "돋움"; }
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="nanum-myeongjo"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="nanum-myeongjo"]::before { content: "바탕"; }
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="nanum-pen"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="nanum-pen"]::before { content: "손글씨"; }
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="nanum-brush"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="nanum-brush"]::before { content: "귀여운글씨"; }
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="ibm-plex"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="ibm-plex"]::before { content: "현대적"; }
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="gowun-batang"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="gowun-batang"]::before { content: "클래식"; }
 .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="monospace"]::before,
-.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="monospace"]::before { content: "코드"; font-family: 'JetBrains Mono'; }
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="monospace"]::before { content: "모노"; }
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="playfair"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="playfair"]::before { content: "영문세리프"; }
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="inter"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="inter"]::before { content: "영문산세리프"; }
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="space-grotesk"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="space-grotesk"]::before { content: "영문모던"; }
 
-.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="small"]::before,
-.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="small"]::before { content: "작게"; }
+/* ── 글자 크기 드롭다운 라벨 ── */
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="10px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="10px"]::before { content: "10"; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="12px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before { content: "12"; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="14px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="14px"]::before { content: "14"; }
 .ql-snow .ql-picker.ql-size .ql-picker-label::before,
-.ql-snow .ql-picker.ql-size .ql-picker-item::before { content: "보통"; }
-.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="large"]::before,
-.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="large"]::before { content: "크게"; }
-.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="huge"]::before,
-.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="huge"]::before { content: "매우 크게"; }
+.ql-snow .ql-picker.ql-size .ql-picker-item::before { content: "16"; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="18px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="18px"]::before { content: "18"; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="20px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="20px"]::before { content: "20"; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: "24"; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="28px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="28px"]::before { content: "28"; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="32px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="32px"]::before { content: "32"; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="36px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="36px"]::before { content: "36"; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="48px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="48px"]::before { content: "48"; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="64px"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="64px"]::before { content: "64"; }
+
+/* ── 한국어 툴팁 ── */
+.ql-toolbar button, .ql-toolbar .ql-picker { position: relative; }
+.ql-toolbar button::after, .ql-toolbar .ql-picker::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0D1B2A;
+    color: #F5F0E8;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+    z-index: 100;
+    border: 1px solid rgba(255,255,255,0.15);
+}
+.ql-toolbar button:hover::after, .ql-toolbar .ql-picker:hover::after {
+    opacity: 1;
+}
 </style>
 {% endblock %}
 
@@ -174,13 +247,18 @@
 {% block extra_js %}
 <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 <script>
-// ── Quill 글꼴 등록 ──
+// ── 12 글꼴 등록 ──
 var Font = Quill.import('formats/font');
-Font.whitelist = ['noto-sans-kr', 'noto-serif-kr', 'monospace'];
+Font.whitelist = [
+    'noto-serif-kr', 'noto-sans-kr', 'nanum-gothic', 'nanum-myeongjo',
+    'nanum-pen', 'nanum-brush', 'ibm-plex', 'gowun-batang',
+    'monospace', 'playfair', 'inter', 'space-grotesk'
+];
 Quill.register(Font, true);
 
+// ── 12단계 글자 크기 등록 (px 기반) ──
 var Size = Quill.import('attributors/style/size');
-Size.whitelist = ['small', false, 'large', 'huge'];
+Size.whitelist = ['10px','12px','14px',false,'18px','20px','24px','28px','32px','36px','48px','64px'];
 Quill.register(Size, true);
 
 // ── Quill 초기화 ──
@@ -189,12 +267,13 @@ var quill = new Quill('#quill-editor', {
     placeholder: '내용을 입력하세요...',
     modules: {
         toolbar: [
-            [{ 'font': ['noto-sans-kr', 'noto-serif-kr', 'monospace'] }],
-            [{ 'size': ['small', false, 'large', 'huge'] }],
+            [{ 'font': ['noto-serif-kr','noto-sans-kr','nanum-gothic','nanum-myeongjo','nanum-pen','nanum-brush','ibm-plex','gowun-batang','monospace','playfair','inter','space-grotesk'] }],
+            [{ 'size': ['10px','12px','14px',false,'18px','20px','24px','28px','32px','36px','48px','64px'] }],
             ['bold', 'italic', 'underline', 'strike'],
             [{ 'color': [] }, { 'background': [] }],
             [{ 'align': [] }],
             [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+            ['blockquote', 'code-block'],
             ['link', 'video'],
             ['clean']
         ]
@@ -204,13 +283,40 @@ var quill = new Quill('#quill-editor', {
 // ── 기존 콘텐츠 로드 ──
 var existingContent = document.getElementById('existing-content').innerHTML;
 if (existingContent && existingContent.trim()) {
-    // HTML 태그가 포함된 콘텐츠면 HTML로 로드, 아니면 텍스트로
     if (existingContent.indexOf('<') !== -1) {
         quill.root.innerHTML = existingContent;
     } else {
         quill.setText(existingContent);
     }
 }
+
+// ── 한국어 툴팁 설정 ──
+(function() {
+    var toolbar = document.querySelector('.ql-toolbar');
+    if (!toolbar) return;
+    var tooltips = {
+        '.ql-bold': '굵게',
+        '.ql-italic': '기울임',
+        '.ql-underline': '밑줄',
+        '.ql-strike': '취소선',
+        '.ql-blockquote': '인용',
+        '.ql-code-block': '코드 블록',
+        '.ql-link': '링크 삽입',
+        '.ql-video': '동영상 삽입',
+        '.ql-clean': '서식 지우기',
+        '.ql-list[value="ordered"]': '번호 목록',
+        '.ql-list[value="bullet"]': '글머리 목록',
+        '.ql-align .ql-picker-label': '정렬',
+        '.ql-color .ql-picker-label': '글자색',
+        '.ql-background .ql-picker-label': '배경색',
+        '.ql-font .ql-picker-label': '글꼴',
+        '.ql-size .ql-picker-label': '글자 크기'
+    };
+    Object.keys(tooltips).forEach(function(sel) {
+        var el = toolbar.querySelector(sel);
+        if (el) el.setAttribute('data-tooltip', tooltips[sel]);
+    });
+})();
 
 // ── form submit 시 hidden input에 HTML 저장 ──
 document.getElementById('postForm').addEventListener('submit', function(e) {
