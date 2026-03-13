@@ -292,38 +292,13 @@
   </section>
 
   {# ═══════════════════════════════════════════
-     ⑤ 투표 + 캘린더 (최하단)
-     ═══════════════════════════════════════════ #}
-  <section class="mt-20">
-    <div class="max-w-[1200px] mx-auto px-4 sm:px-6">
-      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-0">
-        <a href="{{ url_for('votes.list') }}" class="board-card fade-in">
-          <div class="flex items-center gap-3"><span class="text-[14px]">🗳️</span><div><h3 class="font-serif-kr font-bold text-[#1a1a1a] text-[14px]">투표</h3><p class="text-[#bbb] text-[11px] mt-0.5">당신의 한 표가 필요합니다</p></div></div>
-        </a>
-        {% if current_user.is_authenticated %}
-        <a href="{{ url_for('calendar.index') }}" class="board-card fade-in">
-          <div class="flex items-center gap-3"><span class="text-[14px]">📅</span><div><h3 class="font-serif-kr font-bold text-[#1a1a1a] text-[14px]">캘린더</h3><p class="text-[#bbb] text-[11px] mt-0.5">놓치기 싫은 일정 모음</p></div></div>
-        </a>
-        {% endif %}
-        <a href="{{ url_for('boards.board', board_type='free') }}" class="board-card fade-in">
-          <div class="flex items-center gap-3"><span class="text-[14px]">📋</span><div><h3 class="font-serif-kr font-bold text-[#1a1a1a] text-[14px]">자유게시판</h3><p class="text-[#bbb] text-[11px] mt-0.5">뭐든 써도 되는 곳</p></div></div>
-        </a>
-        <a href="{{ url_for('boards.board', board_type='morpheus') }}" class="board-card fade-in">
-          <div class="flex items-center gap-3"><span class="text-[14px]">💊</span><div><h3 class="font-serif-kr font-bold text-[#1a1a1a] text-[14px]">모피어스뉴스</h3><p class="text-[#bbb] text-[11px] mt-0.5">빨간약 드실 분만</p></div></div>
-        </a>
-      </div>
-    </div>
-  </section>
-
-  {# ═══════════════════════════════════════════
      CTA (non-authenticated)
      ═══════════════════════════════════════════ #}
   {% if not current_user.is_authenticated %}
   <section class="mt-20 mb-20">
     <div class="max-w-[1200px] mx-auto px-4 sm:px-6">
       <div class="border-t-2 border-[#1a1a1a] pt-12 text-center">
-        <h2 class="font-serif-kr text-2xl md:text-3xl font-bold text-[#1a1a1a] mb-3">뉴스를 받아들이지 말고, 직접 판단하라</h2>
-        <p class="text-[#767676] text-[15px] mb-8">당신이 직접 판단하라</p>
+        <h2 class="font-serif-kr font-bold text-[#1a1a1a] mb-8" style="font-size:36px;">당신이 직접 판단하는 뉴스</h2>
         <div class="flex gap-4 justify-center">
           <a href="{{ url_for('auth.register') }}" class="px-8 py-3 text-[13px] font-bold bg-[#C1121F] text-white hover:bg-[#8b0d16] transition">30초 회원가입 &rarr;</a>
           <a href="https://t.me/gazzzza2025" target="_blank" class="px-8 py-3 text-[13px] font-semibold text-[#1a1a1a] border border-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-white transition">텔레그램 참여</a>

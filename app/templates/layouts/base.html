@@ -99,15 +99,13 @@
                     <div class="hidden lg:ml-10 lg:flex lg:items-center lg:space-x-0.5">
                         <a href="{{ url_for('news.breaking') }}" class="nav-link nav-link-accent">공지</a>
                         <a href="{{ url_for('boards.board', board_type='free') }}" class="nav-link">자유</a>
-                        <a href="{{ url_for('boards.board', board_type='morpheus') }}" class="nav-link">모피어스</a>
-                        <a href="{{ url_for('boards.board', board_type='aesa') }}" class="nav-link">AESA</a>
-                        <a href="{{ url_for('votes.list') }}" class="nav-link">투표</a>
-                        <span class="w-px h-4 bg-[#E0E0E0] mx-1"></span>
-                        <a href="/bias" class="nav-link nav-link-accent">YouCheck</a>
-                        <a href="/bias/my-report" class="nav-link">내리포트</a>
-                        <a href="/briefings" class="nav-link">브리핑</a>
                         <a href="{{ url_for('boards.board', board_type='left') }}" class="nav-link">LEFT</a>
                         <a href="{{ url_for('boards.board', board_type='right') }}" class="nav-link">RIGHT</a>
+                        <span class="w-px h-4 bg-[#E0E0E0] mx-1"></span>
+                        <a href="/bias" class="nav-link nav-link-accent">YouCheck</a>
+                        <a href="{{ url_for('boards.board', board_type='aesa') }}" class="nav-link">AESA</a>
+                        <a href="{{ url_for('boards.board', board_type='morpheus') }}" class="nav-link">모피어스</a>
+                        <a href="/briefings" class="nav-link">브리핑</a>
                         {% if current_user.is_authenticated %}
                         <a href="{{ url_for('calendar.index') }}" class="nav-link">캘린더</a>
                         {% endif %}
@@ -176,15 +174,13 @@
             <div class="px-4 py-3 space-y-0.5">
                 <a href="{{ url_for('news.breaking') }}" @click="mobileOpen=false" class="mobile-nav-link text-[#C1121F] font-semibold">공지</a>
                 <a href="{{ url_for('boards.board', board_type='free') }}" @click="mobileOpen=false" class="mobile-nav-link">자유게시판</a>
-                <a href="{{ url_for('boards.board', board_type='morpheus') }}" @click="mobileOpen=false" class="mobile-nav-link">모피어스</a>
-                <a href="{{ url_for('boards.board', board_type='aesa') }}" @click="mobileOpen=false" class="mobile-nav-link">AESA</a>
-                <a href="{{ url_for('votes.list') }}" @click="mobileOpen=false" class="mobile-nav-link">투표</a>
-                <div class="border-t border-[#E0E0E0] my-2"></div>
-                <a href="/bias" @click="mobileOpen=false" class="mobile-nav-link text-[#C1121F] font-semibold">YouCheck</a>
-                <a href="/bias/my-report" @click="mobileOpen=false" class="mobile-nav-link">내 리포트</a>
-                <a href="/briefings" @click="mobileOpen=false" class="mobile-nav-link">브리핑</a>
                 <a href="{{ url_for('boards.board', board_type='left') }}" @click="mobileOpen=false" class="mobile-nav-link">LEFT</a>
                 <a href="{{ url_for('boards.board', board_type='right') }}" @click="mobileOpen=false" class="mobile-nav-link">RIGHT</a>
+                <div class="border-t border-[#E0E0E0] my-2"></div>
+                <a href="/bias" @click="mobileOpen=false" class="mobile-nav-link text-[#C1121F] font-semibold">YouCheck</a>
+                <a href="{{ url_for('boards.board', board_type='aesa') }}" @click="mobileOpen=false" class="mobile-nav-link">AESA</a>
+                <a href="{{ url_for('boards.board', board_type='morpheus') }}" @click="mobileOpen=false" class="mobile-nav-link">모피어스</a>
+                <a href="/briefings" @click="mobileOpen=false" class="mobile-nav-link">브리핑</a>
                 {% if current_user.is_authenticated %}
                 <a href="{{ url_for('calendar.index') }}" @click="mobileOpen=false" class="mobile-nav-link">캘린더</a>
                 {% else %}
