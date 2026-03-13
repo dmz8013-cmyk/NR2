@@ -81,9 +81,19 @@ def index():
         ).limit(10).all()
     except Exception:
         community_posts = []
+    # AESA 게시판 최신글 5개
+    try:
+        aesa_posts = Post.query.filter(
+            Post.board_type == 'aesa'
+        ).order_by(
+            Post.created_at.desc()
+        ).limit(5).all()
+    except Exception:
+        aesa_posts = []
     return render_template('main/index.html', hot_posts=hot_posts, articles=articles,
                            latest_briefings=latest_briefings, ranking_articles=ranking_articles,
-                           youcheck_count=youcheck_count, community_posts=community_posts)
+                           youcheck_count=youcheck_count, community_posts=community_posts,
+                           aesa_posts=aesa_posts)
 
 
 @bp.route('/methodology')
