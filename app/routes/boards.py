@@ -1,9 +1,39 @@
 import os
 import re
+import bleach
 from werkzeug.utils import secure_filename
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, jsonify
 from flask_login import login_required, current_user
 from app import db
+
+# Quill 에디터 HTML 허용 태그/속성
+ALLOWED_TAGS = [
+    'p', 'br', 'strong', 'em', 'u', 's', 'a', 'ul', 'ol', 'li',
+    'span', 'div', 'h1', 'h2', 'h3', 'blockquote', 'pre', 'code',
+    'iframe', 'img', 'sub', 'sup',
+]
+ALLOWED_ATTRS = {
+    '*': ['class', 'style'],
+    'a': ['href', 'target', 'rel'],
+    'iframe': ['src', 'width', 'height', 'frameborder', 'allowfullscreen', 'allow'],
+    'img': ['src', 'alt', 'width', 'height'],
+}
+ALLOWED_STYLES = [
+    'color', 'background-color', 'font-size', 'font-family',
+    'text-align', 'text-decoration',
+]
+
+def sanitize_html(html_content):
+    """Quill 에디터 HTML을 안전하게 정제"""
+    if not html_content:
+        return html_content
+    return bleach.clean(
+        html_content,
+        tags=ALLOWED_TAGS,
+        attributes=ALLOWED_ATTRS,
+        styles=ALLOWED_STYLES,
+        strip=True,
+    )
 from app.utils.telegram_notify import notify_new_post
 from app.models import Post, PostImage, Comment, Like
 
@@ -116,7 +146,7 @@ def write(board_type):
 
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
-        content = request.form.get('content', '').strip()
+        content = sanitize_html(request.form.get('content', '').strip())
         youtube_url = request.form.get('youtube_url', '').strip() or None
 
         # 유효성 검사
@@ -228,7 +258,7 @@ def edit(board_type, post_id):
 
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
-        content = request.form.get('content', '').strip()
+        content = sanitize_html(request.form.get('content', '').strip())
         youtube_url = request.form.get('youtube_url', '').strip() or None
 
         # 유효성 검사

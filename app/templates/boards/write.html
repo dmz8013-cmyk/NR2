@@ -2,139 +2,212 @@
 
 {% block title %}글쓰기 - {{ board_name }}{% endblock %}
 
+{% block extra_css %}
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+<style>
+/* ── Quill 다크 테마 커스텀 ── */
+.ql-toolbar.ql-snow {
+    background: #1B2A3D;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px 10px 0 0;
+    padding: 8px;
+}
+.ql-toolbar .ql-stroke { stroke: #F5F0E8; }
+.ql-toolbar .ql-fill { fill: #F5F0E8; }
+.ql-toolbar .ql-picker-label { color: #F5F0E8; }
+.ql-toolbar .ql-picker-options {
+    background: #1B2A3D;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+.ql-toolbar .ql-picker-item { color: #F5F0E8; }
+.ql-toolbar button:hover .ql-stroke,
+.ql-toolbar .ql-picker-label:hover .ql-stroke { stroke: #D4A843; }
+.ql-toolbar button:hover .ql-fill,
+.ql-toolbar .ql-picker-label:hover .ql-fill { fill: #D4A843; }
+.ql-toolbar button.ql-active .ql-stroke { stroke: #D4A843; }
+.ql-toolbar button.ql-active .ql-fill { fill: #D4A843; }
+.ql-toolbar .ql-picker-label:hover,
+.ql-toolbar .ql-picker-item:hover { color: #D4A843; }
+
+.ql-container.ql-snow {
+    border: 1px solid rgba(255,255,255,0.1);
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    background: #ffffff;
+    min-height: 350px;
+    font-size: 16px;
+}
+.ql-editor {
+    color: #1a1a1a;
+    min-height: 350px;
+    font-family: 'Noto Sans KR', sans-serif;
+    line-height: 1.8;
+}
+.ql-editor.ql-blank::before {
+    color: #9ca3af;
+    font-style: normal;
+}
+/* 글꼴 선택 너비 */
+.ql-snow .ql-picker.ql-font { width: 130px; }
+.ql-snow .ql-picker.ql-size { width: 80px; }
+
+/* Quill 글꼴 등록 */
+.ql-font-noto-sans-kr { font-family: 'Noto Sans KR', sans-serif; }
+.ql-font-noto-serif-kr { font-family: 'Noto Serif KR', serif; }
+.ql-font-monospace { font-family: 'JetBrains Mono', monospace; }
+
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="noto-sans-kr"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="noto-sans-kr"]::before { content: "고딕"; font-family: 'Noto Sans KR'; }
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="noto-serif-kr"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="noto-serif-kr"]::before { content: "명조"; font-family: 'Noto Serif KR'; }
+.ql-snow .ql-picker.ql-font .ql-picker-label[data-value="monospace"]::before,
+.ql-snow .ql-picker.ql-font .ql-picker-item[data-value="monospace"]::before { content: "코드"; font-family: 'JetBrains Mono'; }
+
+/* 글자 크기 */
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="small"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="small"]::before { content: "작게"; }
+.ql-snow .ql-picker.ql-size .ql-picker-label::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item::before { content: "보통"; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="large"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="large"]::before { content: "크게"; }
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value="huge"]::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value="huge"]::before { content: "매우 크게"; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="max-w-4xl mx-auto">
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <h1 class="text-2xl font-bold text-gray-900 mb-6">{{ board_name }} - 글쓰기</h1>
+    <div class="bg-nr2-navy-card rounded-2xl border border-white/5 p-6 md:p-8">
+        <h1 class="font-serif-kr text-2xl font-black text-nr2-cream mb-6">{{ board_name }} — 글쓰기</h1>
 
-        <form method="POST" enctype="multipart/form-data" x-data="{ imageCount: 0, maxImages: 5 }">
+        <form id="postForm" method="POST" enctype="multipart/form-data" x-data="{ imageCount: 0, maxImages: 5 }">
             <!-- 제목 -->
             <div class="mb-6">
-                <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
-                    제목 <span class="text-red-500">*</span>
+                <label for="title" class="block text-sm font-bold text-nr2-cream/70 mb-2">
+                    제목 <span class="text-red-400">*</span>
                 </label>
-                <input type="text"
-                       id="title"
-                       name="title"
-                       value="{{ title or '' }}"
-                       required
-                       maxlength="200"
-                       class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                <input type="text" id="title" name="title"
+                       value="{{ title or '' }}" required maxlength="200"
+                       class="w-full px-4 py-3 bg-white border border-white/10 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-nr2-gold"
                        placeholder="제목을 입력하세요">
             </div>
 
-            <!-- 내용 -->
+            <!-- Quill 에디터 -->
             <div class="mb-6">
-                <label for="content" class="block text-sm font-medium text-gray-700 mb-2">
-                    내용 <span class="text-red-500">*</span>
+                <label class="block text-sm font-bold text-nr2-cream/70 mb-2">
+                    내용 <span class="text-red-400">*</span>
                 </label>
-                <textarea id="content"
-                          name="content"
-                          required
-                          rows="15"
-                          class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
-                          placeholder="내용을 입력하세요">{{ content or '' }}</textarea>
+                <div id="quill-editor">{{ content or '' }}</div>
+                <input type="hidden" id="content" name="content">
             </div>
 
             <!-- 유튜브 URL (AESA 게시판 전용) -->
             {% if board_type == 'aesa' %}
             <div class="mb-6">
-                <label for="youtube_url" class="block text-sm font-medium text-gray-700 mb-2">
-                    유튜브 URL
-                </label>
-                <input type="url"
-                       id="youtube_url"
-                       name="youtube_url"
+                <label for="youtube_url" class="block text-sm font-bold text-nr2-cream/70 mb-2">유튜브 URL</label>
+                <input type="url" id="youtube_url" name="youtube_url"
                        value="{{ youtube_url or '' }}"
-                       class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                       class="w-full px-4 py-3 bg-white border border-white/10 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-nr2-gold"
                        placeholder="https://www.youtube.com/watch?v=...">
-                <p class="text-xs text-gray-500 mt-1">유튜브 영상 링크를 입력하면 게시글에 영상이 임베드됩니다.</p>
+                <p class="text-xs text-nr2-cream/30 mt-1">유튜브 영상 링크를 입력하면 게시글에 영상이 임베드됩니다.</p>
             </div>
             {% endif %}
 
             <!-- 이미지 업로드 -->
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                    이미지 (최대 5개)
-                </label>
-
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <input type="file"
-                           id="images"
-                           name="images"
-                           accept="image/*"
-                           multiple
-                           class="hidden"
+                <label class="block text-sm font-bold text-nr2-cream/70 mb-2">이미지 (최대 5개)</label>
+                <div class="border-2 border-dashed border-white/10 rounded-xl p-6 text-center hover:border-nr2-gold/30 transition">
+                    <input type="file" id="images" name="images" accept="image/*" multiple class="hidden"
                            @change="imageCount = $event.target.files.length">
-
                     <label for="images" class="cursor-pointer">
-                        <div class="text-gray-600">
-                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                        <div class="text-nr2-cream/40">
+                            <svg class="mx-auto h-10 w-10 mb-2" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                                 <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
-                            <p class="mt-2 text-sm">
-                                <span class="text-blue-600 hover:text-blue-500">파일 선택</span>
-                                또는 드래그 앤 드롭
-                            </p>
-                            <p class="mt-1 text-xs text-gray-500">
-                                PNG, JPG, GIF, WEBP (최대 5개)
-                            </p>
+                            <p class="text-sm"><span class="text-nr2-gold">파일 선택</span> 또는 드래그 앤 드롭</p>
+                            <p class="text-xs mt-1">PNG, JPG, GIF, WEBP (최대 5개)</p>
                         </div>
                     </label>
-
-                    <div x-show="imageCount > 0" class="mt-4 text-sm text-gray-600">
+                    <div x-show="imageCount > 0" class="mt-3 text-sm text-nr2-gold">
                         <span x-text="imageCount"></span>개 파일 선택됨
                     </div>
                 </div>
-
-                <!-- 선택된 이미지 미리보기 -->
                 <div id="image-preview" class="mt-4 grid grid-cols-2 md:grid-cols-5 gap-4"></div>
             </div>
 
             <!-- 버튼 -->
             <div class="flex justify-end space-x-3">
                 <a href="{{ url_for('boards.board', board_type=board_type) }}"
-                   class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">
+                   class="px-6 py-2.5 border border-white/10 rounded-xl text-nr2-cream/60 hover:text-nr2-cream hover:border-white/20 transition">
                     취소
                 </a>
                 <button type="submit"
-                        class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                        class="px-6 py-2.5 bg-nr2-gold text-nr2-navy font-bold rounded-xl hover:bg-nr2-gold-dim transition">
                     작성하기
                 </button>
             </div>
         </form>
     </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
 <script>
-// 이미지 미리보기
+// ── Quill 글꼴 등록 ──
+var Font = Quill.import('formats/font');
+Font.whitelist = ['noto-sans-kr', 'noto-serif-kr', 'monospace'];
+Quill.register(Font, true);
+
+// ── Quill 글자 크기 등록 ──
+var Size = Quill.import('attributors/style/size');
+Size.whitelist = ['small', false, 'large', 'huge'];
+Quill.register(Size, true);
+
+// ── Quill 초기화 ──
+var quill = new Quill('#quill-editor', {
+    theme: 'snow',
+    placeholder: '내용을 입력하세요...',
+    modules: {
+        toolbar: [
+            [{ 'font': ['noto-sans-kr', 'noto-serif-kr', 'monospace'] }],
+            [{ 'size': ['small', false, 'large', 'huge'] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'color': [] }, { 'background': [] }],
+            [{ 'align': [] }],
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+            ['link', 'video'],
+            ['clean']
+        ]
+    }
+});
+
+// ── form submit 시 hidden input에 HTML 저장 ──
+document.getElementById('postForm').addEventListener('submit', function(e) {
+    var html = quill.root.innerHTML;
+    if (html === '<p><br></p>' || html.trim() === '') {
+        e.preventDefault();
+        alert('내용을 입력해주세요.');
+        return;
+    }
+    document.getElementById('content').value = html;
+});
+
+// ── 이미지 미리보기 ──
 document.getElementById('images').addEventListener('change', function(e) {
-    const preview = document.getElementById('image-preview');
+    var preview = document.getElementById('image-preview');
     preview.innerHTML = '';
-
-    const files = Array.from(e.target.files).slice(0, 5); // 최대 5개
-
-    files.forEach((file, index) => {
+    var files = Array.from(e.target.files).slice(0, 5);
+    files.forEach(function(file, index) {
         if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-
-            reader.onload = function(event) {
-                const div = document.createElement('div');
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                var div = document.createElement('div');
                 div.className = 'relative';
-                div.innerHTML = `
-                    <img src="${event.target.result}"
-                         class="w-full h-24 object-cover rounded border border-gray-300"
-                         alt="Preview ${index + 1}">
-                    <div class="absolute top-1 right-1 bg-gray-800 bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-                        ${index + 1}
-                    </div>
-                `;
+                div.innerHTML = '<img src="' + ev.target.result + '" class="w-full h-24 object-cover rounded-lg border border-white/10" alt="Preview">' +
+                    '<div class="absolute top-1 right-1 bg-nr2-navy/80 text-nr2-cream text-xs px-2 py-0.5 rounded">' + (index + 1) + '</div>';
                 preview.appendChild(div);
             };
-
             reader.readAsDataURL(file);
         }
     });
