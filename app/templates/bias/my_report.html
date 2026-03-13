@@ -1,0 +1,248 @@
+{% extends "layouts/base.html" %}
+{% block title %}나의 편향 리포트 - NR2 Network{% endblock %}
+
+{% block extra_css %}
+<style>
+.report-card{background:#142231;border:1px solid rgba(255,255,255,0.06);border-radius:16px;overflow:hidden}
+.axis-bar-report{position:relative;height:10px;border-radius:5px;background:linear-gradient(to right,#3B82F6 0%,#6B7280 50%,#EF4444 100%)}
+.axis-marker-report{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;border:2px solid #fff;transform:translate(-50%,-50%);box-shadow:0 2px 8px rgba(0,0,0,0.4)}
+.share-btn{padding:12px 24px;border-radius:10px;font-size:14px;font-weight:700;transition:all 0.2s;cursor:pointer;border:none}
+.share-btn:hover{transform:translateY(-1px)}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-8">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="font-serif-kr text-2xl font-black text-nr2-cream">나의 편향 리포트</h1>
+      <p class="text-nr2-cream/40 text-sm mt-1">당신이 읽은 뉴스가 말해주는 성향</p>
+    </div>
+    <a href="{{ url_for('bias.index') }}" class="text-sm text-nr2-gold hover:text-nr2-gold-dim transition">&larr; YouCheck</a>
+  </div>
+
+  {% if not has_data %}
+  {# ── 데이터 없음 ── #}
+  <div class="report-card p-10 text-center">
+    <p class="text-5xl mb-4">📊</p>
+    <h2 class="text-xl font-bold text-nr2-cream mb-2">아직 분석할 데이터가 없습니다</h2>
+    <p class="text-nr2-cream/40 text-sm mb-6">YouCheck에서 기사를 클릭하면 자동으로 편향 데이터가 쌓입니다</p>
+    <a href="{{ url_for('bias.index') }}" class="inline-block px-6 py-3 rounded-xl bg-nr2-gold text-nr2-navy font-bold hover:bg-nr2-gold-dim transition">YouCheck 둘러보기 &rarr;</a>
+  </div>
+
+  {% else %}
+  {# ── 리포트 본문 ── #}
+  <div class="report-card">
+    <div class="p-6 md:p-8">
+      {# 요약 #}
+      <div class="text-center mb-8">
+        <p class="text-nr2-gold text-xs font-mono font-semibold tracking-widest uppercase mb-3">MY BIAS REPORT</p>
+        <h2 class="font-serif-kr text-xl md:text-2xl font-black text-nr2-cream mb-2">{{ summary }}</h2>
+        <p class="text-nr2-cream/30 text-sm font-mono">{{ count }}건의 기사 분석 기반</p>
+      </div>
+
+      {# 3축 편향 바 #}
+      <div class="space-y-6 mb-8">
+        {# 정치 축 #}
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-indigo-400">🏛️ 정치 성향</span>
+            <span class="text-xs font-mono text-nr2-cream/40">{{ pol_label }} ({{ pol }})</span>
+          </div>
+          <div class="axis-bar-report">
+            <div class="axis-marker-report" style="left:{{ ((pol + 100) / 200 * 100) }}%;background:#6366F1;"></div>
+          </div>
+          <div class="flex justify-between mt-1">
+            <span class="text-[10px] text-blue-400">진보 -100</span>
+            <span class="text-[10px] text-nr2-cream/20">0</span>
+            <span class="text-[10px] text-red-400">보수 +100</span>
+          </div>
+        </div>
+
+        {# 지정학 축 #}
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-amber-400">🌐 지정학 성향</span>
+            <span class="text-xs font-mono text-nr2-cream/40">{{ geo_label }} ({{ geo }})</span>
+          </div>
+          <div class="axis-bar-report">
+            <div class="axis-marker-report" style="left:{{ ((geo + 100) / 200 * 100) }}%;background:#F59E0B;"></div>
+          </div>
+          <div class="flex justify-between mt-1">
+            <span class="text-[10px] text-blue-400">친중 -100</span>
+            <span class="text-[10px] text-nr2-cream/20">0</span>
+            <span class="text-[10px] text-red-400">친미 +100</span>
+          </div>
+        </div>
+
+        {# 경제 축 #}
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold text-emerald-400">💰 경제 성향</span>
+            <span class="text-xs font-mono text-nr2-cream/40">{{ eco_label }} ({{ eco }})</span>
+          </div>
+          <div class="axis-bar-report">
+            <div class="axis-marker-report" style="left:{{ ((eco + 100) / 200 * 100) }}%;background:#10B981;"></div>
+          </div>
+          <div class="flex justify-between mt-1">
+            <span class="text-[10px] text-blue-400">분배 -100</span>
+            <span class="text-[10px] text-nr2-cream/20">0</span>
+            <span class="text-[10px] text-red-400">성장 +100</span>
+          </div>
+        </div>
+      </div>
+
+      {# 공유 버튼 #}
+      <div class="flex gap-3 justify-center">
+        <button onclick="saveCardImage()" class="share-btn bg-nr2-gold text-nr2-navy">이미지 저장</button>
+        <button onclick="copyReportLink()" class="share-btn bg-white/10 text-nr2-cream border border-white/10">링크 복사</button>
+      </div>
+      <p id="copy-toast" class="text-center text-xs text-nr2-gold mt-2 opacity-0 transition-opacity">복사 완료!</p>
+    </div>
+  </div>
+
+  {# ── 숨겨진 Canvas (공유 카드 생성용) ── #}
+  <canvas id="shareCanvas" width="1200" height="630" class="hidden"></canvas>
+
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if has_data %}
+<script>
+// ── Canvas 공유 카드 그리기 ──
+function drawShareCard() {
+  const canvas = document.getElementById('shareCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = 1200, H = 630;
+
+  // 배경
+  ctx.fillStyle = '#0D1B2A';
+  ctx.fillRect(0, 0, W, H);
+
+  // 상단 금색 라인
+  ctx.fillStyle = '#D4A843';
+  ctx.fillRect(0, 0, W, 4);
+
+  // 타이틀
+  ctx.fillStyle = '#D4A843';
+  ctx.font = '600 16px "JetBrains Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('NR2 NETWORK', W/2, 60);
+
+  ctx.fillStyle = '#F5F0E8';
+  ctx.font = '900 36px "Noto Serif KR", serif';
+  ctx.fillText('나의 편향 리포트', W/2, 110);
+
+  // 요약 문구
+  ctx.fillStyle = '#D4A843';
+  ctx.font = '700 24px "Noto Sans KR", sans-serif';
+  ctx.fillText('{{ summary }}', W/2, 170);
+
+  ctx.fillStyle = 'rgba(245,240,232,0.3)';
+  ctx.font = '400 14px "JetBrains Mono", monospace';
+  ctx.fillText('{{ count }}건의 기사 분석 기반', W/2, 200);
+
+  // ── 3축 바 ──
+  const axes = [
+    { label: '🏛️ 정치', val: {{ pol }}, color: '#6366F1', leftLabel: '진보', rightLabel: '보수' },
+    { label: '🌐 지정학', val: {{ geo }}, color: '#F59E0B', leftLabel: '친중', rightLabel: '친미' },
+    { label: '💰 경제', val: {{ eco }}, color: '#10B981', leftLabel: '분배', rightLabel: '성장' },
+  ];
+
+  const barX = 200, barW = 800, barH = 14;
+  let startY = 260;
+
+  axes.forEach(function(axis) {
+    // 라벨
+    ctx.textAlign = 'left';
+    ctx.fillStyle = axis.color;
+    ctx.font = '700 16px "Noto Sans KR", sans-serif';
+    ctx.fillText(axis.label, barX, startY);
+
+    // 값 (오른쪽)
+    ctx.textAlign = 'right';
+    ctx.fillStyle = 'rgba(245,240,232,0.4)';
+    ctx.font = '400 14px "JetBrains Mono", monospace';
+    ctx.fillText(axis.val.toFixed(1), barX + barW, startY);
+
+    startY += 14;
+
+    // gradient bar
+    const grad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+    grad.addColorStop(0, '#3B82F6');
+    grad.addColorStop(0.5, '#6B7280');
+    grad.addColorStop(1, '#EF4444');
+    ctx.fillStyle = grad;
+    roundRect(ctx, barX, startY, barW, barH, 7);
+    ctx.fill();
+
+    // marker
+    const markerX = barX + ((axis.val + 100) / 200) * barW;
+    ctx.beginPath();
+    ctx.arc(markerX, startY + barH/2, 10, 0, Math.PI * 2);
+    ctx.fillStyle = axis.color;
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // left/right labels
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(245,240,232,0.2)';
+    ctx.font = '400 11px "Noto Sans KR", sans-serif';
+    ctx.fillText(axis.leftLabel, barX, startY + barH + 16);
+    ctx.textAlign = 'right';
+    ctx.fillText(axis.rightLabel, barX + barW, startY + barH + 16);
+
+    startY += barH + 40;
+  });
+
+  // 워터마크
+  ctx.fillStyle = 'rgba(245,240,232,0.15)';
+  ctx.font = '400 14px "JetBrains Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('nr2.kr/bias/my-report', W/2, H - 30);
+
+  // 하단 금색 라인
+  ctx.fillStyle = '#D4A843';
+  ctx.fillRect(0, H - 4, W, 4);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function saveCardImage() {
+  drawShareCard();
+  const canvas = document.getElementById('shareCanvas');
+  const link = document.createElement('a');
+  link.download = 'nr2-bias-report.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+function copyReportLink() {
+  navigator.clipboard.writeText('https://nr2.kr/bias/my-report').then(function() {
+    const toast = document.getElementById('copy-toast');
+    toast.style.opacity = '1';
+    setTimeout(function() { toast.style.opacity = '0'; }, 2000);
+  });
+}
+
+// pre-draw on load
+document.addEventListener('DOMContentLoaded', function() { drawShareCard(); });
+</script>
+{% endif %}
+{% endblock %}

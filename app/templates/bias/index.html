@@ -143,3 +143,19 @@
   {% endif %}
 </div>
 {% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.article-card').forEach(function(card) {
+  card.addEventListener('click', function(e) {
+    var href = card.getAttribute('href');
+    var match = href && href.match(/\/bias\/(\d+)/);
+    if (!match) return;
+    navigator.sendBeacon('/bias/track-click', new Blob(
+      [JSON.stringify({ article_id: parseInt(match[1]) })],
+      { type: 'application/json' }
+    ));
+  });
+});
+</script>
+{% endblock %}

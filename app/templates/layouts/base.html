@@ -101,6 +101,7 @@
                         <a href="{{ url_for('votes.list') }}" class="nav-link">투표</a>
                         <span class="w-px h-4 bg-nr2-cream/10 mx-1"></span>
                         <a href="/bias" class="nav-link nav-link-gold">YouCheck</a>
+                        <a href="/bias/my-report" class="nav-link">내 리포트</a>
                         <a href="/briefings" class="nav-link">브리핑</a>
                         <a href="{{ url_for('boards.board', board_type='left') }}" class="nav-link">LEFT</a>
                         <a href="{{ url_for('boards.board', board_type='right') }}" class="nav-link">RIGHT</a>
@@ -174,6 +175,7 @@
                 <a href="{{ url_for('boards.board', board_type='aesa') }}" @click="mobileOpen=false" class="mobile-nav-link">AESA</a>
                 <a href="{{ url_for('votes.list') }}" @click="mobileOpen=false" class="mobile-nav-link">투표</a>
                 <a href="/bias" @click="mobileOpen=false" class="mobile-nav-link text-nr2-gold font-bold">YouCheck</a>
+                <a href="/bias/my-report" @click="mobileOpen=false" class="mobile-nav-link">내 리포트</a>
                 <a href="/briefings" @click="mobileOpen=false" class="mobile-nav-link">브리핑</a>
                 <a href="{{ url_for('boards.board', board_type='left') }}" @click="mobileOpen=false" class="mobile-nav-link">LEFT</a>
                 <a href="{{ url_for('boards.board', board_type='right') }}" @click="mobileOpen=false" class="mobile-nav-link">RIGHT</a>

@@ -7,7 +7,7 @@ import requests as http_requests
 from bs4 import BeautifulSoup
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
-from app import db
+from app import db, csrf
 from app.models.bias import NewsArticle, BiasVote, BoneTransaction, ArticleCluster, get_media_bias
 from datetime import datetime, timedelta
 
@@ -454,3 +454,102 @@ def send_report():
         flash(f'전송 실패: {result["message"]}', 'error')
 
     return redirect(url_for('bias.weekly_report'))
+
+
+# --- 클릭 트래킹 & 나의 편향 리포트 ---
+
+@bp.route('/track-click', methods=['POST'])
+@csrf.exempt
+def track_click():
+    """기사 클릭 시 편향값 누적 저장 (비로그인 포함)"""
+    from app.models.user_bias_log import UserBiasLog
+    import uuid
+
+    data = request.get_json(silent=True) or {}
+    article_id = data.get('article_id')
+    if not article_id:
+        return jsonify({'ok': False}), 400
+
+    article = NewsArticle.query.get(article_id)
+    if not article:
+        return jsonify({'ok': False}), 404
+
+    # 세션 ID 관리
+    session_id = request.cookies.get('nr2_sid')
+    if not session_id:
+        session_id = uuid.uuid4().hex
+
+    user_id = current_user.id if current_user.is_authenticated else None
+
+    log = UserBiasLog(
+        session_id=session_id,
+        user_id=user_id,
+        article_id=article.id,
+        source_political=article.source_political,
+        source_geopolitical=article.source_geopolitical,
+        source_economic=article.source_economic,
+    )
+    db.session.add(log)
+    db.session.commit()
+
+    resp = jsonify({'ok': True})
+    if not request.cookies.get('nr2_sid'):
+        resp.set_cookie('nr2_sid', session_id, max_age=365 * 24 * 3600, httponly=True, samesite='Lax')
+    return resp
+
+
+@bp.route('/my-report')
+def my_report():
+    """나의 편향 리포트 페이지"""
+    from app.models.user_bias_log import UserBiasLog
+    from sqlalchemy import func
+
+    # 로그인 사용자 → user_id, 비로그인 → session cookie
+    if current_user.is_authenticated:
+        logs_query = UserBiasLog.query.filter_by(user_id=current_user.id)
+    else:
+        session_id = request.cookies.get('nr2_sid')
+        if not session_id:
+            return render_template('bias/my_report.html', has_data=False, count=0)
+        logs_query = UserBiasLog.query.filter_by(session_id=session_id)
+
+    count = logs_query.count()
+    if count == 0:
+        return render_template('bias/my_report.html', has_data=False, count=0)
+
+    # 편향값이 있는 로그만 평균 계산
+    avg = db.session.query(
+        func.avg(UserBiasLog.source_political),
+        func.avg(UserBiasLog.source_geopolitical),
+        func.avg(UserBiasLog.source_economic),
+    ).filter(
+        UserBiasLog.id.in_([l.id for l in logs_query])
+    ).first()
+
+    pol = round(avg[0] or 0, 1)
+    geo = round(avg[1] or 0, 1)
+    eco = round(avg[2] or 0, 1)
+
+    # 한 줄 성향 요약 생성
+    def label(score):
+        if score <= -30:
+            return '진보'
+        elif score <= -10:
+            return '중도 진보'
+        elif score <= 10:
+            return '중도'
+        elif score <= 30:
+            return '중도 보수'
+        else:
+            return '보수'
+
+    summary = f"당신은 {label(pol)} 성향의 뉴스를 주로 봅니다"
+
+    return render_template('bias/my_report.html',
+                           has_data=True,
+                           count=count,
+                           pol=pol, geo=geo, eco=eco,
+                           pol_label=label(pol),
+                           geo_label=label(geo),
+                           eco_label=label(eco),
+                           summary=summary)

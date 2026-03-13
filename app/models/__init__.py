@@ -10,6 +10,7 @@ from app.models.bias_metric import BiasMetric
 from app.models.bias import NewsArticle, BiasVote, BoneTransaction
 from app.models.briefing import Briefing
 from app.models.page_visit import PageVisit
+from app.models.user_bias_log import UserBiasLog
 
 __all__ = [
     'User',
@@ -27,4 +28,5 @@ __all__ = [
     'NewsArticle',
     'BiasVote',
     'BoneTransaction',
+    'UserBiasLog',
 ]
