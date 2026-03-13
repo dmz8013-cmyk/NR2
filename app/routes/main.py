@@ -70,9 +70,20 @@ def index():
         youcheck_count = NewsArticle.query.count()
     except Exception:
         youcheck_count = 0
+    # 커뮤니티 인기글 (자유/LEFT/RIGHT 통합, 조회수 순 10개)
+    try:
+        community_posts = Post.query.filter(
+            Post.board_type.in_(['free', 'left', 'right']),
+            Post.board_type != 'notice'
+        ).order_by(
+            Post.views.desc(),
+            Post.created_at.desc()
+        ).limit(10).all()
+    except Exception:
+        community_posts = []
     return render_template('main/index.html', hot_posts=hot_posts, articles=articles,
                            latest_briefings=latest_briefings, ranking_articles=ranking_articles,
-                           youcheck_count=youcheck_count)
+                           youcheck_count=youcheck_count, community_posts=community_posts)
 
 
 @bp.route('/methodology')
