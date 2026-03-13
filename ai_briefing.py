@@ -224,8 +224,26 @@ def generate_briefing_with_ai(
 # ══════════════════════════════════════════════════
 #  4. 텔레그램 전송
 # ══════════════════════════════════════════════════
+def _split_text(text: str, limit: int = TELEGRAM_MAX_LENGTH) -> list[str]:
+    """텍스트를 limit 이하 청크로 분할. 줄바꿈 기준으로 자른다."""
+    if len(text) <= limit:
+        return [text]
+    chunks: list[str] = []
+    while text:
+        if len(text) <= limit:
+            chunks.append(text)
+            break
+        # 줄바꿈 기준으로 자를 위치 탐색
+        cut = text.rfind("\n", 0, limit)
+        if cut <= 0:
+            cut = limit
+        chunks.append(text[:cut])
+        text = text[cut:].lstrip("\n")
+    return chunks
+
+
 def send_to_telegram(text: str) -> dict:
-    """텔레그램 채널/그룹으로 브리핑 전송."""
+    """텔레그램 채널/그룹으로 브리핑 전송. 4096자 초과 시 분할 전송."""
     bot_token = _env("NUREONGI_NEWS_BOT_TOKEN")
     chat_id = _env("TELEGRAM_CHAT_ID")
 
@@ -234,22 +252,23 @@ def send_to_telegram(text: str) -> dict:
             "NUREONGI_NEWS_BOT_TOKEN 또는 TELEGRAM_CHAT_ID가 설정되지 않았습니다."
         )
 
-    # 텔레그램 메시지 길이 제한 처리
-    if len(text) > TELEGRAM_MAX_LENGTH:
-        text = text[:TELEGRAM_MAX_LENGTH - 20] + "\n\n(... 이하 생략)"
-
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    payload = {
-        "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True,
-    }
+    chunks = _split_text(text)
+    result = None
 
-    resp = requests.post(url, json=payload, timeout=30)
-    resp.raise_for_status()
-    result = resp.json()
-    logger.info(f"텔레그램 전송 성공 (message_id: {result.get('result', {}).get('message_id')})")
+    for i, chunk in enumerate(chunks, 1):
+        payload = {
+            "chat_id": chat_id,
+            "text": chunk,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+        }
+        resp = requests.post(url, json=payload, timeout=30)
+        resp.raise_for_status()
+        result = resp.json()
+        msg_id = result.get('result', {}).get('message_id')
+        logger.info(f"텔레그램 전송 성공 ({i}/{len(chunks)}, message_id: {msg_id})")
+
     return result
 
 

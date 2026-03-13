@@ -208,34 +208,51 @@ def generate_political_briefing(articles, is_afternoon=True):
         return None
 
 
+def _split_text(text, limit=4096):
+    """텍스트를 limit 이하 청크로 분할. 줄바꿈 기준으로 자른다."""
+    if len(text) <= limit:
+        return [text]
+    chunks = []
+    while text:
+        if len(text) <= limit:
+            chunks.append(text)
+            break
+        cut = text.rfind("\n", 0, limit)
+        if cut <= 0:
+            cut = limit
+        chunks.append(text[:cut])
+        text = text[cut:].lstrip("\n")
+    return chunks
+
+
 def send_telegram_message(text):
-    """텔레그램으로 메시지 전송"""
+    """텔레그램으로 메시지 전송. 4096자 초과 시 분할 전송."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         logger.error("텔레그램 설정 없음")
         return False
 
     try:
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        chunks = _split_text(text)
 
-        if len(text) > 4096:
-            text = text[:4090] + "\n…"
+        for i, chunk in enumerate(chunks, 1):
+            data = json.dumps({
+                "chat_id": TELEGRAM_CHAT_ID,
+                "text": chunk,
+                "disable_web_page_preview": True,
+            }).encode('utf-8')
 
-        data = json.dumps({
-            "chat_id": TELEGRAM_CHAT_ID,
-            "text": text,
-            "disable_web_page_preview": True,
-        }).encode('utf-8')
+            req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'})
 
-        req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'})
+            with urllib.request.urlopen(req, timeout=30) as response:
+                result = json.loads(response.read().decode('utf-8'))
+                if result.get('ok'):
+                    logger.info(f"텔레그램 전송 성공 ({i}/{len(chunks)})")
+                else:
+                    logger.error(f"텔레그램 전송 실패: {result}")
+                    return False
 
-        with urllib.request.urlopen(req, timeout=30) as response:
-            result = json.loads(response.read().decode('utf-8'))
-            if result.get('ok'):
-                logger.info("텔레그램 전송 성공")
-                return True
-            else:
-                logger.error(f"텔레그램 전송 실패: {result}")
-                return False
+        return True
 
     except Exception as e:
         logger.error(f"텔레그램 전송 오류: {e}")
