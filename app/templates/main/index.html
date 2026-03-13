@@ -258,6 +258,62 @@
   {% endif %}
 
   {# ═══════════════════════════════════════════
+     커뮤니티 인기글 (자유/LEFT/RIGHT 통합 Top 10)
+     ═══════════════════════════════════════════ #}
+  <section class="mt-20">
+    <div class="max-w-[1200px] mx-auto px-4 sm:px-6">
+      <div class="grid lg:grid-cols-12 gap-10">
+
+        {# ── 좌측 2/3: 인기글 리스트 ──── #}
+        <div class="lg:col-span-8">
+          <div class="border-t-2 border-[#1a1a1a] pt-4 mb-6">
+            <span class="font-serif-kr font-bold text-[22px] text-[#1a1a1a]">커뮤니티 인기글</span>
+          </div>
+
+          {% if community_posts %}
+          <div class="bg-[#F8F7F4] px-5 py-2">
+            {% for post in community_posts %}
+            <a href="{{ url_for('boards.view', board_type=post.board_type, post_id=post.id) }}" class="flex items-center gap-4 py-3 group {% if not loop.last %}border-b border-[#e0e0e0]{% endif %}">
+              {# 순위 숫자 #}
+              {% if loop.index <= 3 %}
+              <span class="flex-shrink-0 w-8 text-center font-bold text-[24px] text-[#C1121F]">{{ loop.index }}</span>
+              {% else %}
+              <span class="flex-shrink-0 w-8 text-center font-bold text-[18px] text-[#999]">{{ loop.index }}</span>
+              {% endif %}
+
+              {# 게시판 출처 뱃지 #}
+              {% if post.board_type == 'free' %}
+              <span class="flex-shrink-0 text-[11px] font-semibold border border-[#1a1a1a] text-[#1a1a1a] px-1.5 py-0.5 rounded-sm leading-none">자유</span>
+              {% elif post.board_type == 'left' %}
+              <span class="flex-shrink-0 text-[11px] font-semibold border border-[#264ECA] text-[#264ECA] px-1.5 py-0.5 rounded-sm leading-none">L</span>
+              {% elif post.board_type == 'right' %}
+              <span class="flex-shrink-0 text-[11px] font-semibold border border-[#C1121F] text-[#C1121F] px-1.5 py-0.5 rounded-sm leading-none">R</span>
+              {% endif %}
+
+              {# 제목 + 메타 #}
+              <div class="flex-1 min-w-0">
+                <p class="font-serif-kr font-medium text-[16px] text-[#1a1a1a] truncate group-hover:text-[#C1121F] transition">{{ post.title }}</p>
+                <p class="text-[11px] text-[#999] mt-0.5">{{ post.author.nickname if post.author else '익명' }} · {{ post.created_at.strftime('%m/%d %H:%M') }} · 조회 {{ post.views or 0 }}</p>
+              </div>
+            </a>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="text-center py-12 bg-[#F8F7F4]">
+            <p class="text-[#bbb] text-[13px]">아직 게시글이 없습니다</p>
+          </div>
+          {% endif %}
+        </div>
+
+        {# ── 우측 1/3: 광고/예약 영역 ──── #}
+        <div class="lg:col-span-4">
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  {# ═══════════════════════════════════════════
      BOARDS GRID
      ═══════════════════════════════════════════ #}
   <section class="mt-20">
