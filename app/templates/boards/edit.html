@@ -187,8 +187,6 @@ input[name="title"]::-moz-selection {
                 </label>
                 <div id="quill-editor"></div>
                 <input type="hidden" id="content" name="content">
-                <!-- 기존 콘텐츠를 안전하게 전달 -->
-                <div id="existing-content" class="hidden">{{ post.content }}</div>
             </div>
 
             <!-- 유튜브 URL (AESA 게시판 전용) -->
@@ -298,8 +296,8 @@ var quill = new Quill('#quill-editor', {
     }
 });
 
-// ── 기존 콘텐츠 로드 ──
-var existingContent = document.getElementById('existing-content').innerHTML;
+// ── 기존 콘텐츠 로드 (tojson 필터로 이중 이스케이프 방지) ──
+var existingContent = {{ post.content | tojson }};
 if (existingContent && existingContent.trim()) {
     if (existingContent.indexOf('<') !== -1) {
         quill.root.innerHTML = existingContent;
