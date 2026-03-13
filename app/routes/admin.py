@@ -451,3 +451,22 @@ def api_analytics():
         'activity': activity_data, 'bias': bias_data,
         'top_pages': [{'path': p, 'hits': h} for p, h in top_pages]
     })
+
+
+@bp.route('/fix-double-escape', methods=['POST'])
+@admin_required
+def fix_double_escape():
+    """이중 이스케이프된 게시글 HTML 일괄 복구 (1회성)"""
+    from sqlalchemy import text
+    result = db.session.execute(text("""
+        UPDATE posts
+        SET content = REPLACE(REPLACE(REPLACE(REPLACE(
+            content,
+            chr(38)||'lt;', '<'),
+            chr(38)||'gt;', '>'),
+            chr(38)||'amp;', chr(38)),
+            chr(38)||'quot;', chr(34))
+        WHERE content LIKE '%' || chr(38) || 'lt;%'
+    """))
+    db.session.commit()
+    return jsonify({'fixed': result.rowcount})
