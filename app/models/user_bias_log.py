@@ -8,11 +8,9 @@ class UserBiasLog(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     session_id = db.Column(db.String(64), nullable=False, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
-    article_id = db.Column(db.Integer, db.ForeignKey('news_article.id'), nullable=False)
+    user_id = db.Column(db.Integer, nullable=True, index=True)
+    article_id = db.Column(db.Integer, nullable=False)
     source_political = db.Column(db.Float, nullable=True)
     source_geopolitical = db.Column(db.Float, nullable=True)
     source_economic = db.Column(db.Float, nullable=True)
     clicked_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-
-    article = db.relationship('NewsArticle', backref=db.backref('click_logs', lazy='dynamic'))
