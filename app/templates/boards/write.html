@@ -119,6 +119,24 @@
 .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="64px"]::before,
 .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="64px"]::before { content: "64"; }
 
+/* ── 에디터 텍스트 선택(드래그) 스타일 ── */
+.ql-editor ::selection {
+    background-color: #D4A843 !important;
+    color: #0D1B2A !important;
+}
+.ql-editor ::-moz-selection {
+    background-color: #D4A843 !important;
+    color: #0D1B2A !important;
+}
+input[name="title"]::selection {
+    background-color: #D4A843 !important;
+    color: #0D1B2A !important;
+}
+input[name="title"]::-moz-selection {
+    background-color: #D4A843 !important;
+    color: #0D1B2A !important;
+}
+
 /* ── 한국어 툴팁 ── */
 .ql-toolbar button, .ql-toolbar .ql-picker { position: relative; }
 .ql-toolbar button::after, .ql-toolbar .ql-picker::after {

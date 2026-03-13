@@ -8,20 +8,20 @@ from app import db
 
 # Quill 에디터 HTML 허용 태그/속성
 ALLOWED_TAGS = [
-    'p', 'br', 'strong', 'em', 'u', 's', 'a', 'ul', 'ol', 'li',
-    'span', 'div', 'h1', 'h2', 'h3', 'blockquote', 'pre', 'code',
-    'iframe', 'img', 'sub', 'sup',
+    'p', 'br', 'span', 'div',
+    'strong', 'em', 'u', 's',
+    'h1', 'h2', 'h3', 'h4',
+    'ul', 'ol', 'li',
+    'blockquote', 'pre', 'code',
+    'a', 'img', 'iframe',
 ]
-ALLOWED_ATTRS = {
+ALLOWED_ATTRIBUTES = {
     '*': ['class', 'style'],
     'a': ['href', 'target', 'rel'],
-    'iframe': ['src', 'width', 'height', 'frameborder', 'allowfullscreen', 'allow'],
-    'img': ['src', 'alt', 'width', 'height'],
+    'img': ['src', 'alt', 'width', 'height', 'class'],
+    'iframe': ['src', 'width', 'height', 'frameborder',
+               'allowfullscreen', 'allow'],
 }
-ALLOWED_STYLES = [
-    'color', 'background-color', 'font-size', 'font-family',
-    'text-align', 'text-decoration',
-]
 
 def sanitize_html(html_content):
     """Quill 에디터 HTML을 안전하게 정제"""
@@ -30,8 +30,7 @@ def sanitize_html(html_content):
     return bleach.clean(
         html_content,
         tags=ALLOWED_TAGS,
-        attributes=ALLOWED_ATTRS,
-        styles=ALLOWED_STYLES,
+        attributes=ALLOWED_ATTRIBUTES,
         strip=True,
     )
 from app.utils.telegram_notify import notify_new_post
