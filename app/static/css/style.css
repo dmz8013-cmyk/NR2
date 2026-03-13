@@ -1,31 +1,214 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
-:root {
-  --nr2-gold: #D4A843;
-  --nr2-navy: #1a1a2e;
-  --nr2-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-body {
-  font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
-  -webkit-font-smoothing: antialiased;
-}
-* { transition: color 0.2s ease, background-color 0.2s ease; }
-::-webkit-scrollbar { width: 8px; }
+/* ═══════════════════════════════════════════════
+   NR2 Network — Design System v2
+   Dark navy editorial theme
+   ═══════════════════════════════════════════════ */
+
+/* ── Scrollbar ─────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #999; }
+::-webkit-scrollbar-thumb { background: rgba(212,168,67,0.25); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(212,168,67,0.4); }
+
+/* ── Selection ─────────────────────────────── */
+::selection { background: rgba(212,168,67,0.25); color: #F5F0E8; }
+
+/* ── Focus ─────────────────────────────────── */
 input:focus, textarea:focus, select:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(212, 168, 67, 0.2);
-  border-color: var(--nr2-gold) !important;
+  box-shadow: 0 0 0 2px rgba(212,168,67,0.3);
+  border-color: #D4A843 !important;
 }
-nav { backdrop-filter: blur(20px); background: rgba(255,255,255,0.9) !important; border-bottom: 1px solid rgba(0,0,0,0.05); }
+
+/* ── Nav ───────────────────────────────────── */
+.nr2-nav {
+  background: rgba(13,27,42,0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(245,240,232,0.5);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+.nav-link:hover {
+  color: rgba(245,240,232,0.9);
+  background: rgba(255,255,255,0.05);
+}
+.nav-link-accent {
+  color: #EF4444;
+  font-weight: 700;
+}
+.nav-link-accent:hover {
+  color: #F87171;
+  background: rgba(239,68,68,0.08);
+}
+.nav-link-gold {
+  color: #D4A843;
+  font-weight: 700;
+}
+.nav-link-gold:hover {
+  color: #E8BD5A;
+  background: rgba(212,168,67,0.08);
+}
+
+.mobile-nav-link {
+  display: block;
+  padding: 12px 16px;
+  color: rgba(245,240,232,0.7);
+  font-size: 14px;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+.mobile-nav-link:hover {
+  background: rgba(255,255,255,0.04);
+  color: #F5F0E8;
+}
+
+/* ── Cards ─────────────────────────────────── */
+.nr2-card {
+  background: #142231;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.nr2-card:hover {
+  border-color: rgba(212,168,67,0.15);
+}
+
+/* ── Section headers (editorial) ───────────── */
+.section-label {
+  font-family: 'Noto Serif KR', serif;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+.section-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #D4A843;
+  padding: 3px 8px;
+  background: rgba(212,168,67,0.1);
+  border-radius: 4px;
+}
+
+/* ── Bias bar ──────────────────────────────── */
+.bias-bar { height: 4px; border-radius: 2px; overflow: hidden; display: flex; }
+.bias-bar-lg { height: 6px; border-radius: 3px; overflow: hidden; display: flex; }
+.bias-l { background: #3B82F6; }
+.bias-c { background: #6B7280; }
+.bias-r { background: #EF4444; }
+
+/* ── Article rows ──────────────────────────── */
+.article-row {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+.article-row:hover {
+  background: rgba(212,168,67,0.03);
+  border-color: rgba(212,168,67,0.08);
+}
+
+/* ── Hot item rows ─────────────────────────── */
+.hot-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+.hot-item:hover {
+  background: rgba(212,168,67,0.04);
+  border-color: rgba(212,168,67,0.1);
+}
+
+/* ── Rank badges ───────────────────────────── */
+.rank-badge {
+  width: 22px; height: 22px;
+  border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+}
+.rank-1 { background: linear-gradient(135deg,#F59E0B,#D97706); color: #fff; }
+.rank-2 { background: linear-gradient(135deg,#9CA3AF,#6B7280); color: #fff; }
+.rank-3 { background: linear-gradient(135deg,#D97706,#92400E); color: #fff; }
+.rank-n { background: rgba(255,255,255,0.06); color: rgba(245,240,232,0.35); }
+
+/* ── Board cards ───────────────────────────── */
+.board-card {
+  background: #142231;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.25s ease;
+  display: block;
+}
+.board-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(212,168,67,0.2);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+/* ── Stat pills ────────────────────────────── */
+.stat-pill {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+  padding: 10px 16px;
+  text-align: center;
+}
+
+/* ── Eco icon ──────────────────────────────── */
+.eco-icon {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+
+/* ── Animations ────────────────────────────── */
+.fade-in {
+  opacity: 0; transform: translateY(12px);
+  animation: fadeIn 0.5s ease forwards;
+}
+.fade-in:nth-child(1){animation-delay:.03s}
+.fade-in:nth-child(2){animation-delay:.06s}
+.fade-in:nth-child(3){animation-delay:.09s}
+.fade-in:nth-child(4){animation-delay:.12s}
+.fade-in:nth-child(5){animation-delay:.15s}
+.fade-in:nth-child(6){animation-delay:.18s}
+.fade-in:nth-child(7){animation-delay:.21s}
+.fade-in:nth-child(8){animation-delay:.24s}
+@keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
+
+/* ── Divider line ──────────────────────────── */
+.nr2-divider {
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+/* ── Gold accent line (used under headings) ── */
+.gold-underline {
+  width: 40px; height: 2px;
+  background: #D4A843;
+  border-radius: 1px;
+}
+
+/* ── Override main container for index page ── */
+.nr2-full-width main.max-w-7xl {
+  max-width: 100% !important;
+  padding: 0 !important;
+}
+
+/* ── Subtle button hovers ──────────────────── */
 button:hover, [type="submit"]:hover { transform: translateY(-1px); }
 button:active, [type="submit"]:active { transform: translateY(0); }
-.divide-y > *:hover { background: rgba(212,168,67,0.03); }
-footer { background: var(--nr2-navy) !important; color: #9ca3af !important; border-top: none !important; }
-footer p.text-gray-700 { color: #fff !important; }
-footer p.text-gray-500 { color: #9ca3af !important; }
-footer .text-gray-400, footer p.text-gray-400 { color: #6b7280 !important; }
-footer a { color: #9ca3af !important; }
-footer a:hover { color: #D4A843 !important; }
-::selection { background: rgba(212,168,67,0.2); }
