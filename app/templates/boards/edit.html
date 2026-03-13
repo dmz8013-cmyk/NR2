@@ -187,6 +187,7 @@ input[name="title"]::-moz-selection {
                 </label>
                 <div id="quill-editor"></div>
                 <input type="hidden" id="content" name="content">
+                <div id="editor-content" style="display:none">{{ post.content | safe }}</div>
             </div>
 
             <!-- 유튜브 URL (AESA 게시판 전용) -->
@@ -296,13 +297,13 @@ var quill = new Quill('#quill-editor', {
     }
 });
 
-// ── 기존 콘텐츠 로드 (tojson 필터로 이중 이스케이프 방지) ──
-var existingContent = {{ post.content | tojson }};
-if (existingContent && existingContent.trim()) {
-    if (existingContent.indexOf('<') !== -1) {
-        quill.root.innerHTML = existingContent;
+// ── 기존 콘텐츠 로드 (safe + hidden div 방식) ──
+var rawContent = document.getElementById('editor-content').innerHTML;
+if (rawContent && rawContent.trim()) {
+    if (rawContent.indexOf('<') !== -1) {
+        quill.root.innerHTML = rawContent;
     } else {
-        quill.setText(existingContent);
+        quill.setText(rawContent);
     }
 }
 
