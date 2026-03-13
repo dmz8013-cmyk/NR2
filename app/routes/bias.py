@@ -68,6 +68,19 @@ def index():
         tab = request.args.get('tab', 'all')
 
         query = NewsArticle.query
+
+        # ── 스포츠/연예 제외 필터 ──
+        EXCLUDE_SOURCES = ['스포츠조선', '스포츠서울', '스포츠동아', '텐아시아', 'OSEN', '스타뉴스']
+        EXCLUDE_KEYWORDS = [
+            '야구', '축구', '농구', '골프', '테니스', '올림픽', '월드컵',
+            '아이돌', '드라마', '영화', '연예', '가수', '배우', '아이유',
+            'BTS', '방탄', '콘서트', '팬미팅', '시상식', '뮤직비디오',
+            '손흥민', 'K리그', 'EPL', 'MLB', 'NBA', 'WBC',
+        ]
+        query = query.filter(~NewsArticle.source.in_(EXCLUDE_SOURCES))
+        for kw in EXCLUDE_KEYWORDS:
+            query = query.filter(~NewsArticle.title.ilike(f'%{kw}%'))
+
         if tab == 'ranking':
             query = query.filter(NewsArticle.is_ranking == True)
         elif tab == 'cluster':
@@ -110,7 +123,13 @@ def index():
                 )
             )
 
-        articles = query.order_by(
+        # 최대 200건 cap (최신순) — subquery로 ID만 뽑은 뒤 paginate
+        top_ids = [r.id for r in query.order_by(
+            NewsArticle.created_at.desc()
+        ).with_entities(NewsArticle.id).limit(200).all()]
+        articles = NewsArticle.query.filter(
+            NewsArticle.id.in_(top_ids)
+        ).order_by(
             NewsArticle.created_at.desc()
         ).paginate(page=page, per_page=20, error_out=False)
         return render_template('bias/index.html', articles=articles, current_tab=tab)
