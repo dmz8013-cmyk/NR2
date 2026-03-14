@@ -102,7 +102,7 @@
                     {% else %}커뮤니티 게시판{% endif %}
                 </p>
             </div>
-            {% if current_user.is_authenticated and (board_type in ['free','left','right'] or current_user.is_admin) %}
+            {% if current_user.is_authenticated and (board_type in ['free','left','right'] or current_user.is_admin or current_user.is_vice_admin) %}
             <a href="{{ url_for('boards.write', board_type=board_type) }}"
                class="inline-flex items-center px-5 py-2 text-[13px] font-semibold text-white bg-white/20 hover:bg-white/30 backdrop-blur transition rounded-md border border-white/30">
                 글쓰기

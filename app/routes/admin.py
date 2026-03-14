@@ -472,6 +472,57 @@ def fix_double_escape():
     return jsonify({'fixed': result.rowcount})
 
 
+@bp.route('/warn/<int:user_id>', methods=['POST'])
+@admin_required
+def warn_user(user_id):
+    """회원 경고"""
+    user = User.query.get_or_404(user_id)
+    if user.id == current_user.id:
+        flash('자신에게 경고를 줄 수 없습니다.', 'error')
+        return redirect(url_for('admin.users'))
+    user.warning_count = (user.warning_count or 0) + 1
+    db.session.commit()
+    flash(f'{user.nickname}님에게 경고를 부여했습니다. (누적 {user.warning_count}회)', 'success')
+    return redirect(url_for('admin.users'))
+
+
+@bp.route('/suspend/<int:user_id>', methods=['POST'])
+@admin_required
+def suspend_user(user_id):
+    """회원 정지 (최대 7일)"""
+    user = User.query.get_or_404(user_id)
+    if user.id == current_user.id:
+        flash('자신을 정지할 수 없습니다.', 'error')
+        return redirect(url_for('admin.users'))
+    days = min(int(request.form.get('days', 1)), 7)
+    user.suspended_until = datetime.utcnow() + timedelta(days=days)
+    db.session.commit()
+    flash(f'{user.nickname}님을 {days}일간 정지했습니다.', 'success')
+    return redirect(url_for('admin.users'))
+
+
+@bp.route('/grant-vice/<int:user_id>', methods=['POST'])
+@admin_required
+def grant_vice(user_id):
+    """부방장 권한 부여"""
+    user = User.query.get_or_404(user_id)
+    user.is_vice_admin = True
+    db.session.commit()
+    flash(f'{user.nickname}님에게 부방장 권한을 부여했습니다.', 'success')
+    return redirect(url_for('admin.users'))
+
+
+@bp.route('/revoke-vice/<int:user_id>', methods=['POST'])
+@admin_required
+def revoke_vice(user_id):
+    """부방장 권한 해제"""
+    user = User.query.get_or_404(user_id)
+    user.is_vice_admin = False
+    db.session.commit()
+    flash(f'{user.nickname}님의 부방장 권한을 해제했습니다.', 'success')
+    return redirect(url_for('admin.users'))
+
+
 @bp.route('/cleanup-aesa-lee', methods=['POST'])
 @admin_required
 def cleanup_aesa_lee():

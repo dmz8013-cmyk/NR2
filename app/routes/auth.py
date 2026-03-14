@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from email_validator import validate_email, EmailNotValidError
@@ -129,6 +130,14 @@ def login():
 
         # Record successful attempt
         LoginAttempt.record_attempt(email, ip_address, success=True)
+
+        # 정지 상태 체크
+        if user.suspended_until and user.suspended_until > datetime.utcnow():
+            remaining = user.suspended_until - datetime.utcnow()
+            days = remaining.days
+            hours = remaining.seconds // 3600
+            flash(f'계정이 정지 중입니다. {days}일 {hours}시간 후 해제됩니다.', 'error')
+            return render_template('auth/login.html')
 
         # Login user
         login_user(user, remember=remember)

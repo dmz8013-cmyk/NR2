@@ -113,6 +113,37 @@ def create_app(config_name='default'):
         except Exception:
             db.session.rollback()
 
+        # 부방장 권한 시스템 컬럼 추가
+        for col_sql in [
+            "ALTER TABLE users ADD COLUMN is_vice_admin BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE users ADD COLUMN warning_count INTEGER DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN suspended_until TIMESTAMP",
+        ]:
+            try:
+                db.session.execute(db.text(col_sql))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+        # [1회성] AESA 게시판 이준석 관련 자동 게시글 삭제
+        try:
+            from app.models import Post
+            lee_posts = Post.query.filter(
+                Post.board_type == 'aesa',
+                db.or_(
+                    Post.title.ilike('%이준석%'),
+                    Post.content.ilike('%이준석%')
+                )
+            ).all()
+            if lee_posts:
+                for p in lee_posts:
+                    db.session.delete(p)
+                db.session.commit()
+                app.logger.info(f'[AESA 정리] 이준석 관련 {len(lee_posts)}건 삭제 완료')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f'[AESA 정리] 삭제 실패: {e}')
+
     # Security headers
     @app.after_request
     def set_security_headers(response):
