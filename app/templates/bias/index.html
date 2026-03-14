@@ -17,14 +17,18 @@
 
 {% block content %}
 <div class="max-w-6xl mx-auto px-4 py-8">
-  <div class="flex items-center justify-between mb-8">
-    <div>
-      <h1 class="text-3xl font-black text-gray-900">📊 뉴스 편향 분석</h1>
-      <p class="text-gray-500 mt-1">시민과 전문가가 함께 판단하는 뉴스 편향 지수</p>
+  {# ── Hero Header ── #}
+  <div style="position:relative;height:160px;background:url('{{ url_for('static', filename='board_headers/bias.jpg') }}') center/cover no-repeat;border-radius:12px;overflow:hidden;display:flex;align-items:flex-end;padding:24px 28px;margin-bottom:24px;">
+    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.55);"></div>
+    <div style="position:relative;z-index:1;width:100%;display:flex;justify-content:space-between;align-items:flex-end;">
+      <div>
+        <h1 class="font-serif-kr text-[36px] font-bold text-white leading-tight">YouCheck</h1>
+        <p class="text-[13px] text-white/70 mt-1">시민과 전문가가 함께 판단하는 뉴스 편향 지수</p>
+      </div>
+      {% if current_user.is_authenticated and current_user.verify_tier != 'bronze' %}
+      <a href="{{ url_for('bias.submit') }}" class="inline-flex items-center px-5 py-2 text-[13px] font-semibold text-white bg-white/20 hover:bg-white/30 backdrop-blur transition rounded-md border border-white/30">+ 기사 등록</a>
+      {% endif %}
     </div>
-    {% if current_user.is_authenticated and current_user.verify_tier != 'bronze' %}
-    <a href="{{ url_for('bias.submit') }}" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-6 rounded-xl transition">+ 기사 등록</a>
-    {% endif %}
   </div>
 
   {# --- 필터 탭 --- #}

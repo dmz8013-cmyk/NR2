@@ -15,6 +15,8 @@ from app import create_app
 app = create_app()
 
 from app.jobs.youtube_feed import check_and_post_new_videos
+# [4월말 활성화 예정] YouTube Data API v3 기반 자동 게시
+# from app.jobs.youtube_api import check_and_post_new_videos_api
 from nureongi_news_bot import run_news_bot
 from ai_briefing import send_briefing
 from political_briefing import afternoon_political_briefing, evening_political_briefing
@@ -94,6 +96,13 @@ def daily_scrap_morning():
 def daily_scrap_afternoon():
     logger.info('[Scheduler] 단독 뉴스 스크랩 — 오후판 실행 중...')
     daily_scrap_run('afternoon')
+
+# [4월말 활성화 예정] YouTube Data API v3 — 1시간마다 새 영상 체크
+# @scheduler.scheduled_job('interval', hours=1, id='youtube_api_check',
+#                           coalesce=True, max_instances=1)
+# def youtube_api_job():
+#     logger.info('[Scheduler] YouTube API v3 새 영상 확인 중...')
+#     check_and_post_new_videos_api(app)
 
 if __name__ == '__main__':
     logger.info(f'[Scheduler] 시작 — {INTERVAL_MINUTES}분마다 유튜브 RSS 피드 확인')

@@ -9,6 +9,7 @@ class Post(db.Model):
     content = db.Column(db.Text, nullable=False)
     board_type = db.Column(db.String(20), nullable=False)  # 'free', 'left', 'right', 'fakenews', 'aesa'
     youtube_url = db.Column(db.String(500), nullable=True)
+    youtube_video_id = db.Column(db.String(20), nullable=True, unique=True, index=True)
     views = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
