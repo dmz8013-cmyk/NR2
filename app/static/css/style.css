@@ -717,9 +717,11 @@ body.page-main #mobile-nav-menu a {
   h1.post-title { font-size: 22px !important; line-height: 1.4 !important; word-break: keep-all !important; }
 
   /* 4. 모바일 네비게이션 통일성 */
-  .nr2-nav { padding: 12px 16px !important; }
-  .nr2-nav .logo, .nr2-nav h1 { font-size: 22px !important; font-weight: 700 !important; }
-  .nr2-nav { display: flex !important; align-items: center !important; justify-content: space-between !important; }
+  .nr2-nav { padding: 0 !important; }
+  .nr2-nav > div { display: flex !important; align-items: center !important; justify-content: space-between !important; padding: 0 16px !important; }
+  .nr2-nav .logo-area { display: flex !important; align-items: center !important; gap: 12px !important; }
+  .nr2-nav .auth-buttons { display: flex !important; align-items: center !important; gap: 8px !important; margin-left: auto !important; }
+  .nr2-nav .auth-buttons a { font-size: 13px !important; padding: 6px 12px !important; white-space: nowrap !important; }
 
   /* 5. 브리핑/YouCheck 카드 모바일 통일성 */
   .briefing-card, [class*="news-card"] { border-radius: 12px !important; padding: 16px !important; margin-bottom: 12px !important; }

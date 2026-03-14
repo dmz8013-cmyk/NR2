@@ -79,7 +79,7 @@
     <nav x-data="{ mobileOpen: false }" class="nr2-nav sticky top-0" style="position:sticky!important;z-index:999999!important;">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-14">
-                <div class="flex items-center">
+                <div class="flex items-center logo-area">
                     <!-- Hamburger (mobile) -->
                     <button @click="mobileOpen = !mobileOpen"
                             class="lg:hidden mr-3 text-[#767676] hover:text-[#1a1a1a] focus:outline-none transition">
@@ -137,7 +137,7 @@
                 </div>
 
                 <!-- Right side (mobile) -->
-                <div class="lg:hidden flex items-center">
+                <div class="lg:hidden flex items-center auth-buttons">
                     {% if current_user.is_authenticated %}
                         <div x-data="{ open: false }" class="relative">
                             <button @click="open = !open" class="flex items-center focus:outline-none">
@@ -156,8 +156,8 @@
                             </div>
                         </div>
                     {% else %}
-                        <a href="{{ url_for('auth.login') }}" class="text-[13px] text-[#767676] hover:text-[#1a1a1a] mr-3">로그인</a>
-                        <a href="{{ url_for('auth.register') }}" class="text-[13px] text-[#767676] hover:text-[#1a1a1a]">가입</a>
+                        <a href="{{ url_for('auth.login') }}" style="font-size:13px;padding:6px 12px;border:1px solid #E0E0E0;border-radius:6px;color:#767676;text-decoration:none;white-space:nowrap;">로그인</a>
+                        <a href="{{ url_for('auth.register') }}" style="font-size:13px;padding:6px 12px;background:#C1121F;border-radius:6px;color:#fff;text-decoration:none;font-weight:600;white-space:nowrap;">가입</a>
                     {% endif %}
                 </div>
             </div>
