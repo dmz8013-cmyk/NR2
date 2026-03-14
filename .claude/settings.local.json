@@ -43,7 +43,8 @@
       "Bash(cp \"/Users/smpark/Downloads/7. 모피어스.jpg\" app/static/board_headers/morpheus.jpg)",
       "Bash(cp \"/Users/smpark/Downloads/8. 브리핑.jpg\" app/static/board_headers/briefing.jpg)",
       "Bash(cp \"/Users/smpark/Downloads/9. 캘린더.jpg\" app/static/board_headers/calendar.jpg)",
-      "Bash(find app/models -name \"*.py\" -exec sed -i '' 's/datetime\\\\.utcnow/datetime.now/g' {} +)"
+      "Bash(find app/models -name \"*.py\" -exec sed -i '' 's/datetime\\\\.utcnow/datetime.now/g' {} +)",
+      "Bash(pip3 install:*)"
     ]
   }
 }
