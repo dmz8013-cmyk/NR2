@@ -343,31 +343,38 @@ def edit(board_type, post_id):
                          board_name=BOARD_NAMES[board_type])
 
 
-@bp.route('/<board_type>/<int:post_id>/delete', methods=['POST'])
+@bp.route('/<board_type>/<int:post_id>/delete', methods=['GET', 'POST'])
 @login_required
 def delete_post(board_type, post_id):
     """게시글 삭제"""
+    current_app.logger.info(f'[DELETE] 삭제 요청: board={board_type}, post={post_id}, user={current_user.id}, method={request.method}')
+
     post = Post.query.get_or_404(post_id)
 
     # 권한 확인 (작성자 또는 관리자/부방장만)
     if post.user_id != current_user.id and not current_user.is_admin and not getattr(current_user, 'is_vice_admin', False):
+        current_app.logger.warning(f'[DELETE] 권한 없음: post.user_id={post.user_id}, current_user={current_user.id}')
         flash('권한이 없습니다.', 'error')
         return redirect(url_for('boards.board', board_type=board_type))
 
     try:
         # 이미지 파일 삭제
         for image in post.images:
-            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], image.filename)
-            if os.path.exists(filepath):
-                os.remove(filepath)
+            try:
+                filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], image.filename)
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+            except Exception:
+                pass
 
         db.session.delete(post)
         db.session.commit()
+        current_app.logger.info(f'[DELETE] 삭제 성공: post_id={post_id}')
         flash('게시글이 삭제되었습니다.', 'success')
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f'게시글 삭제 실패: {e}')
-        flash('삭제 중 오류가 발생했습니다.', 'error')
+        current_app.logger.error(f'[DELETE] 삭제 실패: {e}')
+        flash(f'삭제 중 오류: {str(e)}', 'error')
 
     return redirect(url_for('boards.board', board_type=board_type))
 

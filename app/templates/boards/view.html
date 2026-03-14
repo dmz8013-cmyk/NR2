@@ -69,16 +69,27 @@
                     </div>
 
                     <!-- 작성자 액션 버튼 -->
-                    {% if current_user.is_authenticated and (current_user.id == post.user_id or current_user.is_admin) %}
+                    {% if current_user.is_authenticated and (current_user.id == post.user_id or current_user.is_admin or current_user.is_vice_admin) %}
                     <div class="flex items-center space-x-2" style="position:relative;z-index:10;">
                         <a href="{{ url_for('boards.edit', board_type=post.board_type, post_id=post.id) }}"
                            style="background:transparent;border:1px solid #888;border-radius:6px;padding:6px 16px;color:#555;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;">
                             수정
                         </a>
-                        <form method="POST" action="{{ url_for('boards.delete_post', board_type=post.board_type, post_id=post.id) }}" style="display:inline;margin:0;" onsubmit="return confirm('정말 삭제하시겠습니까?')">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" style="background:#C1121F;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-weight:600;cursor:pointer;font-size:14px;">삭제</button>
-                        </form>
+                        <button type="button" id="delete-btn" style="background:#C1121F;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-weight:600;cursor:pointer;font-size:14px;">삭제</button>
+                    </div>
+                    <!-- 삭제 확인 모달 -->
+                    <div id="delete-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999999;justify-content:center;align-items:center;">
+                        <div style="background:#fff;border-radius:12px;padding:28px 24px;max-width:320px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+                            <p style="font-size:16px;font-weight:700;color:#1a1a1a;margin-bottom:6px;">게시글 삭제</p>
+                            <p style="font-size:14px;color:#666;margin-bottom:20px;">정말 삭제하시겠습니까?<br>이 작업은 되돌릴 수 없습니다.</p>
+                            <div style="display:flex;gap:10px;justify-content:center;">
+                                <button type="button" id="delete-cancel" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#666;font-weight:600;cursor:pointer;">취소</button>
+                                <form id="delete-form" method="POST" action="{{ url_for('boards.delete_post', board_type=post.board_type, post_id=post.id) }}" style="flex:1;margin:0;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" style="width:100%;padding:10px;border:none;border-radius:8px;background:#C1121F;color:#fff;font-weight:600;cursor:pointer;">삭제</button>
+                                </form>
+                            </div>
+                        </div>
                     </div>
                     {% endif %}
                 </div>
@@ -412,6 +423,22 @@ function showReplyForm(commentId) {
 
 function hideReplyForm(commentId) {
     document.getElementById('reply-form-' + commentId).classList.add('hidden');
+}
+
+// 삭제 모달
+var deleteBtn = document.getElementById('delete-btn');
+var deleteModal = document.getElementById('delete-modal');
+var deleteCancel = document.getElementById('delete-cancel');
+if (deleteBtn && deleteModal) {
+    deleteBtn.addEventListener('click', function() {
+        deleteModal.style.display = 'flex';
+    });
+    deleteCancel.addEventListener('click', function() {
+        deleteModal.style.display = 'none';
+    });
+    deleteModal.addEventListener('click', function(e) {
+        if (e.target === deleteModal) deleteModal.style.display = 'none';
+    });
 }
 
 </script>
