@@ -357,6 +357,32 @@ nav [x-transition] {
     z-index: 99999 !important;
 }
 
+/* ── 프로필 드롭다운 메뉴 ──────────────────── */
+.nr2-dropdown {
+    background: rgba(26,26,46,0.98) !important;
+    border: 1px solid rgba(200,121,65,0.5) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
+    z-index: 99999 !important;
+}
+.nr2-dropdown-item {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    text-shadow: none !important;
+    transition: background 0.15s, color 0.15s;
+}
+.nr2-dropdown-item:hover {
+    background: rgba(200,121,65,0.2) !important;
+    color: #C87941 !important;
+}
+.nr2-dropdown-logout {
+    color: #ff6b6b !important;
+}
+.nr2-dropdown-logout:hover {
+    color: #ff4444 !important;
+    background: rgba(255,107,107,0.1) !important;
+}
+
 /* (푸터 스타일은 하단 강화 섹션으로 이동) */
 
 /* ── 게시판 헤더 브랜딩 컬러 그라디언트 ──────── */

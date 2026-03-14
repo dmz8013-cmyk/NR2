@@ -122,13 +122,13 @@
                                 <span class="text-[#4b5563] text-[13px]">{{ current_user.nickname }}</span>
                             </button>
                             <div x-show="open" @click.away="open = false" x-transition
-                                 class="absolute right-0 mt-2 w-48 bg-white border border-[#E0E0E0] shadow-sm py-1 z-50">
-                                <a href="{{ url_for('auth.profile') }}" class="block px-4 py-2 text-[13px] text-[#4b5563] hover:text-[#1a1a1a]">프로필</a>
+                                 class="nr2-dropdown absolute right-0 mt-2 w-48 py-1" style="z-index:99999!important;">
+                                <a href="{{ url_for('auth.profile') }}" class="nr2-dropdown-item block px-4 py-2 text-[13px]">프로필</a>
                                 {% if current_user.is_admin %}
-                                <a href="{{ url_for('admin.dashboard') }}" class="block px-4 py-2 text-[13px] text-[#4b5563] hover:text-[#1a1a1a]">관리자</a>
+                                <a href="{{ url_for('admin.dashboard') }}" class="nr2-dropdown-item block px-4 py-2 text-[13px]">관리자</a>
                                 {% endif %}
-                                <hr class="my-1 border-[#E0E0E0]">
-                                <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-[13px] text-[#4b5563] hover:text-[#1a1a1a]">로그아웃</a>
+                                <hr class="my-1 border-[rgba(200,121,65,0.3)]">
+                                <a href="{{ url_for('auth.logout') }}" class="nr2-dropdown-item nr2-dropdown-logout block px-4 py-2 text-[13px]">로그아웃</a>
                             </div>
                         </div>
                     {% else %}
@@ -148,13 +148,13 @@
                                      class="w-7 h-7 rounded-full object-cover border border-[#E0E0E0]">
                             </button>
                             <div x-show="open" @click.away="open = false" x-transition
-                                 class="absolute right-0 mt-2 w-48 bg-white border border-[#E0E0E0] shadow-sm py-1 z-50">
-                                <a href="{{ url_for('auth.profile') }}" class="block px-4 py-2 text-[13px] text-[#4b5563] hover:text-[#1a1a1a]">프로필</a>
+                                 class="nr2-dropdown absolute right-0 mt-2 w-48 py-1" style="z-index:99999!important;">
+                                <a href="{{ url_for('auth.profile') }}" class="nr2-dropdown-item block px-4 py-2 text-[13px]">프로필</a>
                                 {% if current_user.is_admin %}
-                                <a href="{{ url_for('admin.dashboard') }}" class="block px-4 py-2 text-[13px] text-[#4b5563] hover:text-[#1a1a1a]">관리자</a>
+                                <a href="{{ url_for('admin.dashboard') }}" class="nr2-dropdown-item block px-4 py-2 text-[13px]">관리자</a>
                                 {% endif %}
-                                <hr class="my-1 border-[#E0E0E0]">
-                                <a href="{{ url_for('auth.logout') }}" class="block px-4 py-2 text-[13px] text-[#4b5563] hover:text-[#1a1a1a]">로그아웃</a>
+                                <hr class="my-1 border-[rgba(200,121,65,0.3)]">
+                                <a href="{{ url_for('auth.logout') }}" class="nr2-dropdown-item nr2-dropdown-logout block px-4 py-2 text-[13px]">로그아웃</a>
                             </div>
                         </div>
                     {% else %}
