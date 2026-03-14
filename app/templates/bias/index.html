@@ -19,8 +19,8 @@
 {% block content %}
 <div class="max-w-6xl mx-auto px-4 py-8">
   {# ── Hero Header ── #}
-  <div style="position:relative;height:160px;background:url('{{ url_for('static', filename='board_headers/bias.jpg') }}') center/cover no-repeat;border-radius:12px;overflow:hidden;display:flex;align-items:flex-end;padding:24px 28px;margin-bottom:24px;">
-    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.55);"></div>
+  <div class="board-hero" style="position:relative;height:160px;background:linear-gradient(135deg, #1A1A2E 0%, #A32D2D 100%);border-radius:12px;overflow:hidden;display:flex;align-items:flex-end;padding:24px 28px;margin-bottom:24px;">
+    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.15);"></div>
     <div style="position:relative;z-index:1;width:100%;display:flex;justify-content:space-between;align-items:flex-end;">
       <div>
         <h1 class="font-serif-kr text-[36px] font-bold text-white leading-tight">YouCheck</h1>
