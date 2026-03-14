@@ -1,6 +1,9 @@
 """
 유튜브 RSS 피드를 주기적으로 확인하여
 새 영상을 AESA 게시판에 자동 게시하는 잡 모듈
+
+[영구 비활성화] AESA 게시판에 이준석 관련 등 중복 글 자동생성 문제로 영구 비활성화.
+scheduler_worker.py에서도 비활성화됨. 절대 재활성화 금지.
 """
 import os
 import logging

@@ -335,11 +335,7 @@ body[class*="board-"] .pagination {
     border-radius: 8px;
     padding: 8px 12px;
 }
-body[class*="board-"] .nr2-nav {
-    background: rgba(26,26,46,0.85);
-    backdrop-filter: blur(8px);
-    z-index: 1000;
-}
+/* (네비 스타일은 하단 하모니 섹션으로 이동) */
 body[class*="board-"] .nr2-nav .nav-link {
     color: rgba(255,255,255,0.8);
 }
@@ -364,21 +360,7 @@ nav [x-transition] {
     z-index: 9999;
 }
 
-/* ── 푸터 (게시판 배경 위 가독성) ────────────── */
-body[class*="board-"] footer {
-    background: rgba(22,33,62,0.95);
-    border-color: transparent;
-}
-body[class*="board-"] footer p,
-body[class*="board-"] footer span {
-    color: rgba(255,255,255,0.85);
-}
-body[class*="board-"] footer a {
-    color: rgba(255,255,255,0.7);
-}
-body[class*="board-"] footer a:hover {
-    color: #fff;
-}
+/* (푸터 스타일은 하단 강화 섹션으로 이동) */
 
 /* ── 게시판 헤더 브랜딩 컬러 그라디언트 ──────── */
 body.board-free .board-hero { background: linear-gradient(135deg, #1A1A2E 0%, #C87941 100%) !important; }
@@ -388,3 +370,66 @@ body.board-aesa .board-hero { background: linear-gradient(135deg, #0D1B2A 0%, #1
 body.board-morpheus .board-hero { background: linear-gradient(135deg, #16213E 0%, #0D1B2A 100%) !important; }
 body.board-fakenews .board-hero { background: linear-gradient(135deg, #1A1A2E 0%, #A32D2D 100%) !important; }
 body.board-notice .board-hero { background: linear-gradient(135deg, #C87941 0%, #7B3F15 100%) !important; }
+
+/* ── 푸터 강화 (게시판 배경 위) ──────────────── */
+body[class*="board-"] footer {
+    background: #16213E !important;
+    border-color: transparent !important;
+}
+body[class*="board-"] footer p,
+body[class*="board-"] footer span,
+body[class*="board-"] footer a {
+    color: rgba(255,255,255,0.85) !important;
+}
+body[class*="board-"] footer a:hover {
+    color: #fff !important;
+}
+
+/* ── 빈 상태 텍스트 가독성 ──────────────────── */
+body[class*="board-"] .text-center.py-20,
+body[class*="board-"] .text-center.py-16,
+body[class*="board-"] .text-center.py-20 *,
+body[class*="board-"] .text-center.py-16 * {
+    color: rgba(255,255,255,0.9) !important;
+}
+body[class*="board-"] .text-center.py-20 .text-gray-400,
+body[class*="board-"] .text-center.py-16 .text-gray-400 {
+    color: rgba(255,255,255,0.7) !important;
+}
+
+/* ── 네비게이션 컬러 하모니 ──────────────────── */
+body[class*="board-"] .nr2-nav {
+    background: rgba(26,26,46,0.75) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-bottom: 1px solid rgba(212,168,67,0.15) !important;
+}
+
+/* ── 스폰서 마퀴 배너 ────────────────────────── */
+.sponsor-marquee {
+    background: #0D1B2A;
+    overflow: hidden;
+    white-space: nowrap;
+    height: 40px;
+    display: flex;
+    align-items: center;
+}
+.sponsor-marquee-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 60px;
+    animation: sponsorScroll 20s linear infinite;
+}
+.sponsor-marquee-inner img {
+    height: 24px;
+    object-fit: contain;
+    opacity: 0.7;
+    transition: opacity 0.3s;
+}
+.sponsor-marquee-inner img:hover {
+    opacity: 1;
+}
+@keyframes sponsorScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
