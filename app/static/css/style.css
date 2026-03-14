@@ -470,3 +470,23 @@ body.page-main footer a {
 body.page-main footer a:hover {
     color: #fff !important;
 }
+
+/* ── 메인페이지 글씨 가독성 강화 ──────────── */
+body.page-main h1, body.page-main h2, body.page-main h3, body.page-main h4,
+body.page-main p, body.page-main span, body.page-main a, body.page-main td,
+body.page-main li, body.page-main div {
+    color: #ffffff !important;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.8) !important;
+}
+body.page-main .nr2-card, body.page-main .article-row,
+body.page-main .board-card, body.page-main .hot-item {
+    background: rgba(15,15,30,0.82) !important;
+    border: 1px solid rgba(200,121,65,0.25) !important;
+    border-radius: 8px !important;
+}
+body.page-main .section-header, body.page-main .section-header-label {
+    color: #ffffff !important;
+    border-top-color: #C87941 !important;
+}
+body.page-main .rank-1 { color: #C87941 !important; }
+body.page-main .rank-2, body.page-main .rank-3 { color: #ffffff !important; }
