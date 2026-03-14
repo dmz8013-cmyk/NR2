@@ -157,20 +157,13 @@
         </div>
 
         <!-- 공유 버튼 -->
-        <div style="display:flex;justify-content:center;gap:10px;margin-top:16px;padding-top:12px;border-top:1px solid #E0E0E0;">
-            <button onclick="copyLink()"
-                    style="display:inline-flex;align-items:center;gap:6px;background:#F5F0E8;border:1px solid #d4c5b0;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;color:#1A1A2E;cursor:pointer;transition:all 0.15s;"
-                    onmouseover="this.style.background='#ebe3d5'"
-                    onmouseout="this.style.background='#F5F0E8'">
+        <div style="display:flex;gap:10px;justify-content:center;margin:16px 0;flex-wrap:wrap;">
+            <button onclick="copyLink()" style="background:transparent;border:1px solid rgba(0,0,0,0.15);border-radius:8px;padding:10px 20px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px;">
                 🔗 링크 복사
             </button>
-            <a href="https://story.kakao.com/share?url={{ request.url|urlencode }}"
-               target="_blank" rel="noopener noreferrer"
-               style="display:inline-flex;align-items:center;gap:6px;background:#FEE500;border:1px solid #e6cf00;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;color:#3C1E1E;text-decoration:none;cursor:pointer;transition:all 0.15s;"
-               onmouseover="this.style.background='#f5dc00'"
-               onmouseout="this.style.background='#FEE500'">
-                💬 카카오 공유
-            </a>
+            <button onclick="shareKakao()" style="background:#FAE100;color:#3A1D1D;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;">
+                💬 카카오톡 공유
+            </button>
         </div>
     </article>
 
@@ -444,27 +437,49 @@ function hideReplyForm(commentId) {
 
 // 링크 복사
 function copyLink() {
-    var url = window.location.href;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(url).then(function() {
-            alert('링크가 복사되었습니다!');
-        }).catch(function() {
-            fallbackCopy(url);
+    navigator.clipboard.writeText(window.location.href).then(function() {
+        alert('링크가 복사됐습니다!');
+    }).catch(function() {
+        var el = document.createElement('textarea');
+        el.value = window.location.href;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        alert('링크가 복사됐습니다!');
+    });
+}
+
+// 카카오톡 공유
+function shareKakao() {
+    if (typeof Kakao !== 'undefined' && Kakao.isInitialized()) {
+        Kakao.Share.sendDefault({
+            objectType: 'feed',
+            content: {
+                title: document.title,
+                description: '{{ post.content|striptags|truncate(50) }}',
+                imageUrl: 'https://nr2.kr/static/images/nureongi.jpg',
+                link: { mobileWebUrl: window.location.href, webUrl: window.location.href }
+            },
+            buttons: [{ title: '게시글 보기', link: { mobileWebUrl: window.location.href, webUrl: window.location.href } }]
         });
     } else {
-        fallbackCopy(url);
+        // Kakao SDK 미초기화 fallback: 카카오톡 앱 스킴 시도
+        var kakaoUrl = 'kakaolink://send?appkey=YOUR_KAKAO_APP_KEY&template_id=0&template_args=url=' + encodeURIComponent(window.location.href);
+        var opened = false;
+        var iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = kakaoUrl;
+        document.body.appendChild(iframe);
+        setTimeout(function() {
+            document.body.removeChild(iframe);
+            if (!opened) {
+                // 카카오톡 미설치 또는 스킴 실패 → 링크 복사 fallback
+                copyLink();
+                alert('카카오톡 공유를 사용할 수 없어 링크를 복사했습니다.');
+            }
+        }, 1500);
     }
-}
-function fallbackCopy(text) {
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    alert('링크가 복사되었습니다!');
 }
 
 // 삭제 모달
