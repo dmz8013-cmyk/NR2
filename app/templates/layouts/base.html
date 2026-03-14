@@ -103,9 +103,9 @@
                         <a href="{{ url_for('boards.board', board_type='right') }}" class="nav-link">RIGHT</a>
                         <span class="w-px h-4 bg-[#E0E0E0] mx-1"></span>
                         <a href="/bias" class="nav-link nav-link-accent">YouCheck</a>
-                        <a href="{{ url_for('boards.board', board_type='aesa') }}" class="nav-link">AESA</a>
+                        <a href="/briefings" class="nav-link">AI브리핑</a>
                         <a href="{{ url_for('boards.board', board_type='morpheus') }}" class="nav-link">모피어스</a>
-                        <a href="/briefings" class="nav-link">브리핑</a>
+                        <a href="{{ url_for('boards.board', board_type='aesa') }}" class="nav-link">AESA</a>
                     </div>
                 </div>
 
@@ -176,9 +176,9 @@
                 <a href="{{ url_for('boards.board', board_type='right') }}" @click="mobileOpen=false" class="mobile-nav-link">RIGHT</a>
                 <div class="border-t border-[#E0E0E0] my-2"></div>
                 <a href="/bias" @click="mobileOpen=false" class="mobile-nav-link text-[#C1121F] font-semibold">YouCheck</a>
-                <a href="{{ url_for('boards.board', board_type='aesa') }}" @click="mobileOpen=false" class="mobile-nav-link">AESA</a>
+                <a href="/briefings" @click="mobileOpen=false" class="mobile-nav-link">AI브리핑</a>
                 <a href="{{ url_for('boards.board', board_type='morpheus') }}" @click="mobileOpen=false" class="mobile-nav-link">모피어스</a>
-                <a href="/briefings" @click="mobileOpen=false" class="mobile-nav-link">브리핑</a>
+                <a href="{{ url_for('boards.board', board_type='aesa') }}" @click="mobileOpen=false" class="mobile-nav-link">AESA</a>
                 {% if not current_user.is_authenticated %}
                 <div class="border-t border-[#E0E0E0] my-2"></div>
                 <div class="flex gap-3 py-2">
