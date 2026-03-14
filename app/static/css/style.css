@@ -345,19 +345,16 @@ body[class*="board-"] .nr2-nav .nav-link:hover {
 body[class*="board-"] .nr2-nav .nav-link-accent {
     color: #ff6b6b;
 }
-body[class*="board-"] > *:not(script):not(style) {
-    position: relative;
-    z-index: 1;
-}
+/* z-index는 ::before를 -1로 내려서 해결 — > * 에 z-index 부여하지 않음 */
 
 /* ── 모바일 메뉴 z-index (배경 오버레이 위로) ─ */
-.nr2-nav { z-index: 1000; position: relative; }
+.nr2-nav { z-index: 99999 !important; position: relative; }
 .nr2-nav [x-show="mobileOpen"],
 .nr2-nav .lg\\:hidden.absolute {
-    z-index: 9999;
+    z-index: 99999 !important;
 }
 nav [x-transition] {
-    z-index: 9999;
+    z-index: 99999 !important;
 }
 
 /* (푸터 스타일은 하단 강화 섹션으로 이동) */
@@ -457,12 +454,8 @@ body.page-main::before {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.55);
-    z-index: 0;
+    z-index: -1;
     pointer-events: none;
-}
-body.page-main > *:not(script):not(style) {
-    position: relative;
-    z-index: 1;
 }
 body.page-main .nr2-nav {
     background: rgba(26,26,46,0.75) !important;
