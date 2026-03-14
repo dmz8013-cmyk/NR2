@@ -253,7 +253,8 @@ def view(board_type, post_id):
         user_vote = vote.vote_type if vote else None
 
     return render_template('boards/view.html', post=post, youtube_embed_url=youtube_embed_url,
-                           up_count=up_count, down_count=down_count, user_vote=user_vote)
+                           up_count=up_count, down_count=down_count, user_vote=user_vote,
+                           board_name=BOARD_NAMES.get(board_type, board_type))
 
 
 @bp.route('/<board_type>/<int:post_id>/edit', methods=['GET', 'POST'])
