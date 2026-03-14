@@ -349,27 +349,32 @@ def delete(board_type, post_id):
     """게시글 삭제"""
     post = Post.query.get_or_404(post_id)
 
-    # 게시판 타입 확인
-    if post.board_type != board_type:
-        return redirect(url_for('boards.delete', board_type=post.board_type, post_id=post_id))
+    # 실제 board_type 사용 (URL과 다를 경우 대비)
+    actual_board_type = post.board_type
 
     # 권한 확인 (작성자 또는 관리자/부방장만)
-    if post.user_id != current_user.id and not (current_user.is_admin or current_user.is_vice_admin):
+    if post.user_id != current_user.id and not current_user.is_admin and not getattr(current_user, 'is_vice_admin', False):
         flash('삭제 권한이 없습니다.', 'error')
-        return redirect(url_for('boards.view', board_type=board_type, post_id=post_id))
+        return redirect(url_for('boards.view', board_type=actual_board_type, post_id=post_id))
 
-    # 이미지 파일 삭제
-    for image in post.images:
-        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], image.filename)
-        if os.path.exists(filepath):
-            os.remove(filepath)
+    try:
+        # 이미지 파일 삭제
+        for image in post.images:
+            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], image.filename)
+            if os.path.exists(filepath):
+                os.remove(filepath)
 
-    # 게시글 삭제 (cascade로 관련 데이터도 자동 삭제)
-    db.session.delete(post)
-    db.session.commit()
+        # 게시글 삭제 (cascade로 관련 데이터도 자동 삭제)
+        db.session.delete(post)
+        db.session.commit()
 
-    flash('게시글이 삭제되었습니다.', 'success')
-    return redirect(url_for('boards.board', board_type=board_type))
+        flash('게시글이 삭제되었습니다.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'게시글 삭제 실패: {e}')
+        flash('삭제 중 오류가 발생했습니다.', 'error')
+
+    return redirect(url_for('boards.board', board_type=actual_board_type))
 
 
 # ===== 댓글 관련 라우트 =====
@@ -440,13 +445,19 @@ def delete_comment(board_type, post_id, comment_id):
     comment = Comment.query.get_or_404(comment_id)
 
     # 권한 확인 (작성자 또는 관리자/부방장만)
-    if comment.user_id != current_user.id and not (current_user.is_admin or current_user.is_vice_admin):
+    if comment.user_id != current_user.id and not current_user.is_admin and not getattr(current_user, 'is_vice_admin', False):
         flash('삭제 권한이 없습니다.', 'error')
         return redirect(url_for('boards.view', board_type=board_type, post_id=post_id))
 
     # 댓글 삭제 (cascade로 대댓글도 자동 삭제)
-    db.session.delete(comment)
-    db.session.commit()
+    try:
+        db.session.delete(comment)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'댓글 삭제 실패: {e}')
+        flash('삭제 중 오류가 발생했습니다.', 'error')
+        return redirect(url_for('boards.view', board_type=board_type, post_id=post_id))
 
     flash('댓글이 삭제되었습니다.', 'success')
     return redirect(url_for('boards.view', board_type=board_type, post_id=post_id))
