@@ -351,13 +351,25 @@ body[class*="board-"] .nr2-nav .nav-link-accent {
 /* z-index는 ::before를 -1로 내려서 해결 — > * 에 z-index 부여하지 않음 */
 
 /* ── 모바일 메뉴 z-index (배경 오버레이 위로) ─ */
-.nr2-nav { z-index: 99999 !important; position: relative; }
-.nr2-nav [x-show="mobileOpen"],
-.nr2-nav .lg\\:hidden.absolute {
-    z-index: 99999 !important;
+.nr2-nav { z-index: 999999 !important; position: sticky !important; }
+#mobile-nav-menu {
+    z-index: 999999 !important;
+    position: fixed !important;
+    background: #ffffff !important;
+}
+#mobile-nav-menu * {
+    background: transparent;
+    color: #4b5563;
+}
+#mobile-nav-menu a {
+    color: #4b5563 !important;
+    text-shadow: none !important;
+}
+#mobile-nav-menu .text-[#C1121F] {
+    color: #C1121F !important;
 }
 nav [x-transition] {
-    z-index: 99999 !important;
+    z-index: 999999 !important;
 }
 
 /* ── 프로필 드롭다운 메뉴 ──────────────────── */
@@ -435,15 +447,26 @@ body[class*="board-"] nav {
     border-bottom: 1px solid rgba(200,121,65,0.3) !important;
     box-shadow: none !important;
 }
-body[class*="board-"] .nr2-nav *,
-body[class*="board-"] .nr2-nav a,
-body[class*="board-"] .nr2-nav span,
-body[class*="board-"] .nr2-nav .logo,
-body[class*="board-"] .nr2-nav div,
-body[class*="board-"] .nr2-nav button {
+body[class*="board-"] .nr2-nav > div *,
+body[class*="board-"] .nr2-nav > div a,
+body[class*="board-"] .nr2-nav > div span,
+body[class*="board-"] .nr2-nav > div button {
     background: transparent !important;
     color: #ffffff !important;
     text-shadow: 0 1px 4px rgba(0,0,0,0.8) !important;
+}
+/* 모바일 메뉴는 board 페이지에서도 흰 배경 유지 */
+body[class*="board-"] #mobile-nav-menu {
+    background: #ffffff !important;
+}
+body[class*="board-"] #mobile-nav-menu *,
+body[class*="board-"] #mobile-nav-menu a {
+    color: #4b5563 !important;
+    background: transparent !important;
+    text-shadow: none !important;
+}
+body[class*="board-"] #mobile-nav-menu .text-\[\#C1121F\] {
+    color: #C1121F !important;
 }
 
 /* ── 스폰서 마퀴 배너 ────────────────────────── */
@@ -601,4 +624,39 @@ body.page-main .community-link:hover {
     border-color: #C87941 !important;
     background: rgba(200,121,65,0.1) !important;
     transform: translateY(-2px) !important;
+}
+
+/* ══ 햄버거 메뉴 최종 수정 (모든 규칙 덮어쓰기) ══ */
+body::before,
+body[class*="board-"]::before,
+body.page-main::before {
+    z-index: -1 !important;
+    pointer-events: none !important;
+}
+nav.nr2-nav {
+    position: sticky !important;
+    z-index: 999999 !important;
+}
+#mobile-nav-menu {
+    z-index: 999999 !important;
+    position: fixed !important;
+    background: #ffffff !important;
+}
+#mobile-nav-menu a.mobile-nav-link {
+    color: #4b5563 !important;
+    text-shadow: none !important;
+    background: transparent !important;
+}
+#mobile-nav-menu a.mobile-nav-link.text-\[\#C1121F\],
+#mobile-nav-menu a.font-semibold {
+    color: #C1121F !important;
+}
+/* 메인페이지에서도 모바일 메뉴는 흰 배경 */
+body.page-main #mobile-nav-menu {
+    background: #ffffff !important;
+}
+body.page-main #mobile-nav-menu *,
+body.page-main #mobile-nav-menu a {
+    color: #4b5563 !important;
+    text-shadow: none !important;
 }
