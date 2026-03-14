@@ -85,17 +85,15 @@ def register():
         db.session.add(user)
         db.session.commit()
 
-        # 인증 메일 발송 시도
-        email_sent = send_verification_email(user)
-
         login_user(user)
 
-        if email_sent:
-            flash(f'{user.nickname}님, 환영합니다! 이메일로 발송된 인증 링크를 확인해주세요.', 'success')
-        else:
-            # SMTP 미설정 시 링크 직접 표시 (개발 환경)
-            verify_url = url_for('auth.verify_email', token=user.email_verify_token, _external=True)
-            flash(f'{user.nickname}님, 환영합니다! 이메일 인증 링크: {verify_url}', 'info')
+        # 인증 메일 발송
+        try:
+            send_verification_email(user)
+            flash(f'{user.nickname}님, 환영합니다! 인증 메일을 발송했습니다. 메일함을 확인해주세요.', 'success')
+        except Exception as e:
+            flash(f'{user.nickname}님, 환영합니다! 메일 발송에 실패했습니다. 관리자에게 문의해주세요.', 'error')
+            print(f'Mail error: {e}')
 
         return redirect(url_for('main.index'))
 
@@ -345,12 +343,12 @@ def resend_verification():
     current_user.email_verify_token = secrets.token_urlsafe(32)
     db.session.commit()
 
-    email_sent = send_verification_email(current_user)
-    if email_sent:
-        flash('인증 이메일이 재발송되었습니다. 이메일을 확인해주세요.', 'success')
-    else:
-        verify_url = url_for('auth.verify_email', token=current_user.email_verify_token, _external=True)
-        flash(f'인증 링크: {verify_url}', 'info')
+    try:
+        send_verification_email(current_user)
+        flash('인증 메일을 발송했습니다. 메일함을 확인해주세요.', 'success')
+    except Exception as e:
+        flash('메일 발송에 실패했습니다. 관리자에게 문의해주세요.', 'error')
+        print(f'Mail error: {e}')
 
     return redirect(url_for('auth.profile'))
 
