@@ -470,3 +470,34 @@ def fix_double_escape():
     """))
     db.session.commit()
     return jsonify({'fixed': result.rowcount})
+
+
+@bp.route('/cleanup-aesa-lee', methods=['POST'])
+@admin_required
+def cleanup_aesa_lee():
+    """AESA 게시판 이준석 관련 자동 게시글 일괄 삭제"""
+    posts = Post.query.filter(
+        Post.board_type == 'aesa',
+        db.or_(
+            Post.title.ilike('%이준석%'),
+            Post.content.ilike('%이준석%')
+        )
+    ).all()
+
+    if not posts:
+        return jsonify({'message': '삭제할 게시글이 없습니다.', 'deleted': 0})
+
+    deleted_ids = []
+    for post in posts:
+        deleted_ids.append({'id': post.id, 'title': post.title})
+        # 관련 댓글, 좋아요, 이미지 삭제
+        Comment.query.filter_by(post_id=post.id).delete()
+        Like.query.filter_by(post_id=post.id).delete()
+        db.session.delete(post)
+
+    db.session.commit()
+    return jsonify({
+        'message': f'AESA 이준석 관련 {len(deleted_ids)}건 삭제 완료',
+        'deleted': len(deleted_ids),
+        'posts': deleted_ids
+    })
