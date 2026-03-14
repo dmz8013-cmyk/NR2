@@ -513,23 +513,86 @@ body.page-main footer a:hover {
     color: #fff !important;
 }
 
-/* ── 메인페이지 글씨 가독성 강화 ──────────── */
-body.page-main h1, body.page-main h2, body.page-main h3, body.page-main h4,
+/* ── 메인페이지 전체 텍스트 가독성 강화 ──────── */
+body.page-main * {
+    color: #ffffff !important;
+}
+body.page-main h1, body.page-main h2, body.page-main h3, body.page-main h4 {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.9) !important;
+}
 body.page-main p, body.page-main span, body.page-main a, body.page-main td,
 body.page-main li, body.page-main div {
-    color: #ffffff !important;
-    text-shadow: 0 1px 6px rgba(0,0,0,0.8) !important;
+    color: rgba(255,255,255,0.92) !important;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8) !important;
 }
-body.page-main .nr2-card, body.page-main .article-row,
-body.page-main .board-card, body.page-main .hot-item {
+/* 커뮤니티 인기글 카드 */
+body.page-main .hot-item,
+body.page-main [class*="hot"],
+body.page-main [class*="popular"] {
+    background: rgba(10,10,25,0.75) !important;
+    border-radius: 10px !important;
+    padding: 14px !important;
+    margin-bottom: 8px !important;
+    border: 1px solid rgba(200,121,65,0.2) !important;
+}
+/* AI 브리핑·AESA 카드 */
+body.page-main .card,
+body.page-main [class*="card"],
+body.page-main [class*="post-item"],
+body.page-main [class*="article"] {
+    background: rgba(10,10,25,0.78) !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+}
+/* article-row (YouCheck 등) */
+body.page-main .article-row {
     background: transparent !important;
     border: none !important;
     border-radius: 0 !important;
+    border-bottom: 1px solid rgba(255,255,255,0.15) !important;
+}
+body.page-main .nr2-card,
+body.page-main .board-card,
+body.page-main .hot-item {
     text-shadow: 0 2px 8px rgba(0,0,0,0.9) !important;
 }
-body.page-main .section-header, body.page-main .section-header-label {
+/* 날짜, 닉네임 등 보조 텍스트 */
+body.page-main .text-muted,
+body.page-main [class*="muted"],
+body.page-main small,
+body.page-main time {
+    color: rgba(255,255,255,0.75) !important;
+}
+/* 섹션 제목 */
+body.page-main .section-header, body.page-main .section-header-label,
+body.page-main .section-title {
     color: #ffffff !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
     border-top-color: #C87941 !important;
 }
+/* 카카오/텔레그램 박스 */
+body.page-main .stat-box *,
+body.page-main [class*="stat"] * {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+/* 랭킹 */
 body.page-main .rank-1 { color: #C87941 !important; }
 body.page-main .rank-2, body.page-main .rank-3 { color: #ffffff !important; }
+/* 탭 버튼 비활성 상태 */
+body.page-main button {
+    text-shadow: none !important;
+}
+/* 모바일 전용 강화 */
+@media (max-width: 768px) {
+    body.page-main * {
+        color: #ffffff !important;
+    }
+    body.page-main .card,
+    body.page-main [class*="card"] {
+        background: rgba(5,5,20,0.85) !important;
+    }
+}
