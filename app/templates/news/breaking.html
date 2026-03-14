@@ -6,21 +6,17 @@
 {% block content %}
 <div class="max-w-6xl mx-auto">
     <!-- 헤더 -->
-    <div class="bg-gradient-to-r from-red-500 to-red-600 rounded-lg shadow-lg p-6 mb-6">
-        <div class="flex justify-between items-center">
-            <div>
-                <h1 class="text-3xl font-bold text-white flex items-center">
-                    <span class="animate-pulse mr-3">🔴</span>
-                    공지
-                </h1>
-                <p class="text-red-100 mt-2">실시간으로 업데이트되는 최신 뉴스</p>
+    <div class="board-hero" style="position:relative;min-height:140px;background:linear-gradient(135deg, #1A1A2E 0%, #C1121F 100%);border-radius:12px;overflow:hidden;padding:24px 28px;margin-bottom:24px;display:flex;flex-direction:column;justify-content:flex-end;">
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,0.15);"></div>
+        <div style="position:relative;z-index:1;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                <h1 style="font-family:'Noto Serif KR',serif;font-size:32px;font-weight:700;color:#fff;line-height:1.2;margin:0;">🔴 공지</h1>
+                {% if current_user.is_authenticated and current_user.is_admin %}
+                <a href="{{ url_for('news.create') }}"
+                   style="display:inline-flex;align-items:center;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);border-radius:8px;text-decoration:none;white-space:nowrap;flex-shrink:0;">+ 공지 등록</a>
+                {% endif %}
             </div>
-            {% if current_user.is_authenticated and current_user.is_admin %}
-            <a href="{{ url_for('news.create') }}"
-               class="px-6 py-3 bg-white text-red-600 rounded-md hover:bg-gray-100 font-semibold transition-colors">
-                + 공지 등록
-            </a>
-            {% endif %}
+            <p style="font-size:13px;color:rgba(255,255,255,0.7);margin:6px 0 0;">실시간으로 업데이트되는 최신 뉴스</p>
         </div>
     </div>
 
