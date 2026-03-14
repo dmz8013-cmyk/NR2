@@ -180,6 +180,15 @@ def create_app(config_name='default'):
             except Exception:
                 db.session.rollback()
 
+        # 댓글 대댓글(parent_id) 컬럼 추가
+        try:
+            db.session.execute(db.text(
+                "ALTER TABLE comments ADD COLUMN parent_id INTEGER REFERENCES comments(id)"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
         # news_articles 테이블에 scraped_content 컬럼 추가
         try:
             db.session.execute(db.text(
