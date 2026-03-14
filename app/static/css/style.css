@@ -338,6 +338,7 @@ body[class*="board-"] .pagination {
 body[class*="board-"] .nr2-nav {
     background: rgba(26,26,46,0.85);
     backdrop-filter: blur(8px);
+    z-index: 1000;
 }
 body[class*="board-"] .nr2-nav .nav-link {
     color: rgba(255,255,255,0.8);
@@ -352,3 +353,38 @@ body[class*="board-"] > *:not(script):not(style) {
     position: relative;
     z-index: 1;
 }
+
+/* ── 모바일 메뉴 z-index (배경 오버레이 위로) ─ */
+.nr2-nav { z-index: 1000; position: relative; }
+.nr2-nav [x-show="mobileOpen"],
+.nr2-nav .lg\\:hidden.absolute {
+    z-index: 9999;
+}
+nav [x-transition] {
+    z-index: 9999;
+}
+
+/* ── 푸터 (게시판 배경 위 가독성) ────────────── */
+body[class*="board-"] footer {
+    background: rgba(22,33,62,0.95);
+    border-color: transparent;
+}
+body[class*="board-"] footer p,
+body[class*="board-"] footer span {
+    color: rgba(255,255,255,0.85);
+}
+body[class*="board-"] footer a {
+    color: rgba(255,255,255,0.7);
+}
+body[class*="board-"] footer a:hover {
+    color: #fff;
+}
+
+/* ── 게시판 헤더 브랜딩 컬러 그라디언트 ──────── */
+body.board-free .board-hero { background: linear-gradient(135deg, #1A1A2E 0%, #C87941 100%) !important; }
+body.board-left .board-hero { background: linear-gradient(135deg, #1A1A2E 0%, #2563EB 100%) !important; }
+body.board-right .board-hero { background: linear-gradient(135deg, #7B3F15 0%, #1A1A2E 100%) !important; }
+body.board-aesa .board-hero { background: linear-gradient(135deg, #0D1B2A 0%, #1A1A2E 100%) !important; }
+body.board-morpheus .board-hero { background: linear-gradient(135deg, #16213E 0%, #0D1B2A 100%) !important; }
+body.board-fakenews .board-hero { background: linear-gradient(135deg, #1A1A2E 0%, #A32D2D 100%) !important; }
+body.board-notice .board-hero { background: linear-gradient(135deg, #C87941 0%, #7B3F15 100%) !important; }

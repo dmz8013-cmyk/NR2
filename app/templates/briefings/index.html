@@ -35,8 +35,8 @@
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 py-8">
     {# ── Hero Header ── #}
-    <div style="position:relative;height:160px;background:url('{{ url_for('static', filename='board_headers/briefing.jpg') }}') center/cover no-repeat;border-radius:12px;overflow:hidden;display:flex;align-items:flex-end;padding:24px 28px;margin-bottom:24px;">
-        <div style="position:absolute;inset:0;background:rgba(0,0,0,0.55);"></div>
+    <div class="board-hero" style="position:relative;height:160px;background:linear-gradient(135deg, #1A1A2E 0%, #2563EB 100%);border-radius:12px;overflow:hidden;display:flex;align-items:flex-end;padding:24px 28px;margin-bottom:24px;">
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,0.15);"></div>
         <div style="position:relative;z-index:1;">
             <h1 class="font-serif-kr text-[36px] font-bold text-white leading-tight">AI 브리핑</h1>
             <p class="text-[13px] text-white/70 mt-1">매일 AI가 정리하는 뉴스 브리핑을 한눈에 확인하세요</p>
