@@ -46,7 +46,7 @@ class Config:
     MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
-    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@nr2.kr')
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_USERNAME')
 
     # Logging
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
