@@ -465,7 +465,7 @@ function shareKakao() {
         });
     } else {
         // Kakao SDK 미초기화 fallback: 카카오톡 앱 스킴 시도
-        var kakaoUrl = 'kakaolink://send?appkey=YOUR_KAKAO_APP_KEY&template_id=0&template_args=url=' + encodeURIComponent(window.location.href);
+        var kakaoUrl = 'kakaolink://send?appkey={{ config.get("KAKAO_JS_KEY", "") }}&template_id=0&template_args=url=' + encodeURIComponent(window.location.href);
         var opened = false;
         var iframe = document.createElement('iframe');
         iframe.style.display = 'none';

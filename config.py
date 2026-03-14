@@ -48,6 +48,9 @@ class Config:
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_USERNAME')
 
+    # Kakao
+    KAKAO_JS_KEY = os.environ.get('KAKAO_JS_KEY', '')
+
     # Logging
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
     LOG_FILE = os.environ.get('LOG_FILE', 'logs/nr2.log')
