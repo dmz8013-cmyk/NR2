@@ -2,6 +2,8 @@
    NR2 Network — Foreign Affairs Editorial Design
    지적 무게감, 흑백 + #C1121F 단일 포인트
    ═══════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&family=Nanum+Gothic:wght@400;700;800&family=Noto+Serif+KR:wght@400;600;700&display=swap');
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
 
 :root {
   --color-bg: #FFFFFF;
@@ -13,7 +15,7 @@
   --color-accent: #C1121F;
   --color-hero-bg: #0D1B2A;
   --font-serif: 'Noto Serif KR', Georgia, serif;
-  --font-sans: 'Noto Sans KR', sans-serif;
+  --font-sans: 'Pretendard', 'Noto Sans KR', 'Nanum Gothic', sans-serif;
   --max-width: 1200px;
   --article-width: 740px;
 }
@@ -305,4 +307,48 @@ body[class*="board-"]::before {
     background: rgba(0,0,0,0.45);
     z-index: 0;
     pointer-events: none;
+}
+
+/* ── 배경 위 카드 가독성 ──────────────────── */
+body[class*="board-"] .board-card,
+body[class*="board-"] .article-row,
+body[class*="board-"] .nr2-card,
+body[class*="board-"] .post-card,
+body[class*="board-"] .article-card,
+body[class*="board-"] .briefing-card {
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(4px);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 8px;
+}
+body[class*="board-"] form,
+body[class*="board-"] .search-form,
+body[class*="board-"] .flex.gap-2 {
+    background: rgba(255,255,255,0.9);
+    border-radius: 8px;
+    padding: 12px;
+}
+body[class*="board-"] .flex.justify-center.gap-2,
+body[class*="board-"] .pagination {
+    background: rgba(255,255,255,0.9);
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+body[class*="board-"] .nr2-nav {
+    background: rgba(26,26,46,0.85);
+    backdrop-filter: blur(8px);
+}
+body[class*="board-"] .nr2-nav .nav-link {
+    color: rgba(255,255,255,0.8);
+}
+body[class*="board-"] .nr2-nav .nav-link:hover {
+    color: #fff;
+}
+body[class*="board-"] .nr2-nav .nav-link-accent {
+    color: #ff6b6b;
+}
+body[class*="board-"] > *:not(script):not(style) {
+    position: relative;
+    z-index: 1;
 }
