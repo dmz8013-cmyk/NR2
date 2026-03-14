@@ -338,30 +338,13 @@ body[class*="board-"] .pagination {
 }
 
 /* ── 게시글 상세(view) ── */
-/* 래퍼 자체: 흰 배경 + 모바일 가로스크롤 방지 */
 .view-content {
     background: #fff !important;
     overflow-x: hidden !important;
     word-break: break-word !important;
     overflow-wrap: break-word !important;
 }
-/* 내부 자식 요소에서 board 배경 스타일만 제거 (padding/margin은 건드리지 않음) */
-body[class*="board-"] .view-content form,
-body[class*="board-"] .view-content .flex.justify-center.gap-2,
-body[class*="board-"] .view-content .search-form {
-    background: transparent !important;
-    backdrop-filter: none !important;
-}
-body[class*="board-"] .view-content .post-content {
-    color: #1a1a1a !important;
-}
-/* 댓글 입력창/텍스트영역은 흰 배경 유지 */
-body[class*="board-"] .view-content textarea,
-body[class*="board-"] .view-content input[type="text"],
-body[class*="board-"] .view-content input[type="hidden"] + button {
-    background: #fff !important;
-}
-/* 게시글 본문 이미지/iframe 가로넘침 방지 */
+/* 본문 이미지/iframe 가로넘침 방지 */
 .view-content .post-content img { max-width: 100% !important; height: auto !important; }
 .view-content .post-content iframe { max-width: 100% !important; }
 .view-content .post-content pre { overflow-x: auto !important; max-width: 100% !important; white-space: pre-wrap !important; word-break: break-all !important; }
