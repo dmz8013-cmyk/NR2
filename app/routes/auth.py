@@ -8,8 +8,11 @@ from werkzeug.security import generate_password_hash
 import os
 from app import db
 from app.models import User, LoginAttempt
+from app.models.post import Post
+from app.models.comment import Comment
 from app.utils.validators import validate_password_strength, sanitize_html, validate_nickname
 from app.utils.image_processing import save_upload_image, delete_image
+from app.utils.email import send_verification_email
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -76,12 +79,24 @@ def register():
         # Create new user
         user = User(email=email, nickname=nickname)
         user.set_password(password)
+        user.email_verified = False
+        user.email_verify_token = secrets.token_urlsafe(32)
 
         db.session.add(user)
         db.session.commit()
 
+        # 인증 메일 발송 시도
+        email_sent = send_verification_email(user)
+
         login_user(user)
-        flash(f'{user.nickname}님, 환영합니다!', 'success')
+
+        if email_sent:
+            flash(f'{user.nickname}님, 환영합니다! 이메일로 발송된 인증 링크를 확인해주세요.', 'success')
+        else:
+            # SMTP 미설정 시 링크 직접 표시 (개발 환경)
+            verify_url = url_for('auth.verify_email', token=user.email_verify_token, _external=True)
+            flash(f'{user.nickname}님, 환영합니다! 이메일 인증 링크: {verify_url}', 'info')
+
         return redirect(url_for('main.index'))
 
     return render_template('auth/register.html')
@@ -163,11 +178,38 @@ def logout():
     return redirect(url_for('main.index'))
 
 
+BOARD_NAMES = {
+    'free': '자유게시판', 'left': 'LEFT', 'right': 'RIGHT',
+    'fact': '팩트체크', 'morpheus': '모피어스', 'aesa': 'AESA',
+}
+
+
 @bp.route('/profile')
 @login_required
 def profile():
     """프로필 페이지"""
-    return render_template('auth/profile.html')
+    tab = request.args.get('tab', 'info')
+    page = request.args.get('page', 1, type=int)
+    per_page = current_app.config.get('POSTS_PER_PAGE', 20)
+
+    my_posts = None
+    my_comments = None
+
+    if tab == 'posts':
+        my_posts = Post.query.filter_by(user_id=current_user.id) \
+            .order_by(Post.created_at.desc()) \
+            .paginate(page=page, per_page=per_page, error_out=False)
+    elif tab == 'comments':
+        my_comments = Comment.query.filter_by(user_id=current_user.id) \
+            .options(db.joinedload(Comment.post)) \
+            .order_by(Comment.created_at.desc()) \
+            .paginate(page=page, per_page=per_page, error_out=False)
+
+    return render_template('auth/profile.html',
+                           tab=tab,
+                           my_posts=my_posts,
+                           my_comments=my_comments,
+                           board_names=BOARD_NAMES)
 
 
 @bp.route('/profile/upload', methods=['POST'])
@@ -271,6 +313,45 @@ def request_verify():
     db.session.commit()
 
     flash(f'✅ 본인인증이 완료되었습니다! ({VERIFY_CATEGORIES[category]})', 'success')
+    return redirect(url_for('auth.profile'))
+
+
+@bp.route('/verify-email/<token>')
+def verify_email(token):
+    """이메일 인증 처리"""
+    user = User.query.filter_by(email_verify_token=token).first()
+    if not user:
+        flash('유효하지 않은 인증 링크입니다.', 'error')
+        return redirect(url_for('main.index'))
+
+    user.email_verified = True
+    user.email_verify_token = None
+    db.session.commit()
+
+    flash('이메일 인증이 완료되었습니다! 🎉', 'success')
+    if current_user.is_authenticated:
+        return redirect(url_for('auth.profile'))
+    return redirect(url_for('auth.login'))
+
+
+@bp.route('/resend-verification')
+@login_required
+def resend_verification():
+    """인증 메일 재발송"""
+    if current_user.email_verified:
+        flash('이미 인증된 이메일입니다.', 'info')
+        return redirect(url_for('auth.profile'))
+
+    current_user.email_verify_token = secrets.token_urlsafe(32)
+    db.session.commit()
+
+    email_sent = send_verification_email(current_user)
+    if email_sent:
+        flash('인증 이메일이 재발송되었습니다. 이메일을 확인해주세요.', 'success')
+    else:
+        verify_url = url_for('auth.verify_email', token=current_user.email_verify_token, _external=True)
+        flash(f'인증 링크: {verify_url}', 'info')
+
     return redirect(url_for('auth.profile'))
 
 

@@ -9,6 +9,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
+from flask_mail import Mail
 from config import config
 
 # Initialize extensions
@@ -16,6 +17,7 @@ db = SQLAlchemy()
 login_manager = LoginManager()
 migrate = Migrate()
 csrf = CSRFProtect()
+mail = Mail()
 
 
 def create_app(config_name='default'):
@@ -30,6 +32,7 @@ def create_app(config_name='default'):
     login_manager.init_app(app)
     migrate.init_app(app, db)
     csrf.init_app(app)
+    mail.init_app(app)
 
     # Configure Flask-Login
     login_manager.login_view = 'auth.login'
@@ -159,6 +162,17 @@ def create_app(config_name='default'):
         for col_sql in [
             "ALTER TABLE users ADD COLUMN reset_token VARCHAR(100)",
             "ALTER TABLE users ADD COLUMN reset_token_expires TIMESTAMP",
+        ]:
+            try:
+                db.session.execute(db.text(col_sql))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+        # 이메일 인증 컬럼 추가 (기존 유저는 TRUE)
+        for col_sql in [
+            "ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT TRUE",
+            "ALTER TABLE users ADD COLUMN email_verify_token VARCHAR(100)",
         ]:
             try:
                 db.session.execute(db.text(col_sql))
