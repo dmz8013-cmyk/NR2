@@ -202,11 +202,13 @@
             {% endfor %}
         </div>
         {% else %}
-        <div class="text-center py-20 text-[#bbb]">
-            <p class="text-[15px]">아직 게시글이 없습니다.</p>
-            {% if current_user.is_authenticated %}
-            <p class="mt-2 text-[13px]">첫 번째 게시글을 작성해보세요!</p>
-            {% endif %}
+        <div style="text-align:center;padding:60px 20px;">
+          <img src="/static/images/nureongi.jpg" style="width:80px;height:80px;border-radius:50%;object-fit:cover;opacity:0.6;margin:0 auto 16px;display:block;">
+          <p style="color:rgba(255,255,255,0.7);font-size:16px;margin:0 0 8px;">아직 게시글이 없습니다</p>
+          <p style="color:rgba(255,255,255,0.4);font-size:13px;margin:0 0 20px;">첫 번째 글을 작성해보세요!</p>
+          {% if current_user.is_authenticated %}
+          <a href="{{ url_for('boards.write', board_type=board_type) }}" style="display:inline-block;background:linear-gradient(135deg,#1A1A2E,#C87941);color:white;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:600;">✏️ 글쓰기</a>
+          {% endif %}
         </div>
         {% endif %}
     </div>

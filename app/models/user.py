@@ -17,6 +17,10 @@ class User(UserMixin, db.Model):
     suspended_until = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
+    # === 비밀번호 재설정 ===
+    reset_token = db.Column(db.String(100), nullable=True)
+    reset_token_expires = db.Column(db.DateTime, nullable=True)
+
     # === 인증 시스템 ===
     verify_tier = db.Column(db.String(20), default='bronze')  # bronze, silver, gold, diamond
     verify_category = db.Column(db.String(30), nullable=True)  # 직업 카테고리

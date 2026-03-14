@@ -1,8 +1,10 @@
-from datetime import datetime
+import secrets
+from datetime import datetime, timedelta
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from email_validator import validate_email, EmailNotValidError
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash
 import os
 from app import db
 from app.models import User, LoginAttempt
@@ -270,3 +272,82 @@ def request_verify():
 
     flash(f'✅ 본인인증이 완료되었습니다! ({VERIFY_CATEGORIES[category]})', 'success')
     return redirect(url_for('auth.profile'))
+
+
+@bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    """비밀번호 찾기"""
+    if current_user.is_authenticated:
+        return redirect(url_for('main.index'))
+
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip()
+
+        if not email:
+            flash('이메일을 입력해주세요.', 'error')
+            return render_template('auth/forgot_password.html')
+
+        user = User.query.filter_by(email=email).first()
+
+        if user:
+            # Generate reset token
+            token = secrets.token_urlsafe(32)
+            user.reset_token = token
+            user.reset_token_expires = datetime.now() + timedelta(hours=1)
+            db.session.commit()
+
+            # Show reset link via flash message (no SMTP)
+            reset_url = url_for('auth.reset_password', token=token, _external=True)
+            flash(f'비밀번호 재설정 링크: {reset_url}', 'info')
+        else:
+            # Don't reveal whether user exists
+            flash('해당 이메일로 가입된 계정이 있다면 재설정 링크가 표시됩니다.', 'info')
+
+        return render_template('auth/forgot_password.html')
+
+    return render_template('auth/forgot_password.html')
+
+
+@bp.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    """비밀번호 재설정"""
+    if current_user.is_authenticated:
+        return redirect(url_for('main.index'))
+
+    user = User.query.filter_by(reset_token=token).first()
+
+    if not user or not user.reset_token_expires or user.reset_token_expires < datetime.now():
+        flash('유효하지 않거나 만료된 재설정 링크입니다.', 'error')
+        return redirect(url_for('auth.forgot_password'))
+
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        password_confirm = request.form.get('password_confirm', '')
+
+        errors = []
+
+        if not password:
+            errors.append('비밀번호를 입력해주세요.')
+        else:
+            is_strong, pwd_msg = validate_password_strength(password)
+            if not is_strong:
+                errors.append(pwd_msg)
+
+        if password != password_confirm:
+            errors.append('비밀번호가 일치하지 않습니다.')
+
+        if errors:
+            for error in errors:
+                flash(error, 'error')
+            return render_template('auth/reset_password.html', token=token)
+
+        # Update password and clear token
+        user.set_password(password)
+        user.reset_token = None
+        user.reset_token_expires = None
+        db.session.commit()
+
+        flash('비밀번호가 성공적으로 변경되었습니다. 새 비밀번호로 로그인해주세요.', 'success')
+        return redirect(url_for('auth.login'))
+
+    return render_template('auth/reset_password.html', token=token)

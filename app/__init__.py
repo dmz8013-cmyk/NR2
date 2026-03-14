@@ -78,6 +78,10 @@ def create_app(config_name='default'):
         app.logger.error(f'Server Error: {error}')
         return render_template('errors/500.html'), 500
 
+    @app.errorhandler(403)
+    def forbidden_error(error):
+        return render_template('errors/403.html'), 403
+
     @app.errorhandler(413)
     def too_large(error):
         return '파일 크기가 너무 큽니다. 최대 16MB까지 업로드 가능합니다.', 413
@@ -144,6 +148,17 @@ def create_app(config_name='default'):
             "ALTER TABLE users ADD COLUMN is_vice_admin BOOLEAN DEFAULT FALSE",
             "ALTER TABLE users ADD COLUMN warning_count INTEGER DEFAULT 0",
             "ALTER TABLE users ADD COLUMN suspended_until TIMESTAMP",
+        ]:
+            try:
+                db.session.execute(db.text(col_sql))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+        # 비밀번호 재설정 토큰 컬럼 추가
+        for col_sql in [
+            "ALTER TABLE users ADD COLUMN reset_token VARCHAR(100)",
+            "ALTER TABLE users ADD COLUMN reset_token_expires TIMESTAMP",
         ]:
             try:
                 db.session.execute(db.text(col_sql))

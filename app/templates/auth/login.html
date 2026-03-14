@@ -49,7 +49,13 @@
                         </button>
                     </form>
 
-                    <div class="mt-8 text-center">
+                    <div class="mt-4 text-center">
+                        <a href="{{ url_for('auth.forgot_password') }}" class="text-[13px] text-[#767676] hover:text-[#1a1a1a]">
+                            비밀번호를 잊으셨나요?
+                        </a>
+                    </div>
+
+                    <div class="mt-4 text-center">
                         <p class="text-[13px] text-[#767676]">
                             아직 회원이 아니신가요?
                             <a href="{{ url_for('auth.register') }}" class="text-[#C1121F] hover:text-[#8b0d16] font-semibold ml-1">

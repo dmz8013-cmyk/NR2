@@ -660,3 +660,19 @@ body.page-main #mobile-nav-menu a {
     color: #4b5563 !important;
     text-shadow: none !important;
 }
+
+/* ── 모바일 Quill 에디터 최적화 ──────────── */
+@media (max-width: 768px) {
+  .ql-toolbar { flex-wrap: wrap !important; gap: 4px !important; padding: 6px !important; }
+  .ql-toolbar button { width: 28px !important; height: 28px !important; }
+  .ql-container { font-size: 16px !important; }
+  .ql-editor { min-height: 200px !important; padding: 12px !important; font-size: 16px !important; line-height: 1.8 !important; }
+  #title-input, input[name="title"] { font-size: 16px !important; padding: 12px !important; }
+}
+
+/* ── 페이지네이션 디자인 통일 ──────────────── */
+.pagination, [class*="pagination"] { display:flex; justify-content:center; gap:6px; margin:32px 0; flex-wrap:wrap; }
+.pagination a, .pagination span, .page-link { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:8px; border:1px solid rgba(200,121,65,0.3); color:rgba(255,255,255,0.8); text-decoration:none; font-size:14px; transition:all 0.2s; }
+.pagination a:hover, .page-link:hover { background:rgba(200,121,65,0.2); border-color:#C87941; color:#C87941; }
+.pagination .active, .page-item.active .page-link { background:#C87941; border-color:#C87941; color:white; font-weight:700; }
+.pagination .disabled, .page-item.disabled .page-link { opacity:0.3; cursor:not-allowed; }
