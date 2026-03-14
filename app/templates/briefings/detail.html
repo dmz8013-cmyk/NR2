@@ -54,17 +54,17 @@
         </div>
 
         <!-- 하단 -->
-        <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-            <span class="text-xs text-gray-400">
+        <div style="padding:12px 20px;background:#f9fafb;border-top:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <span style="font-size:12px;color:#9ca3af;white-space:nowrap;">
                 NR2 AI 자동 생성 · {{ briefing.created_at|kst('%Y.%m.%d %H:%M') }}
             </span>
-            <div class="flex gap-2">
-                <button onclick="copyBriefing()" class="share-btn px-3 py-1.5 text-xs bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300">
+            <div style="display:flex;gap:8px;flex-shrink:0;">
+                <button onclick="copyBriefing()" style="padding:6px 12px;font-size:12px;background:#e5e7eb;color:#4b5563;border:none;border-radius:8px;cursor:pointer;white-space:nowrap;">
                     📋 복사
                 </button>
                 <a href="https://t.me/share/url?url={{ request.url }}&text={{ (briefing.title or '브리핑') | urlencode }}"
                    target="_blank"
-                   class="share-btn px-3 py-1.5 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                   style="padding:6px 12px;font-size:12px;background:#3B82F6;color:#fff;border-radius:8px;text-decoration:none;white-space:nowrap;">
                     ✈️ 텔레그램
                 </a>
             </div>
