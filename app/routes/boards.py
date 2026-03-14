@@ -34,7 +34,7 @@ def sanitize_html(html_content):
         strip=True,
     )
 from app.utils.telegram_notify import notify_new_post
-from app.models import Post, PostImage, Comment, Like
+from app.models import Post, PostImage, Comment, Like, PostVote
 
 bp = Blueprint('boards', __name__, url_prefix='/boards')
 
@@ -244,7 +244,16 @@ def view(board_type, post_id):
     if youtube_id:
         youtube_embed_url = f'https://www.youtube.com/embed/{youtube_id}'
 
-    return render_template('boards/view.html', post=post, youtube_embed_url=youtube_embed_url)
+    # 추천/비추천 데이터
+    up_count = PostVote.query.filter_by(post_id=post.id, vote_type='up').count()
+    down_count = PostVote.query.filter_by(post_id=post.id, vote_type='down').count()
+    user_vote = None
+    if current_user.is_authenticated:
+        vote = PostVote.query.filter_by(post_id=post.id, user_id=current_user.id).first()
+        user_vote = vote.vote_type if vote else None
+
+    return render_template('boards/view.html', post=post, youtube_embed_url=youtube_embed_url,
+                           up_count=up_count, down_count=down_count, user_vote=user_vote)
 
 
 @bp.route('/<board_type>/<int:post_id>/edit', methods=['GET', 'POST'])
@@ -482,3 +491,59 @@ def toggle_like(board_type, post_id):
     })
 
 
+# ===== 추천/비추천 관련 라우트 =====
+
+@bp.route('/post/<int:post_id>/vote', methods=['POST'])
+@login_required
+def vote_post(post_id):
+    """게시글 추천/비추천 (AJAX)"""
+    post = Post.query.get_or_404(post_id)
+
+    # 공지글은 추천/비추천 불가
+    if post.board_type == 'notice':
+        return jsonify({'error': '공지글은 투표할 수 없습니다'}), 403
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': '잘못된 요청'}), 400
+
+    vote_type = data.get('vote_type')
+    if vote_type not in ['up', 'down']:
+        return jsonify({'error': '잘못된 요청'}), 400
+
+    existing = PostVote.query.filter_by(
+        post_id=post_id,
+        user_id=current_user.id
+    ).first()
+
+    if existing:
+        if existing.vote_type == vote_type:
+            # 같은 버튼 재클릭 → 취소
+            db.session.delete(existing)
+            db.session.commit()
+            action = 'cancelled'
+        else:
+            # 반대 버튼 클릭 → 변경
+            existing.vote_type = vote_type
+            db.session.commit()
+            action = 'changed'
+    else:
+        # 신규 투표
+        vote = PostVote(
+            post_id=post_id,
+            user_id=current_user.id,
+            vote_type=vote_type
+        )
+        db.session.add(vote)
+        db.session.commit()
+        action = 'voted'
+
+    up_count = PostVote.query.filter_by(post_id=post_id, vote_type='up').count()
+    down_count = PostVote.query.filter_by(post_id=post_id, vote_type='down').count()
+
+    return jsonify({
+        'action': action,
+        'up_count': up_count,
+        'down_count': down_count,
+        'user_vote': vote_type if action != 'cancelled' else None
+    })

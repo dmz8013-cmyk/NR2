@@ -2,6 +2,7 @@ from app.models.user import User
 from app.models.post import Post, PostImage
 from app.models.comment import Comment
 from app.models.like import Like
+from app.models.post_vote import PostVote
 from app.models.vote import Vote, VoteOption, VoteResponse
 from app.models.event import Event
 from app.models.breaking_news import BreakingNews
@@ -18,6 +19,7 @@ __all__ = [
     'PostImage',
     'Comment',
     'Like',
+    'PostVote',
     'Vote',
     'VoteOption',
     'VoteResponse',

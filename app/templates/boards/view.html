@@ -118,28 +118,29 @@
         </div>
         {% endif %}
 
-        <!-- 좋아요 및 공유 -->
-        <div class="flex items-center space-x-4 pt-4 border-t border-[#E0E0E0]">
-            <button onclick="toggleLike({{ post.id }})"
-                    id="like-btn-{{ post.id }}"
-                    class="flex items-center space-x-2 px-4 py-2 transition
-                           {% if current_user.is_authenticated and post.likes.filter_by(user_id=current_user.id).first() %}
-                           text-[#C1121F]
-                           {% else %}
-                           text-[#767676]
-                           {% endif %}">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"/>
-                </svg>
-                <span id="like-count-{{ post.id }}">{{ post.likes_count }}</span>
+        <!-- 추천/비추천 + 댓글 수 -->
+        {% if post.board_type != 'notice' %}
+        <div class="vote-section">
+            <button class="vote-btn vote-up {% if user_vote == 'up' %}active{% endif %}"
+                    onclick="submitVote('up')"
+                    id="btn-up">
+                ▲ 추천
+                <span id="up-count">{{ up_count }}</span>
             </button>
+            <button class="vote-btn vote-down {% if user_vote == 'down' %}active{% endif %}"
+                    onclick="submitVote('down')"
+                    id="btn-down">
+                ▼ 비추천
+                <span id="down-count">{{ down_count }}</span>
+            </button>
+        </div>
+        {% endif %}
 
-            <div class="flex items-center space-x-2 text-[#767676]">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-                </svg>
-                <span class="text-[13px]">댓글 {{ post.comments_count }}</span>
-            </div>
+        <div class="flex items-center justify-center space-x-2 text-[#767676] pt-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+            </svg>
+            <span class="text-[13px]">댓글 {{ post.comments_count }}</span>
         </div>
     </article>
 
@@ -350,41 +351,31 @@ function closeImageModal() {
     document.getElementById('imageModal').classList.add('hidden');
 }
 
-function toggleLike(postId) {
+function submitVote(voteType) {
     {% if not current_user.is_authenticated %}
-    alert('로그인이 필요합니다.');
+    alert('로그인 후 투표할 수 있습니다.');
     window.location.href = "{{ url_for('auth.login') }}";
     return;
     {% endif %}
 
-    const button = document.getElementById('like-btn-' + postId);
-    const countSpan = document.getElementById('like-count-' + postId);
-
-    button.disabled = true;
-
-    fetch("{{ url_for('boards.toggle_like', board_type=post.board_type, post_id=post.id) }}", {
+    fetch('/boards/post/{{ post.id }}/vote', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin'
+        headers: {'Content-Type': 'application/json'},
+        credentials: 'same-origin',
+        body: JSON.stringify({vote_type: voteType})
     })
-    .then(response => response.json())
+    .then(r => r.json())
     .then(data => {
-        if (data.success) {
-            countSpan.textContent = data.likes_count;
-            if (data.liked) {
-                button.classList.remove('text-[#767676]');
-                button.classList.add('text-[#C1121F]');
-            } else {
-                button.classList.remove('text-[#C1121F]');
-                button.classList.add('text-[#767676]');
-            }
-        }
+        if (data.error) { alert(data.error); return; }
+        document.getElementById('up-count').textContent = data.up_count;
+        document.getElementById('down-count').textContent = data.down_count;
+        document.getElementById('btn-up').classList.toggle('active', data.user_vote === 'up');
+        document.getElementById('btn-down').classList.toggle('active', data.user_vote === 'down');
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('좋아요 처리 중 오류가 발생했습니다.');
-    })
-    .finally(() => { button.disabled = false; });
+        alert('투표 처리 중 오류가 발생했습니다.');
+    });
 }
 
 document.addEventListener('keydown', function(e) {

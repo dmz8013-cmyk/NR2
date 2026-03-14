@@ -20,6 +20,7 @@ class Post(db.Model):
     images = db.relationship('PostImage', backref='post', lazy='dynamic', cascade='all, delete-orphan')
     comments = db.relationship('Comment', backref='post', lazy='dynamic', cascade='all, delete-orphan')
     likes = db.relationship('Like', backref='post', lazy='dynamic', cascade='all, delete-orphan')
+    post_votes = db.relationship('PostVote', backref='post', lazy='dynamic', cascade='all, delete-orphan')
 
     @property
     def likes_count(self):
