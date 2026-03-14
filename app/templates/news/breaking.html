@@ -49,11 +49,6 @@
                             {{ news.title }}
                         </h2>
 
-                        <!-- 내용 미리보기 -->
-                        <p class="text-gray-600 mb-3 line-clamp-2">
-                            {{ news.content[:150] }}{% if news.content|length > 150 %}...{% endif %}
-                        </p>
-
                         <!-- 메타 정보 -->
                         <div class="flex items-center space-x-4 text-sm text-gray-500">
                             {% if news.source %}
