@@ -433,3 +433,40 @@ body[class*="board-"] .nr2-nav {
     0% { transform: translateX(0); }
     100% { transform: translateX(-50%); }
 }
+
+/* ── 메인페이지 누렁이 배경 ──────────────── */
+body.page-main {
+    background-image: url('/static/images/main_bg.jpg') !important;
+    background-size: cover !important;
+    background-attachment: fixed !important;
+    background-position: center !important;
+}
+body.page-main::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 0;
+    pointer-events: none;
+}
+body.page-main > *:not(script):not(style) {
+    position: relative;
+    z-index: 1;
+}
+body.page-main .nr2-nav {
+    background: rgba(26,26,46,0.75) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+}
+body.page-main footer {
+    background: #16213E !important;
+    border-color: transparent !important;
+}
+body.page-main footer p,
+body.page-main footer span,
+body.page-main footer a {
+    color: rgba(255,255,255,0.85) !important;
+}
+body.page-main footer a:hover {
+    color: #fff !important;
+}

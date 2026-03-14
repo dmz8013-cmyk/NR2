@@ -1,4 +1,5 @@
 {% extends "layouts/base.html" %}
+{% block body_class %}page-main{% endblock %}
 {% block title %}NR2 Network — 정보가 흐르고, 사람이 연결되는 곳{% endblock %}
 
 {% block main_class %}{% endblock %}
@@ -136,25 +137,21 @@
   </section>
 
   {# ═══════════════════════════════════════════
-     PARTNERS — 로고 마퀴
+     PARTNERS — 다크 마퀴 배너
      ═══════════════════════════════════════════ #}
-  <div class="border-y border-[#eee]" style="background:#f8f8f8; height:56px; overflow:hidden;">
-    <div class="max-w-[1200px] mx-auto px-4 sm:px-6 h-full flex items-center">
-      <span class="flex-shrink-0 text-[10px] font-bold text-[#bbb] tracking-[2px] uppercase mr-6">PARTNERS</span>
-      <div class="flex-1 overflow-hidden relative">
-        <div class="marquee-track flex items-center">
-          {% for _ in range(2) %}
-          <span class="marquee-logo">누렁이 정보방{% if current_user.is_authenticated and current_user.is_admin %}<span class="marquee-edit">✏️</span>{% endif %}</span>
-          <span class="marquee-logo">NR2 AESA{% if current_user.is_authenticated and current_user.is_admin %}<span class="marquee-edit">✏️</span>{% endif %}</span>
-          <span class="marquee-logo">SOB Production{% if current_user.is_authenticated and current_user.is_admin %}<span class="marquee-edit">✏️</span>{% endif %}</span>
-          <span class="marquee-logo" style="color:#bbb; font-style:italic;">ADVERTISE HERE</span>
-          <span class="marquee-logo">PARTNER 1{% if current_user.is_authenticated and current_user.is_admin %}<span class="marquee-edit">✏️</span>{% endif %}</span>
-          <span class="marquee-logo">PARTNER 2{% if current_user.is_authenticated and current_user.is_admin %}<span class="marquee-edit">✏️</span>{% endif %}</span>
-          {% endfor %}
-        </div>
-      </div>
+  <div style="background:rgba(26,26,46,0.85);border-top:1px solid rgba(200,121,65,0.3);border-bottom:1px solid rgba(200,121,65,0.3);padding:10px 0;overflow:hidden;">
+    <div style="display:flex;animation:marquee-scroll 20s linear infinite;width:max-content;align-items:center;gap:80px;padding:0 40px;">
+      <span style="color:rgba(255,255,255,0.5);font-size:11px;letter-spacing:0.1em;">PARTNERS</span>
+      <span style="color:#C87941;font-size:13px;font-weight:600;">누렁이 정보방</span>
+      <span style="color:rgba(255,255,255,0.7);font-size:13px;">NR2 AESA</span>
+      <span style="color:rgba(255,255,255,0.7);font-size:13px;">SOB Production</span>
+      <span style="color:rgba(255,255,255,0.5);font-size:11px;letter-spacing:0.1em;">ADVERTISE WITH US</span>
+      <span style="color:#C87941;font-size:13px;font-weight:600;">누렁이 정보방</span>
+      <span style="color:rgba(255,255,255,0.7);font-size:13px;">NR2 AESA</span>
+      <span style="color:rgba(255,255,255,0.7);font-size:13px;">SOB Production</span>
     </div>
   </div>
+  <style>@keyframes marquee-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}</style>
 
   {# ═══════════════════════════════════════════
      ② 커뮤니티 인기글 (자유+LEFT+RIGHT 통합 Top 10)

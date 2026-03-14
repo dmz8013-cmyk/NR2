@@ -34,7 +34,7 @@ def sanitize_html(html_content):
         strip=True,
     )
 from app.utils.telegram_notify import notify_new_post
-from app.models import Post, PostImage, Comment, Like, PostVote
+from app.models import Post, PostImage, Comment, Like, PostVote, User
 
 bp = Blueprint('boards', __name__, url_prefix='/boards')
 
@@ -139,7 +139,7 @@ def write(board_type):
         return redirect(url_for('main.index'))
 
     # 글쓰기 권한 체크: 일반 회원은 free/left/right만 가능
-    if board_type not in USER_WRITABLE_BOARDS and not current_user.is_admin:
+    if board_type not in USER_WRITABLE_BOARDS and not (current_user.is_admin or current_user.is_vice_admin):
         flash('해당 게시판은 관리자만 글을 작성할 수 있습니다.', 'error')
         return redirect(url_for('boards.board', board_type=board_type))
 
@@ -266,8 +266,8 @@ def edit(board_type, post_id):
     if post.board_type != board_type:
         return redirect(url_for('boards.edit', board_type=post.board_type, post_id=post_id))
 
-    # 권한 확인 (작성자 또는 관리자만)
-    if post.user_id != current_user.id and not current_user.is_admin:
+    # 권한 확인 (작성자 또는 관리자/부방장만)
+    if post.user_id != current_user.id and not (current_user.is_admin or current_user.is_vice_admin):
         flash('수정 권한이 없습니다.', 'error')
         return redirect(url_for('boards.view', board_type=board_type, post_id=post_id))
 
@@ -353,8 +353,8 @@ def delete(board_type, post_id):
     if post.board_type != board_type:
         return redirect(url_for('boards.delete', board_type=post.board_type, post_id=post_id))
 
-    # 권한 확인 (작성자 또는 관리자만)
-    if post.user_id != current_user.id and not current_user.is_admin:
+    # 권한 확인 (작성자 또는 관리자/부방장만)
+    if post.user_id != current_user.id and not (current_user.is_admin or current_user.is_vice_admin):
         flash('삭제 권한이 없습니다.', 'error')
         return redirect(url_for('boards.view', board_type=board_type, post_id=post_id))
 
@@ -415,8 +415,8 @@ def edit_comment(board_type, post_id, comment_id):
     """댓글 수정"""
     comment = Comment.query.get_or_404(comment_id)
 
-    # 권한 확인
-    if comment.user_id != current_user.id and not current_user.is_admin:
+    # 권한 확인 (작성자 또는 관리자/부방장만)
+    if comment.user_id != current_user.id and not (current_user.is_admin or current_user.is_vice_admin):
         flash('수정 권한이 없습니다.', 'error')
         return redirect(url_for('boards.view', board_type=board_type, post_id=post_id))
 
@@ -439,8 +439,8 @@ def delete_comment(board_type, post_id, comment_id):
     """댓글 삭제"""
     comment = Comment.query.get_or_404(comment_id)
 
-    # 권한 확인
-    if comment.user_id != current_user.id and not current_user.is_admin:
+    # 권한 확인 (작성자 또는 관리자/부방장만)
+    if comment.user_id != current_user.id and not (current_user.is_admin or current_user.is_vice_admin):
         flash('삭제 권한이 없습니다.', 'error')
         return redirect(url_for('boards.view', board_type=board_type, post_id=post_id))
 

@@ -81,9 +81,23 @@
                         <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
                             관리자
                         </span>
+                        {% elif user.is_vice_admin %}
+                        <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-purple-100 text-purple-800">
+                            부방장
+                        </span>
                         {% else %}
                         <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
                             일반 사용자
+                        </span>
+                        {% endif %}
+                        {% if user.warning_count and user.warning_count > 0 %}
+                        <span class="ml-1 px-2 py-0.5 text-xs font-bold rounded-full bg-yellow-100 text-yellow-800">
+                            경고 {{ user.warning_count }}회
+                        </span>
+                        {% endif %}
+                        {% if user.suspended_until %}
+                        <span class="ml-1 px-2 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-800">
+                            정지중
                         </span>
                         {% endif %}
                     </td>
@@ -97,7 +111,7 @@
                         </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div class="flex justify-end space-x-2">
+                        <div class="flex justify-end space-x-2 flex-wrap gap-y-1">
                             <form method="POST" action="{{ url_for('admin.toggle_admin', user_id=user.id) }}"
                                   {% if user.id == current_user.id %}onsubmit="return false;"{% endif %}
                                   class="inline">
@@ -107,6 +121,26 @@
                                     {% if user.is_admin %}일반{% else %}관리자{% endif %}
                                 </button>
                             </form>
+                            {% if user.id != current_user.id %}
+                            <form method="POST" action="{{ url_for('admin.grant_vice', user_id=user.id) if not user.is_vice_admin else url_for('admin.revoke_vice', user_id=user.id) }}" class="inline">
+                                <button type="submit" class="text-purple-600 hover:text-purple-900">
+                                    {% if user.is_vice_admin %}부방장해제{% else %}부방장{% endif %}
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin.warn_user', user_id=user.id) }}"
+                                  onsubmit="return confirm('경고를 부여하시겠습니까?');" class="inline">
+                                <button type="submit" class="text-yellow-600 hover:text-yellow-900">경고</button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin.suspend_user', user_id=user.id) }}"
+                                  onsubmit="return confirm('정지 일수를 입력하세요 (최대 7일)');" class="inline">
+                                <select name="days" class="text-xs border rounded px-1 py-0.5">
+                                    <option value="1">1일</option>
+                                    <option value="3">3일</option>
+                                    <option value="7">7일</option>
+                                </select>
+                                <button type="submit" class="text-orange-600 hover:text-orange-900">정지</button>
+                            </form>
+                            {% endif %}
                             <form method="POST" action="{{ url_for('admin.delete_user', user_id=user.id) }}"
                                   onsubmit="return {% if user.id == current_user.id %}false{% else %}confirm('정말 삭제하시겠습니까?'){% endif %};"
                                   class="inline">

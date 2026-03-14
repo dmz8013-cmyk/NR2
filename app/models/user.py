@@ -12,6 +12,9 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     profile_image = db.Column(db.String(255), default='default_profile.jpeg')
     is_admin = db.Column(db.Boolean, default=False)
+    is_vice_admin = db.Column(db.Boolean, default=False)
+    warning_count = db.Column(db.Integer, default=0)
+    suspended_until = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # === 인증 시스템 ===
