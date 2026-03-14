@@ -457,19 +457,19 @@ function copyLink() {
 
 // 카카오톡 공유
 function shareKakao() {
+    var shareUrl = 'https://nr2.kr{{ url_for("boards.view", board_type=post.board_type, post_id=post.id) }}';
     if (typeof Kakao !== 'undefined' && Kakao.isInitialized()) {
         Kakao.Share.sendDefault({
             objectType: 'feed',
             content: {
-                title: document.title,
-                description: '{{ post.content|striptags|truncate(50) }}',
+                title: '{{ post.title|e }}',
+                description: '{{ post.content|striptags|truncate(50)|e }}',
                 imageUrl: 'https://nr2.kr/static/images/nureongi.jpg',
-                link: { mobileWebUrl: window.location.href, webUrl: window.location.href }
+                link: { mobileWebUrl: shareUrl, webUrl: shareUrl }
             },
-            buttons: [{ title: '게시글 보기', link: { mobileWebUrl: window.location.href, webUrl: window.location.href } }]
+            buttons: [{ title: '게시글 보기', link: { mobileWebUrl: shareUrl, webUrl: shareUrl } }]
         });
     } else {
-        // Kakao SDK 미초기화 fallback → 링크 복사
         copyLink();
         alert('카카오톡 공유를 사용할 수 없어 링크를 복사했습니다.');
     }
