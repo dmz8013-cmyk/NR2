@@ -424,17 +424,21 @@ body[class*="board-"] .text-center.py-16 .text-gray-400 {
 
 /* ── 네비게이션 컬러 하모니 ──────────────────── */
 body[class*="board-"] .nr2-nav,
-body[class*="board-"] nav,
-body[class*="board-"] header {
-    background: transparent !important;
-    backdrop-filter: blur(10px) !important;
-    -webkit-backdrop-filter: blur(10px) !important;
-    border-bottom: 1px solid rgba(200,121,65,0.25) !important;
+body[class*="board-"] header.nr2-nav,
+body[class*="board-"] nav {
+    background: rgba(10,10,25,0.7) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-bottom: 1px solid rgba(200,121,65,0.3) !important;
     box-shadow: none !important;
 }
 body[class*="board-"] .nr2-nav *,
 body[class*="board-"] .nr2-nav a,
-body[class*="board-"] .nr2-nav span {
+body[class*="board-"] .nr2-nav span,
+body[class*="board-"] .nr2-nav .logo,
+body[class*="board-"] .nr2-nav div,
+body[class*="board-"] .nr2-nav button {
+    background: transparent !important;
     color: #ffffff !important;
     text-shadow: 0 1px 4px rgba(0,0,0,0.8) !important;
 }
@@ -484,9 +488,14 @@ body.page-main::before {
     pointer-events: none;
 }
 body.page-main .nr2-nav {
-    background: rgba(26,26,46,0.75) !important;
+    background: rgba(10,10,25,0.7) !important;
     backdrop-filter: blur(12px) !important;
     -webkit-backdrop-filter: blur(12px) !important;
+}
+body.page-main .nr2-nav *,
+body.page-main .nr2-nav div,
+body.page-main .nr2-nav button {
+    background: transparent !important;
 }
 body.page-main footer {
     background: #16213E !important;
