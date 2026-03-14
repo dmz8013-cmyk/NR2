@@ -79,7 +79,7 @@
     <nav x-data="{ mobileOpen: false }" class="nr2-nav sticky top-0" style="position:sticky!important;z-index:999999!important;">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-14">
-                <div class="flex items-center logo-area">
+                <div class="flex items-center">
                     <!-- Hamburger (mobile) -->
                     <button @click="mobileOpen = !mobileOpen"
                             class="lg:hidden mr-3 text-[#767676] hover:text-[#1a1a1a] focus:outline-none transition">
@@ -179,13 +179,6 @@
                 <a href="/briefings" @click="mobileOpen=false" class="mobile-nav-link">AI브리핑</a>
                 <a href="{{ url_for('boards.board', board_type='morpheus') }}" @click="mobileOpen=false" class="mobile-nav-link">모피어스</a>
                 <a href="{{ url_for('boards.board', board_type='aesa') }}" @click="mobileOpen=false" class="mobile-nav-link">AESA</a>
-                {% if not current_user.is_authenticated %}
-                <div class="border-t border-[#E0E0E0] my-2"></div>
-                <div class="flex gap-3 py-2">
-                    <a href="{{ url_for('auth.login') }}" class="flex-1 text-center py-2 text-[13px] text-[#767676] border border-[#E0E0E0]">로그인</a>
-                    <a href="{{ url_for('auth.register') }}" class="flex-1 text-center py-2 text-[13px] text-[#767676] border border-[#E0E0E0]">가입</a>
-                </div>
-                {% endif %}
             </div>
         </div>
     </nav>
