@@ -171,9 +171,6 @@
                             {{ post.title }}
                         </h3>
 
-                        {% if post.content %}
-                        <p class="text-[14px] text-[#6b7280] line-clamp-2 mb-2 leading-relaxed">{{ post.content|clean_preview(120) }}</p>
-                        {% endif %}
 
                         <div class="flex items-center text-[11px] text-[#9ca3af] space-x-3">
                             <span class="font-medium text-[#6b7280]">{{ post.author.nickname }}</span>
