@@ -13,4 +13,4 @@ class UserBiasLog(db.Model):
     source_political = db.Column(db.Float, nullable=True)
     source_geopolitical = db.Column(db.Float, nullable=True)
     source_economic = db.Column(db.Float, nullable=True)
-    clicked_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    clicked_at = db.Column(db.DateTime, default=datetime.now, nullable=False)

@@ -132,8 +132,8 @@ def login():
         LoginAttempt.record_attempt(email, ip_address, success=True)
 
         # 정지 상태 체크
-        if user.suspended_until and user.suspended_until > datetime.utcnow():
-            remaining = user.suspended_until - datetime.utcnow()
+        if user.suspended_until and user.suspended_until > datetime.now():
+            remaining = user.suspended_until - datetime.now()
             days = remaining.days
             hours = remaining.seconds // 3600
             flash(f'계정이 정지 중입니다. {days}일 {hours}시간 후 해제됩니다.', 'error')
@@ -265,7 +265,7 @@ def request_verify():
     current_user.verify_tier = 'silver'
     current_user.verify_category = category
     current_user.verify_badge = VERIFY_CATEGORIES[category]
-    current_user.verified_at = datetime.utcnow()
+    current_user.verified_at = datetime.now()
     db.session.commit()
 
     flash(f'✅ 본인인증이 완료되었습니다! ({VERIFY_CATEGORIES[category]})', 'success')

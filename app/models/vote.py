@@ -9,7 +9,7 @@ class Vote(db.Model):
     description = db.Column(db.Text)
     is_multiple = db.Column(db.Boolean, default=False)  # 복수 선택 가능 여부
     end_date = db.Column(db.DateTime, nullable=True)  # 투표 종료일
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
     # Foreign Keys
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -29,7 +29,7 @@ class Vote(db.Model):
         """투표가 활성화되어 있는지 확인"""
         if self.end_date is None:
             return True
-        return datetime.utcnow() < self.end_date
+        return datetime.now() < self.end_date
 
     def __repr__(self):
         return f'<Vote {self.title}>'
@@ -69,7 +69,7 @@ class VoteResponse(db.Model):
     __tablename__ = 'vote_responses'
 
     id = db.Column(db.Integer, primary_key=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
     # Foreign Keys
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)

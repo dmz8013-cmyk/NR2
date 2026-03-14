@@ -15,7 +15,7 @@ class User(UserMixin, db.Model):
     is_vice_admin = db.Column(db.Boolean, default=False)
     warning_count = db.Column(db.Integer, default=0)
     suspended_until = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
     # === 인증 시스템 ===
     verify_tier = db.Column(db.String(20), default='bronze')  # bronze, silver, gold, diamond

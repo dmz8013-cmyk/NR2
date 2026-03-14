@@ -21,7 +21,7 @@ def get_hot_posts(limit=10):
     - 시간 감쇠로 최신 인기글 우선
     - 48시간 이내 글만 대상
     """
-    cutoff = datetime.utcnow() - timedelta(hours=48)
+    cutoff = datetime.now() - timedelta(hours=48)
     
     posts = Post.query.filter(
         Post.created_at >= cutoff,
@@ -29,7 +29,7 @@ def get_hot_posts(limit=10):
     ).all()
     
     scored = []
-    now = datetime.utcnow()
+    now = datetime.now()
     for post in posts:
         hours = (now - post.created_at).total_seconds() / 3600
         likes = post.likes_count
@@ -93,7 +93,7 @@ def index():
     except Exception:
         aesa_posts = []
     # 이달의 추천/비추천 랭킹
-    month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     try:
         like_ranking = db.session.query(
             User.nickname,

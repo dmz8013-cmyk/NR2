@@ -98,7 +98,7 @@ def edit(news_id):
         news.content = content
         news.source = source
         news.priority = priority
-        news.updated_at = datetime.utcnow()
+        news.updated_at = datetime.now()
 
         db.session.commit()
 

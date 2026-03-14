@@ -12,7 +12,7 @@ class PageVisit(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
     user_agent = db.Column(db.String(500), nullable=True)
     referrer = db.Column(db.String(500), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.now, index=True)
 
     def __repr__(self):
         return f'<PageVisit {self.path} @ {self.created_at}>'

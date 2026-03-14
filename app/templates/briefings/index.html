@@ -85,7 +85,7 @@
                                 {{ b.type_label }}
                             </span>
                             <span class="text-xs text-gray-400">
-                                {{ b.created_at.strftime('%Y.%m.%d %H:%M') }}
+                                {{ b.created_at|kst('%Y.%m.%d %H:%M') }}
                             </span>
                         </div>
                         <h2 class="text-lg font-semibold text-gray-800 mb-1 truncate">

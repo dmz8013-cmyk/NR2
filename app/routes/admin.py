@@ -38,13 +38,13 @@ def dashboard():
     total_briefings = Briefing.query.count()    
 
     # 오늘 통계
-    today = datetime.utcnow().date()
+    today = datetime.now().date()
     today_start = datetime.combine(today, datetime.min.time())
 
     today_briefings = Briefing.query.filter(Briefing.created_at >= today_start).count()
     total_bias_articles = NewsArticle.query.count()
     total_bias_votes = BiasVote.query.count()
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    thirty_days_ago = datetime.now() - timedelta(days=30)
     if hasattr(User, 'last_login'):
         mau = User.query.filter(User.last_login >= thirty_days_ago).count()
     else:
@@ -307,11 +307,11 @@ def statistics():
     # 월별 통계 (최근 6개월)
     monthly_stats = []
     for i in range(5, -1, -1):
-        date = datetime.utcnow() - timedelta(days=30*i)
+        date = datetime.now() - timedelta(days=30*i)
         month_start = date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
         if i == 0:
-            month_end = datetime.utcnow()
+            month_end = datetime.now()
         else:
             next_month = month_start + timedelta(days=32)
             month_end = next_month.replace(day=1) - timedelta(seconds=1)
@@ -374,7 +374,7 @@ def analytics():
 @admin_required
 def api_analytics():
     days = int(request.args.get('days', 30))
-    today = datetime.utcnow().date()
+    today = datetime.now().date()
 
     dau_data = []
     for i in range(days - 1, -1, -1):
@@ -391,7 +391,7 @@ def api_analytics():
         dau_data.append({'date': date.strftime('%m/%d'), 'visitors': unique_visitors,
                          'logged_in': logged_in, 'pageviews': pageviews})
 
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    thirty_days_ago = datetime.now() - timedelta(days=30)
     mau_visitors = db.session.query(func.count(distinct(PageVisit.ip_address))).filter(
         PageVisit.created_at >= thirty_days_ago).scalar() or 0
     mau_users = db.session.query(func.count(distinct(PageVisit.user_id))).filter(
@@ -495,7 +495,7 @@ def suspend_user(user_id):
         flash('자신을 정지할 수 없습니다.', 'error')
         return redirect(url_for('admin.users'))
     days = min(int(request.form.get('days', 1)), 7)
-    user.suspended_until = datetime.utcnow() + timedelta(days=days)
+    user.suspended_until = datetime.now() + timedelta(days=days)
     db.session.commit()
     flash(f'{user.nickname}님을 {days}일간 정지했습니다.', 'success')
     return redirect(url_for('admin.users'))

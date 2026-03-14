@@ -23,9 +23,9 @@
         <div class="flex items-center justify-between text-sm text-gray-600 pt-4 border-t">
             <div class="flex items-center space-x-4">
                 <span>{{ vote.creator.nickname }}</span>
-                <span>{{ vote.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                <span>{{ vote.created_at|kst('%Y-%m-%d %H:%M') }}</span>
                 {% if vote.end_date %}
-                <span>종료: {{ vote.end_date.strftime('%Y-%m-%d') }}</span>
+                <span>종료: {{ vote.end_date|kst('%Y-%m-%d') }}</span>
                 {% endif %}
             </div>
 

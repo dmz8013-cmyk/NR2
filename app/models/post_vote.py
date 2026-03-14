@@ -8,7 +8,7 @@ class PostVote(db.Model):
     post_id = db.Column(db.Integer, db.ForeignKey('posts.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     vote_type = db.Column(db.String(10), nullable=False)  # 'up' or 'down'
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
     __table_args__ = (
         db.UniqueConstraint('post_id', 'user_id', name='unique_post_vote'),

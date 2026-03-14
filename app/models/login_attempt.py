@@ -10,7 +10,7 @@ class LoginAttempt(db.Model):
     email = db.Column(db.String(120), nullable=False, index=True)
     ip_address = db.Column(db.String(45), nullable=False)
     success = db.Column(db.Boolean, default=False)
-    attempted_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    attempted_at = db.Column(db.DateTime, default=datetime.now, index=True)
 
     @staticmethod
     def is_locked(email, max_attempts=5, lockout_duration=1800):
@@ -25,7 +25,7 @@ class LoginAttempt(db.Model):
         Returns:
             (is_locked, remaining_time): 잠금 여부와 남은 시간
         """
-        cutoff_time = datetime.utcnow() - timedelta(seconds=lockout_duration)
+        cutoff_time = datetime.now() - timedelta(seconds=lockout_duration)
 
         # 최근 시도 중 실패한 시도 수 확인
         failed_attempts = LoginAttempt.query.filter(
@@ -37,7 +37,7 @@ class LoginAttempt(db.Model):
         if len(failed_attempts) >= max_attempts:
             # 가장 최근 실패 시도로부터 경과 시간 계산
             latest_attempt = failed_attempts[0]
-            elapsed = (datetime.utcnow() - latest_attempt.attempted_at).total_seconds()
+            elapsed = (datetime.now() - latest_attempt.attempted_at).total_seconds()
             remaining = max(0, lockout_duration - elapsed)
 
             if remaining > 0:
@@ -67,7 +67,7 @@ class LoginAttempt(db.Model):
     @staticmethod
     def get_remaining_attempts(email, max_attempts=5, lockout_duration=1800):
         """남은 시도 횟수 확인"""
-        cutoff_time = datetime.utcnow() - timedelta(seconds=lockout_duration)
+        cutoff_time = datetime.now() - timedelta(seconds=lockout_duration)
 
         failed_count = LoginAttempt.query.filter(
             LoginAttempt.email == email,

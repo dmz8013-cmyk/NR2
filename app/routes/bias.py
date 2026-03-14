@@ -184,7 +184,7 @@ def submit():
 def _auto_cluster(article):
     """새 기사를 기존 클러스터에 매칭하거나 새 클러스터 생성"""
     # 최근 3일 내 기사와 비교
-    cutoff = datetime.utcnow() - timedelta(days=3)
+    cutoff = datetime.now() - timedelta(days=3)
     recent = NewsArticle.query.filter(
         NewsArticle.id != article.id,
         NewsArticle.created_at >= cutoff,

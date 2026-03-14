@@ -11,7 +11,7 @@ class Briefing(db.Model):
     title = db.Column(db.String(200), nullable=True)
     content = db.Column(db.Text, nullable=False)
     article_count = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
     @property
     def type_label(self):

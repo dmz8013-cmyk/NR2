@@ -62,13 +62,13 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {% if vote.end_date %}
-                        {{ vote.end_date.strftime('%Y-%m-%d') }}
+                        {{ vote.end_date|kst('%Y-%m-%d') }}
                         {% else %}
                         <span class="text-gray-400">무기한</span>
                         {% endif %}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ vote.created_at.strftime('%Y-%m-%d') }}
+                        {{ vote.created_at|kst('%Y-%m-%d') }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <form method="POST"
