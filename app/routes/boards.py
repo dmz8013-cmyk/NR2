@@ -48,8 +48,8 @@ BOARD_NAMES = {
     'aesa': '누렁이 AESA',
 }
 
-# 관리자만 글 작성 가능한 게시판
-ADMIN_ONLY_BOARDS = {'aesa'}
+# 일반 회원이 글 작성 가능한 게시판 (나머지는 관리자 전용)
+USER_WRITABLE_BOARDS = ['free', 'left', 'right']
 
 
 def extract_youtube_id(url):
@@ -138,9 +138,9 @@ def write(board_type):
         flash('존재하지 않는 게시판입니다.', 'error')
         return redirect(url_for('main.index'))
 
-    # 관리자 전용 게시판 체크
-    if board_type in ADMIN_ONLY_BOARDS and not current_user.is_admin:
-        flash('관리자만 글을 작성할 수 있습니다.', 'error')
+    # 글쓰기 권한 체크: 일반 회원은 free/left/right만 가능
+    if board_type not in USER_WRITABLE_BOARDS and not current_user.is_admin:
+        flash('해당 게시판은 관리자만 글을 작성할 수 있습니다.', 'error')
         return redirect(url_for('boards.board', board_type=board_type))
 
     if request.method == 'POST':

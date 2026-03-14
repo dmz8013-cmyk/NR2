@@ -14,9 +14,36 @@
     'fakenews': '#0f766e'
 } %}
 {% set accent = board_colors.get(board_type, '#1a1a1a') %}
+{% set board_headers = {
+    'aesa': 'aesa.jpg',
+    'left': 'left.jpg',
+    'right': 'right.jpg',
+    'morpheus': 'morpheus.jpg',
+    'free': 'free.jpg',
+    'fakenews': 'bias.jpg'
+} %}
 
 .board-accent { color: {{ accent }}; }
 .board-accent-bg { background: {{ accent }}; }
+
+.board-hero {
+    position: relative;
+    height: 160px;
+    background: url("{{ url_for('static', filename='board_headers/' + board_headers.get(board_type, 'free.jpg')) }}") center/cover no-repeat;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    padding: 24px 28px;
+    margin-bottom: 24px;
+}
+.board-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+}
+.board-hero * { position: relative; z-index: 1; }
 
 .post-card {
     background: #fff;
@@ -48,6 +75,8 @@
 }
 
 @media (max-width: 640px) {
+    .board-hero { height: 120px; padding: 16px 20px; border-radius: 8px; }
+    .board-hero h1 { font-size: 24px !important; }
     .post-card { padding: 12px 16px 12px 20px; }
     .post-card .post-title { font-size: 14px !important; }
 }
@@ -57,35 +86,31 @@
 {% block content %}
 <div class="max-w-4xl mx-auto">
 
-    {# ── Board Header ──────────────────────────── #}
-    <div class="mb-10">
-        <div class="flex items-start gap-4 mb-6">
-            <div class="board-accent-bg w-1 self-stretch rounded-full" style="min-height:48px;"></div>
-            <div class="flex-1">
-                <div class="flex justify-between items-end">
-                    <div>
-                        <h1 class="font-serif-kr text-[36px] font-bold text-[#1a1a1a] leading-tight">{{ board_name }}</h1>
-                        <p class="text-[13px] text-[#767676] mt-1">
-                            {% if board_type == 'aesa' %}360° 레이더급 분석 · 에디터 전용
-                            {% elif board_type == 'left' %}진보 시각으로 보는 세상
-                            {% elif board_type == 'right' %}보수 시각으로 보는 세상
-                            {% elif board_type == 'morpheus' %}빨간약을 선택한 사람들의 공간
-                            {% elif board_type == 'free' %}뭐든 써도 되는 자유로운 공간
-                            {% elif board_type == 'fakenews' %}사실과 거짓을 가려내는 곳
-                            {% else %}커뮤니티 게시판{% endif %}
-                        </p>
-                    </div>
-                    {% if current_user.is_authenticated and (board_type != 'aesa' or current_user.is_admin) %}
-                    <a href="{{ url_for('boards.write', board_type=board_type) }}"
-                       class="inline-flex items-center px-5 py-2 text-[13px] font-semibold text-white board-accent-bg hover:opacity-90 transition rounded-md">
-                        글쓰기
-                    </a>
-                    {% endif %}
-                </div>
+    {# ── Board Header (Hero Image) ────────────── #}
+    <div class="board-hero">
+        <div class="flex justify-between items-end w-full">
+            <div>
+                <h1 class="font-serif-kr text-[36px] font-bold text-white leading-tight">{{ board_name }}</h1>
+                <p class="text-[13px] text-white/70 mt-1">
+                    {% if board_type == 'aesa' %}360° 레이더급 분석 · 에디터 전용
+                    {% elif board_type == 'left' %}진보 시각으로 보는 세상
+                    {% elif board_type == 'right' %}보수 시각으로 보는 세상
+                    {% elif board_type == 'morpheus' %}빨간약을 선택한 사람들의 공간
+                    {% elif board_type == 'free' %}뭐든 써도 되는 자유로운 공간
+                    {% elif board_type == 'fakenews' %}사실과 거짓을 가려내는 곳
+                    {% else %}커뮤니티 게시판{% endif %}
+                </p>
             </div>
+            {% if current_user.is_authenticated and (board_type in ['free','left','right'] or current_user.is_admin) %}
+            <a href="{{ url_for('boards.write', board_type=board_type) }}"
+               class="inline-flex items-center px-5 py-2 text-[13px] font-semibold text-white bg-white/20 hover:bg-white/30 backdrop-blur transition rounded-md border border-white/30">
+                글쓰기
+            </a>
+            {% endif %}
         </div>
+    </div>
 
-        <div class="border-b border-[#E0E0E0] mb-6"></div>
+    <div class="mb-6">
 
         {# ── Search Form ──────────────────────────── #}
         <form method="GET" action="{{ url_for('boards.board', board_type=board_type) }}">
