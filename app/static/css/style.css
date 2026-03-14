@@ -325,9 +325,7 @@ body[class*="board-"] .briefing-card {
     padding: 16px;
     margin-bottom: 8px;
 }
-body[class*="board-"] form,
-body[class*="board-"] .search-form,
-body[class*="board-"] .flex.gap-2 {
+body[class*="board-"] .search-form {
     background: rgba(255,255,255,0.9);
     border-radius: 8px;
     padding: 12px;
@@ -711,7 +709,7 @@ body.page-main #mobile-nav-menu a {
   .nr2-nav { display: flex !important; align-items: center !important; justify-content: space-between !important; }
 
   /* 5. 브리핑/YouCheck 카드 모바일 통일성 */
-  .briefing-card, [class*="briefing"], [class*="news-card"] { border-radius: 12px !important; padding: 16px !important; margin-bottom: 12px !important; }
+  .briefing-card, [class*="news-card"] { border-radius: 12px !important; padding: 16px !important; margin-bottom: 12px !important; }
 
   /* AI브리핑 카테고리 필터 가로 스크롤 */
   .briefing-filters, [class*="filter-tabs"], [class*="category-tabs"] { display: flex !important; flex-direction: row !important; overflow-x: auto !important; flex-wrap: nowrap !important; gap: 8px !important; padding-bottom: 8px !important; -webkit-overflow-scrolling: touch !important; scrollbar-width: none !important; }
