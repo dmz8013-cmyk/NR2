@@ -70,7 +70,10 @@
                            style="background:transparent;border:1px solid #888;border-radius:6px;padding:6px 16px;color:#555;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;">
                             수정
                         </a>
-                        <button type="button" onclick="deletePost()" style="background:#C1121F;color:white;border:none;border-radius:6px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;">삭제</button>
+                        <form method="POST" action="{{ url_for('boards.delete_post', board_type=post.board_type, post_id=post.id) }}" style="display:inline;margin:0;" onsubmit="return confirm('정말 삭제하시겠습니까?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" style="background:#C1121F;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-weight:600;cursor:pointer;font-size:14px;">삭제</button>
+                        </form>
                     </div>
                     {% endif %}
                 </div>
@@ -406,29 +409,5 @@ function hideReplyForm(commentId) {
     document.getElementById('reply-form-' + commentId).classList.add('hidden');
 }
 
-function deletePost() {
-    if (!confirm('정말 삭제하시겠습니까?')) return;
-    fetch('/boards/{{ post.board_type }}/{{ post.id }}/delete', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': '{{ csrf_token() }}'
-        },
-        credentials: 'same-origin',
-        body: 'csrf_token={{ csrf_token() }}'
-    })
-    .then(function(response) {
-        if (response.redirected) {
-            window.location.href = response.url;
-        } else if (response.ok) {
-            window.location.href = '/boards/{{ post.board_type }}';
-        } else {
-            alert('삭제 실패: ' + response.status + ' ' + response.statusText);
-        }
-    })
-    .catch(function(err) {
-        alert('삭제 중 오류: ' + err.message);
-    });
-}
 </script>
 {% endblock %}

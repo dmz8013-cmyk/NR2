@@ -1,4 +1,5 @@
 import os
+import re
 os.environ.setdefault('TZ', 'Asia/Seoul')
 import logging
 from logging.handlers import RotatingFileHandler
@@ -108,6 +109,15 @@ def create_app(config_name='default'):
     app.jinja_env.filters['kst'] = format_kst
     app.jinja_env.filters['kst_short'] = lambda dt: format_kst(dt, '%m/%d %H:%M')
     app.jinja_env.filters['kst_full'] = lambda dt: format_kst(dt, '%Y-%m-%d %H:%M:%S')
+
+    # 게시글 미리보기 텍스트 정리 필터
+    def clean_preview(text, length=80):
+        if not text:
+            return ''
+        clean = re.sub(r'<[^>]+>', '', text)
+        clean = re.sub(r'\s+', ' ', clean).strip()
+        return clean[:length] + '...' if len(clean) > length else clean
+    app.jinja_env.filters['clean_preview'] = clean_preview
 
     # Import models for Flask-Migrate
     from app import models
