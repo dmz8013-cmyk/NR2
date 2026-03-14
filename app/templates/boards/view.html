@@ -75,6 +75,7 @@
                         <form method="POST" action="{{ url_for('boards.delete', board_type=post.board_type, post_id=post.id) }}"
                               onsubmit="return confirm('정말 삭제하시겠습니까?');"
                               style="display:inline;margin:0;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit"
                                     style="background:#C1121F;color:white;border:none;border-radius:6px;padding:6px 16px;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;"
                                     onmouseover="this.style.background='#8b0d16'"
@@ -156,6 +157,7 @@
         {% if current_user.is_authenticated %}
         <!-- 댓글 작성 폼 -->
         <form method="POST" action="{{ url_for('boards.add_comment', board_type=post.board_type, post_id=post.id) }}" class="mb-8">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <textarea name="content"
                       class="w-full px-4 py-3 border border-[#E0E0E0] bg-white text-[#1a1a1a] text-[15px] focus:outline-none focus:ring-2 focus:ring-[#C1121F]/20 focus:border-[#C1121F]"
                       rows="3"
@@ -211,6 +213,7 @@
                                   action="{{ url_for('boards.delete_comment', board_type=post.board_type, post_id=post.id, comment_id=comment.id) }}"
                                   onsubmit="return confirm('정말 삭제하시겠습니까?');"
                                   class="inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="text-[#C1121F] hover:text-[#8b0d16] transition">
                                     삭제
                                 </button>
@@ -226,6 +229,7 @@
                     <!-- 댓글 수정 폼 (숨김) -->
                     <div id="edit-form-{{ comment.id }}" class="hidden mb-3 ml-9">
                         <form method="POST" action="{{ url_for('boards.edit_comment', board_type=post.board_type, post_id=post.id, comment_id=comment.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <textarea name="content" class="w-full px-3 py-2 border border-[#E0E0E0] bg-white text-[#1a1a1a] text-[14px]" rows="3" required>{{ comment.content }}</textarea>
                             <div class="mt-2 flex justify-end space-x-2">
                                 <button type="button" onclick="hideEditForm({{ comment.id }})" class="px-3 py-1 text-[12px] border border-[#E0E0E0] text-[#767676] hover:text-[#1a1a1a]">
@@ -242,6 +246,7 @@
                     {% if current_user.is_authenticated %}
                     <div id="reply-form-{{ comment.id }}" class="hidden mb-3 ml-9">
                         <form method="POST" action="{{ url_for('boards.add_comment', board_type=post.board_type, post_id=post.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="parent_id" value="{{ comment.id }}">
                             <textarea name="content" class="w-full px-3 py-2 border border-[#E0E0E0] bg-white text-[#1a1a1a] text-[14px]" rows="2" placeholder="답글을 입력하세요" required></textarea>
                             <div class="mt-2 flex justify-end space-x-2">
@@ -286,6 +291,7 @@
                                           action="{{ url_for('boards.delete_comment', board_type=post.board_type, post_id=post.id, comment_id=reply.id) }}"
                                           onsubmit="return confirm('정말 삭제하시겠습니까?');"
                                           class="inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="text-[#C1121F] hover:text-[#8b0d16] transition">
                                             삭제
                                         </button>
@@ -299,6 +305,7 @@
                             <!-- 대댓글 수정 폼 (숨김) -->
                             <div id="edit-form-{{ reply.id }}" class="hidden mb-2">
                                 <form method="POST" action="{{ url_for('boards.edit_comment', board_type=post.board_type, post_id=post.id, comment_id=reply.id) }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <textarea name="content" class="w-full px-3 py-2 border border-[#E0E0E0] bg-white text-[#1a1a1a] text-[14px]" rows="2" required>{{ reply.content }}</textarea>
                                     <div class="mt-2 flex justify-end space-x-2">
                                         <button type="button" onclick="hideEditForm({{ reply.id }})" class="px-3 py-1 text-[12px] border border-[#E0E0E0] text-[#767676] hover:text-[#1a1a1a]">
@@ -368,7 +375,10 @@ function submitVote(voteType) {
 
     fetch('/boards/post/{{ post.id }}/vote', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token() }}'
+        },
         credentials: 'same-origin',
         body: JSON.stringify({vote_type: voteType})
     })
