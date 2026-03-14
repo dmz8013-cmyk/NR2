@@ -337,32 +337,35 @@ body[class*="board-"] .pagination {
     padding: 8px 12px;
 }
 
-/* ── 게시글 상세(view) 내부는 board 배경 스타일 무시 ── */
-body[class*="board-"] .view-content,
+/* ── 게시글 상세(view) ── */
+/* 래퍼 자체: 흰 배경 + 모바일 가로스크롤 방지 */
+.view-content {
+    background: #fff !important;
+    overflow-x: hidden !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+}
+/* 내부 자식 요소에서 board 배경 스타일만 제거 (padding/margin은 건드리지 않음) */
 body[class*="board-"] .view-content form,
-body[class*="board-"] .view-content .flex,
 body[class*="board-"] .view-content .flex.justify-center.gap-2,
-body[class*="board-"] .view-content .search-form,
-body[class*="board-"] .view-content .board-card,
-body[class*="board-"] .view-content .article-row {
+body[class*="board-"] .view-content .search-form {
     background: transparent !important;
     backdrop-filter: none !important;
-    box-shadow: none !important;
-    padding: revert !important;
-    margin-bottom: revert !important;
-    border-radius: revert !important;
-}
-body[class*="board-"] .view-content .vote-section {
-    background: transparent !important;
 }
 body[class*="board-"] .view-content .post-content {
-    background: transparent !important;
     color: #1a1a1a !important;
 }
+/* 댓글 입력창/텍스트영역은 흰 배경 유지 */
 body[class*="board-"] .view-content textarea,
-body[class*="board-"] .view-content input {
+body[class*="board-"] .view-content input[type="text"],
+body[class*="board-"] .view-content input[type="hidden"] + button {
     background: #fff !important;
 }
+/* 게시글 본문 이미지/iframe 가로넘침 방지 */
+.view-content .post-content img { max-width: 100% !important; height: auto !important; }
+.view-content .post-content iframe { max-width: 100% !important; }
+.view-content .post-content pre { overflow-x: auto !important; max-width: 100% !important; white-space: pre-wrap !important; word-break: break-all !important; }
+.view-content .post-content table { max-width: 100% !important; overflow-x: auto !important; display: block !important; }
 /* (네비 스타일은 하단 하모니 섹션으로 이동) */
 body[class*="board-"] .nr2-nav .nav-link {
     color: rgba(255,255,255,0.8);
