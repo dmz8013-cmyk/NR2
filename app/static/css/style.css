@@ -336,6 +336,33 @@ body[class*="board-"] .pagination {
     border-radius: 8px;
     padding: 8px 12px;
 }
+
+/* ── 게시글 상세(view) 내부는 board 배경 스타일 무시 ── */
+body[class*="board-"] .view-content,
+body[class*="board-"] .view-content form,
+body[class*="board-"] .view-content .flex,
+body[class*="board-"] .view-content .flex.justify-center.gap-2,
+body[class*="board-"] .view-content .search-form,
+body[class*="board-"] .view-content .board-card,
+body[class*="board-"] .view-content .article-row {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    padding: revert !important;
+    margin-bottom: revert !important;
+    border-radius: revert !important;
+}
+body[class*="board-"] .view-content .vote-section {
+    background: transparent !important;
+}
+body[class*="board-"] .view-content .post-content {
+    background: transparent !important;
+    color: #1a1a1a !important;
+}
+body[class*="board-"] .view-content textarea,
+body[class*="board-"] .view-content input {
+    background: #fff !important;
+}
 /* (네비 스타일은 하단 하모니 섹션으로 이동) */
 body[class*="board-"] .nr2-nav .nav-link {
     color: rgba(255,255,255,0.8);
