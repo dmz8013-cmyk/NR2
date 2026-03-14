@@ -369,7 +369,9 @@ body.board-right .board-hero { background: linear-gradient(135deg, #7B3F15 0%, #
 body.board-aesa .board-hero { background: linear-gradient(135deg, #0D1B2A 0%, #1A1A2E 100%) !important; }
 body.board-morpheus .board-hero { background: linear-gradient(135deg, #16213E 0%, #0D1B2A 100%) !important; }
 body.board-fakenews .board-hero { background: linear-gradient(135deg, #1A1A2E 0%, #A32D2D 100%) !important; }
-body.board-notice .board-hero { background: linear-gradient(135deg, #C87941 0%, #7B3F15 100%) !important; }
+body.board-notice .board-hero,
+body.board-notice [class*="from-red"],
+body.board-notice .bg-gradient-to-r { background: linear-gradient(135deg, rgba(193,18,31,0.7), rgba(26,26,46,0.8)) !important; }
 
 /* ── 푸터 강화 (게시판 배경 위) ──────────────── */
 body[class*="board-"] footer {
