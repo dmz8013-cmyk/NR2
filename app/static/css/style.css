@@ -676,3 +676,28 @@ body.page-main #mobile-nav-menu a {
 .pagination a:hover, .page-link:hover { background:rgba(200,121,65,0.2); border-color:#C87941; color:#C87941; }
 .pagination .active, .page-item.active .page-link { background:#C87941; border-color:#C87941; color:white; font-weight:700; }
 .pagination .disabled, .page-item.disabled .page-link { opacity:0.3; cursor:not-allowed; }
+
+/* ── 모바일 UI 통일성 ──────────────────────── */
+@media (max-width: 768px) {
+  /* 1. 게시글 본문 텍스트 세로 깨짐 수정 */
+  .post-content, .post-content * { word-break: keep-all !important; overflow-wrap: break-word !important; word-wrap: break-word !important; }
+  .post-content p { line-height: 1.9 !important; margin-bottom: 16px !important; }
+  .vote-btn { flex-direction: row !important; padding: 12px 16px !important; font-size: 14px !important; min-width: 120px !important; }
+  .vote-section { flex-direction: row !important; gap: 12px !important; justify-content: center !important; }
+  [class*="bias-btn"], [class*="vote-option"] { width: 100% !important; min-height: 56px !important; flex-direction: row !important; align-items: center !important; justify-content: center !important; gap: 8px !important; }
+  [class*="bias-btn"] span, [class*="vote-option"] span { writing-mode: horizontal-tb !important; text-orientation: mixed !important; }
+
+  /* 3. 게시판 view.html 통일성 */
+  .post-header { flex-wrap: wrap !important; gap: 8px !important; }
+  .post-meta { font-size: 12px !important; flex-wrap: wrap !important; }
+  .post-actions { display: flex !important; gap: 8px !important; margin-top: 8px !important; }
+  h1.post-title { font-size: 22px !important; line-height: 1.4 !important; word-break: keep-all !important; }
+
+  /* 4. 모바일 네비게이션 통일성 */
+  .nr2-nav { padding: 12px 16px !important; }
+  .nr2-nav .logo, .nr2-nav h1 { font-size: 22px !important; font-weight: 700 !important; }
+  .nr2-nav { display: flex !important; align-items: center !important; justify-content: space-between !important; }
+
+  /* 5. 브리핑/YouCheck 카드 모바일 통일성 */
+  .briefing-card, [class*="briefing"], [class*="news-card"] { border-radius: 12px !important; padding: 16px !important; margin-bottom: 12px !important; }
+}
