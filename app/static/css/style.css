@@ -287,3 +287,22 @@ input:focus, textarea:focus, select:focus {
 /* ── Subtle button hovers ──────────────────── */
 button:hover, [type="submit"]:hover { transform: translateY(-1px); }
 button:active, [type="submit"]:active { transform: translateY(0); }
+
+/* ── 게시판별 배경 이미지 ──────────────────── */
+body.board-free { background-image: url('/static/board_headers/free.jpg'); background-size: cover; background-attachment: fixed; background-position: center; }
+body.board-left { background-image: url('/static/board_headers/left.jpg'); background-size: cover; background-attachment: fixed; background-position: center; }
+body.board-right { background-image: url('/static/board_headers/right.jpg'); background-size: cover; background-attachment: fixed; background-position: center; }
+body.board-aesa { background-image: url('/static/board_headers/aesa.jpg'); background-size: cover; background-attachment: fixed; background-position: center; }
+body.board-fakenews { background-image: url('/static/board_headers/bias.jpg'); background-size: cover; background-attachment: fixed; background-position: center; }
+body.board-notice { background-image: url('/static/board_headers/notice.jpg'); background-size: cover; background-attachment: fixed; background-position: center; }
+body.board-morpheus { background-image: url('/static/board_headers/morpheus.jpg'); background-size: cover; background-attachment: fixed; background-position: center; }
+body.board-briefing { background-image: url('/static/board_headers/briefing.jpg'); background-size: cover; background-attachment: fixed; background-position: center; }
+body.board-calendar { background-image: url('/static/board_headers/calendar.jpg'); background-size: cover; background-attachment: fixed; background-position: center; }
+body[class*="board-"]::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 0;
+    pointer-events: none;
+}
