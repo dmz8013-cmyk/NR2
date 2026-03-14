@@ -480,9 +480,10 @@ body.page-main li, body.page-main div {
 }
 body.page-main .nr2-card, body.page-main .article-row,
 body.page-main .board-card, body.page-main .hot-item {
-    background: rgba(15,15,30,0.82) !important;
-    border: 1px solid rgba(200,121,65,0.25) !important;
-    border-radius: 8px !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.9) !important;
 }
 body.page-main .section-header, body.page-main .section-header-label {
     color: #ffffff !important;
