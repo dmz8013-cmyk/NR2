@@ -194,6 +194,21 @@
         </div>
     </nav>
 
+    <!-- Sponsor Marquee Banner -->
+    <div class="sponsor-marquee">
+        <div class="sponsor-marquee-inner">
+            <img src="{{ url_for('static', filename='images/sponsor_apple.jpg') }}" alt="Sponsor">
+            <img src="{{ url_for('static', filename='images/sponsor_apple.jpg') }}" alt="Sponsor">
+            <img src="{{ url_for('static', filename='images/sponsor_apple.jpg') }}" alt="Sponsor">
+            <img src="{{ url_for('static', filename='images/sponsor_apple.jpg') }}" alt="Sponsor">
+            <!-- duplicate for seamless loop -->
+            <img src="{{ url_for('static', filename='images/sponsor_apple.jpg') }}" alt="Sponsor">
+            <img src="{{ url_for('static', filename='images/sponsor_apple.jpg') }}" alt="Sponsor">
+            <img src="{{ url_for('static', filename='images/sponsor_apple.jpg') }}" alt="Sponsor">
+            <img src="{{ url_for('static', filename='images/sponsor_apple.jpg') }}" alt="Sponsor">
+        </div>
+    </div>
+
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}

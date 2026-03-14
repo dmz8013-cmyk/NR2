@@ -2,7 +2,8 @@
 YouTube Data API v3를 사용하여 @NR2AESA 채널의 새 영상을
 AESA 게시판에 자동 게시하는 잡 모듈
 
-4월말 배포 예정 — 현재 비활성화 상태
+[영구 비활성화] AESA 게시판 이준석 관련 중복 글 문제로 영구 비활성화.
+scheduler_worker.py에서도 비활성화됨. 절대 재활성화 금지.
 환경변수:
   YOUTUBE_API_KEY      — YouTube Data API v3 키 (Railway Variables에서 설정)
   YOUTUBE_CHANNEL_ID   — 대상 채널 ID
