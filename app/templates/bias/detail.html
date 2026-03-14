@@ -29,12 +29,24 @@
     <p class="text-gray-600 text-sm mb-4 leading-relaxed">{{ article.summary }}</p>
     {% endif %}
 
-    <div class="flex items-center gap-3 mb-6">
+    <div class="flex items-center gap-3 mb-4">
       <a href="{{ article.url }}" target="_blank" rel="noopener" class="text-sm text-blue-600 hover:underline">🔗 원문 보기 →</a>
       {% if article.cluster_id %}
       <a href="{{ url_for('bias.cluster_detail', cluster_id=article.cluster_id) }}" class="text-xs font-bold px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition">📰 {{ article.cluster.article_count }}개 언론사 비교 →</a>
       {% endif %}
     </div>
+
+    {# --- 기사 본문 미리보기 --- #}
+    <details id="article-preview" style="margin:0 0 24px 0;padding:12px;background:rgba(255,255,255,0.05);border-left:3px solid #C87941;border-radius:4px;">
+      <summary onclick="loadPreview()" style="cursor:pointer;font-weight:600;color:#C87941;">📄 기사 미리보기 ▼</summary>
+      <div id="preview-content" style="margin-top:8px;line-height:1.8;color:#333;">
+        {% if article.scraped_content %}
+          {{ article.scraped_content[:300] }}{% if article.scraped_content|length > 300 %}...{% endif %}
+        {% else %}
+          <span class="text-gray-400 text-sm">로딩 중...</span>
+        {% endif %}
+      </div>
+    </details>
 
     {# --- AI 분석 결과 --- #}
     {% if article.article_political is not none %}
@@ -162,4 +174,30 @@
     {% endif %}
   </div>
 </div>
+
+<script>
+let previewLoaded = false;
+function loadPreview() {
+  if (previewLoaded) return;
+  {% if article.scraped_content %}
+    previewLoaded = true;
+    return;
+  {% endif %}
+  fetch("{{ url_for('bias.article_preview', article_id=article.id) }}")
+    .then(r => r.json())
+    .then(data => {
+      previewLoaded = true;
+      const el = document.getElementById('preview-content');
+      if (data.ok) {
+        const text = data.content.length > 300 ? data.content.substring(0, 300) + '...' : data.content;
+        el.innerHTML = '<p style="margin:0;line-height:1.8;color:#333;">' + text.replace(/\n/g, '<br>') + '</p>';
+      } else {
+        el.innerHTML = '<span style="color:#999;">본문을 불러올 수 없습니다: ' + (data.error || '') + '</span>';
+      }
+    })
+    .catch(() => {
+      document.getElementById('preview-content').innerHTML = '<span style="color:#999;">네트워크 오류</span>';
+    });
+}
+</script>
 {% endblock %}

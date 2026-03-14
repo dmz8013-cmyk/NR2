@@ -69,6 +69,7 @@ class NewsArticle(db.Model):
     article_geopolitical = db.Column(db.Float, nullable=True)  # AI 기사 지정학축 -100~100
     article_economic = db.Column(db.Float, nullable=True)      # AI 기사 경제축 -100~100
     ai_summary = db.Column(db.Text, nullable=True)             # AI 분석 요약
+    scraped_content = db.Column(db.Text, nullable=True)        # 스크래핑된 기사 본문 (캐시)
 
     cluster_id = db.Column(db.Integer, db.ForeignKey('article_clusters.id'), nullable=True)
 

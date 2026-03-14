@@ -125,6 +125,15 @@ def create_app(config_name='default'):
             except Exception:
                 db.session.rollback()
 
+        # news_articles 테이블에 scraped_content 컬럼 추가
+        try:
+            db.session.execute(db.text(
+                "ALTER TABLE news_articles ADD COLUMN scraped_content TEXT"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
         # [1회성] AESA 게시판 이준석 관련 자동 게시글 삭제
         try:
             from app.models import Post

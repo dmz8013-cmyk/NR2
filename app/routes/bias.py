@@ -324,7 +324,17 @@ def _sanitize_text(text):
     """JSON 직렬화가 불가능한 문자(서로게이트 등) 제거"""
     if not text:
         return ''
-    return text.encode('utf-8', errors='ignore').decode('utf-8')
+    import re
+    # 1) 서로게이트 쌍 제거 (surrogatepass로 인코딩 후 무효 바이트 무시)
+    try:
+        text = text.encode('utf-8', errors='surrogatepass').decode('utf-8', errors='ignore')
+    except Exception:
+        text = text.encode('ascii', errors='ignore').decode('ascii')
+    # 2) 남은 서로게이트 코드포인트 제거 (U+D800~U+DFFF)
+    text = re.sub(r'[\ud800-\udfff]', '', text)
+    # 3) 널 바이트 및 제어 문자 제거 (탭/줄바꿈 제외)
+    text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', text)
+    return text
 
 
 def _analyze_with_ai(title, body_text, source=''):
@@ -358,8 +368,8 @@ def _analyze_with_ai(title, body_text, source=''):
         "max_tokens": 500,
         "messages": [{"role": "user", "content": prompt}],
     }
-    # json.dumps 기본값 ensure_ascii=True → 한글이 \uXXXX 이스케이프 → 순수 ASCII
-    data = json.dumps(payload).encode('utf-8')
+    # ensure_ascii=False → 한글을 그대로 UTF-8 출력 (서로게이트 이미 제거됨)
+    data = json.dumps(payload, ensure_ascii=False).encode('utf-8')
 
     req = urllib.request.Request(
         "https://api.anthropic.com/v1/messages",
@@ -425,12 +435,13 @@ def analyze(article_id):
         flash(f'AI 분석 실패: {type(e).__name__}', 'error')
         return redirect(url_for('bias.detail', article_id=article_id))
 
-    # 3단계: DB 저장
+    # 3단계: DB 저장 (스크래핑 본문도 함께 저장)
     try:
         article.article_political = result['political']
         article.article_geopolitical = result['geopolitical']
         article.article_economic = result['economic']
         article.ai_summary = result.get('summary', '')
+        article.scraped_content = body_text[:3000] if body_text else None
         db.session.commit()
         flash('AI 편향 분석이 완료되었습니다.', 'success')
     except Exception as e:
@@ -473,6 +484,31 @@ def send_report():
         flash(f'전송 실패: {result["message"]}', 'error')
 
     return redirect(url_for('bias.weekly_report'))
+
+
+# --- 기사 본문 미리보기 ---
+
+@bp.route('/<int:article_id>/preview')
+def article_preview(article_id):
+    """기사 본문 스크래핑 후 미리보기 반환 (캐시됨)"""
+    article = NewsArticle.query.get_or_404(article_id)
+
+    # 이미 캐시된 본문이 있으면 바로 반환
+    if article.scraped_content:
+        return jsonify({'ok': True, 'content': article.scraped_content[:3000]})
+
+    # 없으면 스크래핑 시도
+    try:
+        body_text = _scrape_article(article.url)
+        if body_text and len(body_text) >= 30:
+            article.scraped_content = body_text[:3000]
+            db.session.commit()
+            return jsonify({'ok': True, 'content': body_text[:3000]})
+        else:
+            return jsonify({'ok': False, 'error': '본문을 추출할 수 없습니다.'})
+    except Exception as e:
+        current_app.logger.error(f'[PREVIEW SCRAPE ERROR] {traceback.format_exc()}')
+        return jsonify({'ok': False, 'error': f'스크래핑 실패: {type(e).__name__}'})
 
 
 # --- 클릭 트래킹 & 나의 편향 리포트 ---
