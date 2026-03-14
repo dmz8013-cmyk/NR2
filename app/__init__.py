@@ -100,9 +100,18 @@ def create_app(config_name='default'):
     from app.tracking import init_tracking
     init_tracking(app)
 
-    # DB 테이블 자동 생성
+    # DB 테이블 자동 생성 + 마이그레이션 보완
     with app.app_context():
         db.create_all()
+        # youtube_video_id 컬럼이 없으면 추가 (db.create_all은 기존 테이블에 컬럼 추가 불가)
+        try:
+            db.session.execute(db.text(
+                "ALTER TABLE posts ADD COLUMN youtube_video_id VARCHAR(20)"
+            ))
+            db.session.commit()
+            app.logger.info('posts.youtube_video_id 컬럼 추가 완료')
+        except Exception:
+            db.session.rollback()
 
     # Security headers
     @app.after_request
