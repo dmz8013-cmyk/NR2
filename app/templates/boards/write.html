@@ -266,6 +266,25 @@ var quill = new Quill('#quill-editor', {
     }
 });
 
+// ── Ctrl+A / Cmd+A 전체선택 보장 ──
+quill.keyboard.addBinding({
+    key: 'A',
+    shortKey: true
+}, function(range, context) {
+    quill.setSelection(0, quill.getLength());
+    return false;
+});
+
+// 제목 input에서도 Ctrl+A 보장
+document.querySelectorAll('input[type="text"], textarea').forEach(function(el) {
+    el.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+            e.stopPropagation();
+            this.select();
+        }
+    });
+});
+
 // ── 한국어 툴팁 설정 ──
 (function() {
     var toolbar = document.querySelector('.ql-toolbar');
