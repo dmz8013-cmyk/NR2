@@ -29,11 +29,12 @@ from scripts.daily_scrap import run as daily_scrap_run
 scheduler = BlockingScheduler(timezone='Asia/Seoul')
 INTERVAL_MINUTES = int(os.environ.get('YOUTUBE_CHECK_INTERVAL', 10))
 
-@scheduler.scheduled_job('interval', minutes=INTERVAL_MINUTES, id='youtube_feed_check',
-                          coalesce=True, max_instances=1)
-def job():
-    logger.info('[Scheduler] 유튜브 RSS 피드 확인 중...')
-    check_and_post_new_videos(app)
+# [비활성화] AESA 게시판에 이준석 관련 등 중복 글 자동생성 문제로 비활성화
+# @scheduler.scheduled_job('interval', minutes=INTERVAL_MINUTES, id='youtube_feed_check',
+#                           coalesce=True, max_instances=1)
+# def job():
+#     logger.info('[Scheduler] 유튜브 RSS 피드 확인 중...')
+#     check_and_post_new_videos(app)
 
 @scheduler.scheduled_job('interval', minutes=10, id='news_bot',
                           coalesce=True, max_instances=1)
@@ -105,6 +106,6 @@ def daily_scrap_afternoon():
 #     check_and_post_new_videos_api(app)
 
 if __name__ == '__main__':
-    logger.info(f'[Scheduler] 시작 — {INTERVAL_MINUTES}분마다 유튜브 RSS 피드 확인')
-    check_and_post_new_videos(app)
+    logger.info('[Scheduler] 시작')
+    # check_and_post_new_videos(app)  # 비활성화: AESA 중복 글 문제
     scheduler.start()
