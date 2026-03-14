@@ -596,3 +596,9 @@ body.page-main button {
         background: rgba(5,5,20,0.85) !important;
     }
 }
+/* 커뮤니티 링크 호버 */
+body.page-main .community-link:hover {
+    border-color: #C87941 !important;
+    background: rgba(200,121,65,0.1) !important;
+    transform: translateY(-2px) !important;
+}
