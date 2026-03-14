@@ -55,7 +55,7 @@
                         {% endif %}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {{ news.created_at|kst('%Y-%m-%d %H:%M') }}
+                        {{ news.created_at|kst }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <a href="{{ url_for('news.detail', news_id=news.id) }}"
