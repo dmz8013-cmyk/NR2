@@ -469,21 +469,9 @@ function shareKakao() {
             buttons: [{ title: '게시글 보기', link: { mobileWebUrl: window.location.href, webUrl: window.location.href } }]
         });
     } else {
-        // Kakao SDK 미초기화 fallback: 카카오톡 앱 스킴 시도
-        var kakaoUrl = 'kakaolink://send?appkey={{ config.get("KAKAO_JS_KEY", "") }}&template_id=0&template_args=url=' + encodeURIComponent(window.location.href);
-        var opened = false;
-        var iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = kakaoUrl;
-        document.body.appendChild(iframe);
-        setTimeout(function() {
-            document.body.removeChild(iframe);
-            if (!opened) {
-                // 카카오톡 미설치 또는 스킴 실패 → 링크 복사 fallback
-                copyLink();
-                alert('카카오톡 공유를 사용할 수 없어 링크를 복사했습니다.');
-            }
-        }, 1500);
+        // Kakao SDK 미초기화 fallback → 링크 복사
+        copyLink();
+        alert('카카오톡 공유를 사용할 수 없어 링크를 복사했습니다.');
     }
 }
 
