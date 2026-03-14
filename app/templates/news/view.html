@@ -46,7 +46,7 @@
                 </span>
                 {% if news.created_at != news.updated_at %}
                 <span class="text-xs text-gray-400">
-                    (수정: {{ news.updated_at|kst('%Y-%m-%d %H:%M') }})
+                    (수정: {{ news.updated_at|kst }})
                 </span>
                 {% endif %}
             </div>
