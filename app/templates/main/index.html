@@ -335,9 +335,6 @@
           <a href="/briefings/{{ b.id }}" class="block bg-[rgba(10,10,25,0.6)] p-5 group hover:shadow-sm transition">
             <span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-sm mb-3 text-white" style="background:#f472b6;">AI 브리핑</span>
             <p class="font-serif-kr font-medium text-[16px] text-white line-clamp-2 group-hover:text-[#C1121F] transition mb-2">{{ b.title[:60] }}</p>
-            {% if b.content %}
-            <p class="text-[12px] text-[rgba(255,255,255,0.7)] line-clamp-1 mb-2">{{ b.content[:80] }}</p>
-            {% endif %}
             <span class="text-[10px] text-[#bbb]">{{ b.created_at|kst_short }}</span>
           </a>
           {% endfor %}
