@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}NR2 Network{% endblock %}</title>
-    <meta name="description" content="정치·시사·AI·코인 정보가 흐르고, 사람이 연결되는 곳 - NR2 Network 누렁이방">
+    <meta name="description" content="{% block meta_desc %}정보가 흐르고, 사람이 연결되는 곳{% endblock %}">
     <!-- Open Graph -->
-    <meta property="og:title" content="{% block og_title %}NR2 Network - 누렁이방{% endblock %}">
-    <meta property="og:description" content="{% block og_desc %}정치·시사·AI·코인 정보가 흐르고, 사람이 연결되는 곳{% endblock %}">
+    <meta property="og:title" content="{% block og_title %}NR2 Network: 친구들과 뛰어노는 누렁{% endblock %}">
+    <meta property="og:description" content="{% block og_desc %}정보가 흐르고, 사람이 연결되는 곳{% endblock %}">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://nr2.kr{{ request.path }}">
     <meta property="og:site_name" content="NR2 Network">
@@ -22,9 +22,9 @@
     <meta name="google-site-verification" content="pyoCzwK_kVRachWDhCEzV3MxCfCfSJIuXAbhEIPy44k">
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="{% block tw_title %}NR2 Network - 누렁이방{% endblock %}">
-    <meta name="twitter:description" content="{% block tw_desc %}정치·시사·AI·코인 정보가 흐르고, 사람이 연결되는 곳{% endblock %}">
-    <meta name="twitter:image" content="https://nr2.kr/static/images/nureongi.jpg">
+    <meta name="twitter:title" content="{% block tw_title %}NR2 Network: 친구들과 뛰어노는 누렁{% endblock %}">
+    <meta name="twitter:description" content="{% block tw_desc %}정보가 흐르고, 사람이 연결되는 곳{% endblock %}">
+    <meta name="twitter:image" content="{% block tw_image %}https://nr2.kr/static/images/nureongi.jpg{% endblock %}"
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
