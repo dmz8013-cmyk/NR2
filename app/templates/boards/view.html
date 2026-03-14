@@ -65,23 +65,14 @@
 
                     <!-- 작성자 액션 버튼 -->
                     {% if current_user.is_authenticated and (current_user.id == post.user_id or current_user.is_admin) %}
-                    <div class="flex space-x-2 text-[13px]" style="position:relative;z-index:10;">
+                    <div class="flex items-center space-x-2" style="position:relative;z-index:10;">
                         <a href="{{ url_for('boards.edit', board_type=post.board_type, post_id=post.id) }}"
-                           style="background:transparent;border:1px solid #888;border-radius:6px;padding:6px 16px;color:#555;text-decoration:none;font-weight:500;transition:all 0.15s;"
-                           onmouseover="this.style.borderColor='#1a1a1a';this.style.color='#1a1a1a'"
-                           onmouseout="this.style.borderColor='#888';this.style.color='#555'">
+                           style="background:transparent;border:1px solid #888;border-radius:6px;padding:6px 16px;color:#555;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;">
                             수정
                         </a>
-                        <form method="POST" action="{{ url_for('boards.delete', board_type=post.board_type, post_id=post.id) }}"
-                              onsubmit="return confirm('정말 삭제하시겠습니까?');"
-                              style="display:inline;margin:0;">
+                        <form method="POST" action="/boards/{{ post.board_type }}/{{ post.id }}/delete" style="display:inline;margin:0;" onsubmit="return confirm('정말 삭제하시겠습니까?');">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit"
-                                    style="background:#C1121F;color:white;border:none;border-radius:6px;padding:6px 16px;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;"
-                                    onmouseover="this.style.background='#8b0d16'"
-                                    onmouseout="this.style.background='#C1121F'">
-                                삭제
-                            </button>
+                            <button type="submit" style="background:#C1121F;color:white;border:none;border-radius:6px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;">삭제</button>
                         </form>
                     </div>
                     {% endif %}
