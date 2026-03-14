@@ -459,8 +459,17 @@ function copyLink() {
 function shareKakao() {
     var shareUrl = 'https://nr2.kr{{ url_for("boards.view", board_type=post.board_type, post_id=post.id) }}';
     if (typeof Kakao !== 'undefined' && Kakao.isInitialized()) {
-        Kakao.Share.sendScrap({
-            requestUrl: shareUrl
+        Kakao.Share.sendDefault({
+            objectType: 'feed',
+            content: {
+                title: '{{ post.title|e }}',
+                description: '{{ post.content|striptags|truncate(50)|e }}',
+                imageUrl: 'https://nr2.kr/static/images/nureongi.jpg',
+                link: { webUrl: shareUrl, mobileWebUrl: shareUrl }
+            },
+            buttons: [
+                { title: '웹으로 보기', link: { webUrl: shareUrl, mobileWebUrl: shareUrl } }
+            ]
         });
     } else {
         copyLink();
