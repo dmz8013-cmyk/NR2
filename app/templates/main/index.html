@@ -56,6 +56,31 @@
   height: 6px; border-radius: 3px; min-width: 4px;
   transition: width 0.4s ease;
 }
+
+/* ── Marquee ───────────────────────────────── */
+@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+.marquee-track {
+  animation: marquee 30s linear infinite;
+  width: max-content;
+}
+.marquee-track:hover { animation-play-state: paused; }
+.marquee-logo {
+  padding: 0 32px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #999;
+  white-space: nowrap;
+  transition: color 0.2s;
+  cursor: default;
+}
+.marquee-logo:hover { color: #333; }
+.marquee-edit {
+  margin-left: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0.5;
+}
+.marquee-edit:hover { opacity: 1; }
 </style>
 {% endblock %}
 
@@ -109,6 +134,27 @@
       </div>
     </div>
   </section>
+
+  {# ═══════════════════════════════════════════
+     PARTNERS — 로고 마퀴
+     ═══════════════════════════════════════════ #}
+  <div class="border-y border-[#eee]" style="background:#f8f8f8; height:56px; overflow:hidden;">
+    <div class="max-w-[1200px] mx-auto px-4 sm:px-6 h-full flex items-center">
+      <span class="flex-shrink-0 text-[10px] font-bold text-[#bbb] tracking-[2px] uppercase mr-6">PARTNERS</span>
+      <div class="flex-1 overflow-hidden relative">
+        <div class="marquee-track flex items-center">
+          {% for _ in range(2) %}
+          <span class="marquee-logo">누렁이 정보방{% if current_user.is_authenticated and current_user.is_admin %}<span class="marquee-edit">✏️</span>{% endif %}</span>
+          <span class="marquee-logo">NR2 AESA{% if current_user.is_authenticated and current_user.is_admin %}<span class="marquee-edit">✏️</span>{% endif %}</span>
+          <span class="marquee-logo">SOB Production{% if current_user.is_authenticated and current_user.is_admin %}<span class="marquee-edit">✏️</span>{% endif %}</span>
+          <span class="marquee-logo" style="color:#bbb; font-style:italic;">ADVERTISE HERE</span>
+          <span class="marquee-logo">PARTNER 1{% if current_user.is_authenticated and current_user.is_admin %}<span class="marquee-edit">✏️</span>{% endif %}</span>
+          <span class="marquee-logo">PARTNER 2{% if current_user.is_authenticated and current_user.is_admin %}<span class="marquee-edit">✏️</span>{% endif %}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
 
   {# ═══════════════════════════════════════════
      ② 커뮤니티 인기글 (자유+LEFT+RIGHT 통합 Top 10)
