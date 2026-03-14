@@ -29,7 +29,7 @@ def fetch_recent_videos(published_after=None):
         return []
 
     if published_after is None:
-        published_after = (datetime.utcnow() - timedelta(hours=2)).isoformat() + 'Z'
+        published_after = (datetime.now() - timedelta(hours=2)).isoformat() + 'Z'
 
     params = {
         'key': YOUTUBE_API_KEY,

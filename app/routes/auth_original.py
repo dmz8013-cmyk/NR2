@@ -249,7 +249,7 @@ def quick_register():
         user.set_password(password)
         
         if from_nureongi:
-            user.premium_until = datetime.utcnow() + timedelta(days=90)
+            user.premium_until = datetime.now() + timedelta(days=90)
 
         db.session.add(user)
         db.session.commit()

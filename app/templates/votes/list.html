@@ -40,7 +40,7 @@
 
                     <div class="flex items-center text-sm text-gray-500 space-x-4">
                         <span>{{ vote.creator.nickname }}</span>
-                        <span>{{ vote.created_at.strftime('%Y-%m-%d') }}</span>
+                        <span>{{ vote.created_at|kst('%Y-%m-%d') }}</span>
                         <span class="flex items-center">
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
@@ -51,7 +51,7 @@
                         <span class="text-blue-600">복수선택</span>
                         {% endif %}
                         {% if vote.end_date %}
-                        <span>~ {{ vote.end_date.strftime('%Y-%m-%d') }}</span>
+                        <span>~ {{ vote.end_date|kst('%Y-%m-%d') }}</span>
                         {% endif %}
                     </div>
                 </a>

@@ -15,7 +15,7 @@ def generate_weekly_report():
     from app.models.bias import NewsArticle, ArticleCluster
     from app import db
 
-    cutoff = datetime.utcnow() - timedelta(days=7)
+    cutoff = datetime.now() - timedelta(days=7)
 
     # --- 1. 클러스터 크기 TOP 3 ---
     articles = NewsArticle.query.filter(
@@ -81,7 +81,7 @@ def generate_weekly_report():
                     }
 
     # --- 텔레그램 메시지 포맷 ---
-    now = datetime.utcnow()
+    now = datetime.now()
     week_start = (now - timedelta(days=7)).strftime('%m/%d')
     week_end = now.strftime('%m/%d')
 

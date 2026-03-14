@@ -184,7 +184,7 @@
 
               <div class="flex-1 min-w-0">
                 <p class="font-serif-kr font-medium text-[16px] text-[#1a1a1a] truncate group-hover:text-[#C1121F] transition">{{ post.title }}</p>
-                <p class="text-[11px] text-[#999] mt-0.5">{{ post.author.nickname if post.author else '익명' }} · {{ post.created_at.strftime('%m/%d %H:%M') }} · 조회 {{ post.views or 0 }}</p>
+                <p class="text-[11px] text-[#999] mt-0.5">{{ post.author.nickname if post.author else '익명' }} · {{ post.created_at|kst('%m/%d %H:%M') }} · 조회 {{ post.views or 0 }}</p>
               </div>
             </a>
             {% endfor %}
@@ -336,7 +336,7 @@
             {% if b.content %}
             <p class="text-[12px] text-[#999] line-clamp-1 mb-2">{{ b.content[:80] }}</p>
             {% endif %}
-            <span class="text-[10px] text-[#bbb]">{{ b.created_at.strftime("%m/%d %H:%M") }}</span>
+            <span class="text-[10px] text-[#bbb]">{{ b.created_at|kst("%m/%d %H:%M") }}</span>
           </a>
           {% endfor %}
           {% for post in aesa_posts[:2] %}
@@ -344,7 +344,7 @@
             <span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-sm mb-3 text-white" style="background:#60a5fa;">AESA</span>
             <p class="font-serif-kr font-medium text-[16px] text-[#1a1a1a] line-clamp-2 group-hover:text-[#C1121F] transition mb-2">{{ post.title }}</p>
             <p class="text-[12px] text-[#999] mb-2">{{ post.author.nickname if post.author else '익명' }}</p>
-            <span class="text-[10px] text-[#bbb]">{{ post.created_at.strftime("%m/%d %H:%M") }}</span>
+            <span class="text-[10px] text-[#bbb]">{{ post.created_at|kst("%m/%d %H:%M") }}</span>
           </a>
           {% endfor %}
           {% if not latest_briefings and not aesa_posts %}

@@ -12,8 +12,8 @@ class BreakingNews(db.Model):
     source = db.Column(db.String(100))  # 출처
     priority = db.Column(db.Integer, default=0)  # 우선순위 (높을수록 상단)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     # 작성자
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)

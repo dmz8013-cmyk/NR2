@@ -98,7 +98,7 @@
                             <p class="font-bold text-green-800">인증 완료</p>
                             <p class="text-sm text-green-600">
                                 {{ current_user.verify_badge }} · {{ current_user.verify_tier }} 등급
-                                · {{ current_user.verified_at.strftime('%Y.%m.%d') }} 인증
+                                · {{ current_user.verified_at|kst('%Y.%m.%d') }} 인증
                             </p>
                         </div>
                     </div>
@@ -160,7 +160,7 @@
                         <div>
                             <p class="text-sm font-medium text-gray-500">가입일</p>
                             <p class="text-base text-gray-900">
-                                {{ current_user.created_at.strftime('%Y년 %m월 %d일') }}
+                                {{ current_user.created_at|kst('%Y년 %m월 %d일') }}
                             </p>
                         </div>
                     </div>

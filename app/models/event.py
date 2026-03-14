@@ -11,7 +11,7 @@ class Event(db.Model):
     end_date = db.Column(db.DateTime, nullable=True)
     all_day = db.Column(db.Boolean, default=False)
     color = db.Column(db.String(7), default='#3B82F6')  # Hex color code
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
     # Foreign Keys
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)

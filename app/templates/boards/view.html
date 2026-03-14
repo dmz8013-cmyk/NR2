@@ -57,7 +57,7 @@
                         <div class="text-[13px]">
                             <span class="font-medium text-[#1a1a1a]">{{ post.author.nickname }}</span>
                             <span class="text-[#bbb] mx-1">&middot;</span>
-                            <span class="text-[#767676]">{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                            <span class="text-[#767676]">{{ post.created_at|kst('%Y-%m-%d %H:%M') }}</span>
                             <span class="text-[#bbb] mx-1">&middot;</span>
                             <span class="text-[#767676]">조회 {{ post.views }}</span>
                         </div>
@@ -182,7 +182,7 @@
                                  class="w-7 h-7 rounded-full object-cover">
                             <div>
                                 <span class="font-medium text-[#1a1a1a] text-[13px]">{{ comment.author.nickname }}</span>
-                                <span class="text-[11px] text-[#bbb] ml-2">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                <span class="text-[11px] text-[#bbb] ml-2">{{ comment.created_at|kst('%Y-%m-%d %H:%M') }}</span>
                                 {% if comment.created_at != comment.updated_at %}
                                 <span class="text-[10px] text-[#bbb] ml-1">(수정됨)</span>
                                 {% endif %}
@@ -262,7 +262,7 @@
                                          class="w-6 h-6 rounded-full object-cover">
                                     <div>
                                         <span class="font-medium text-[#1a1a1a] text-[13px]">{{ reply.author.nickname }}</span>
-                                        <span class="text-[11px] text-[#bbb] ml-2">{{ reply.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                                        <span class="text-[11px] text-[#bbb] ml-2">{{ reply.created_at|kst('%Y-%m-%d %H:%M') }}</span>
                                         {% if reply.created_at != reply.updated_at %}
                                         <span class="text-[10px] text-[#bbb] ml-1">(수정됨)</span>
                                         {% endif %}

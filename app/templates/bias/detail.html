@@ -20,7 +20,7 @@
       {% if article.source %}
       <span class="text-xs font-semibold px-2 py-1 rounded bg-gray-100 text-gray-600">{{ article.source }}</span>
       {% endif %}
-      <span class="text-xs text-gray-400">{{ article.created_at.strftime('%Y.%m.%d %H:%M') }}</span>
+      <span class="text-xs text-gray-400">{{ article.created_at|kst('%Y.%m.%d %H:%M') }}</span>
     </div>
 
     <h1 class="text-2xl font-black text-gray-900 mb-3">{{ article.title }}</h1>

@@ -37,7 +37,7 @@ class ArticleCluster(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(300), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
     articles = db.relationship('NewsArticle', backref='cluster', lazy='dynamic')
 
@@ -84,7 +84,7 @@ class NewsArticle(db.Model):
     vote_total = db.Column(db.Integer, default=0)
     confidence = db.Column(db.Float, default=0.0)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
     submitted_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
     votes = db.relationship('BiasVote', backref='article', lazy='dynamic', cascade='all, delete-orphan')
@@ -139,7 +139,7 @@ class BiasVote(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     bias = db.Column(db.String(10), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     article_id = db.Column(db.Integer, db.ForeignKey('news_articles.id'), nullable=False)
@@ -153,6 +153,6 @@ class BoneTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     amount = db.Column(db.Float, nullable=False)
     reason = db.Column(db.String(100), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)

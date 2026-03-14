@@ -10,7 +10,7 @@ class BiasMetric(db.Model):
     left_count = db.Column(db.Integer, default=0)
     right_count = db.Column(db.Integer, default=0)
     bias_ratio = db.Column(db.Float, default=0.0)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    timestamp = db.Column(db.DateTime, default=datetime.now, index=True)
     
     def __repr__(self):
         return f'<BiasMetric {self.keyword}: L{self.left_count} R{self.right_count}>'

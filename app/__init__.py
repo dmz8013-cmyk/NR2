@@ -1,6 +1,8 @@
 import os
+os.environ.setdefault('TZ', 'Asia/Seoul')
 import logging
 from logging.handlers import RotatingFileHandler
+from datetime import timezone, timedelta
 from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
@@ -92,6 +94,16 @@ def create_app(config_name='default'):
 
     from app.routes import briefings
     app.register_blueprint(briefings.bp)
+
+    # KST 시간대 Jinja2 필터
+    KST = timedelta(hours=9)
+    def format_kst(dt, fmt='%Y-%m-%d %H:%M'):
+        if not dt:
+            return ''
+        if hasattr(dt, 'tzinfo') and dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc) + KST
+        return dt.strftime(fmt)
+    app.jinja_env.filters['kst'] = format_kst
 
     # Import models for Flask-Migrate
     from app import models

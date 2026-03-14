@@ -32,7 +32,18 @@
       "Bash(/Users/smpark/Desktop/NR2/venv/bin/python:*)",
       "Bash(./venv/bin/python:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(FLASK_APP=run.py python3 -m flask db migrate -m \"add post votes table\")",
+      "Bash(cp \"/Users/smpark/Downloads/1. 공지\\(2\\).jpg\" app/static/board_headers/notice.jpg)",
+      "Bash(cp \"/Users/smpark/Downloads/2. 자유게시판.jpg\" app/static/board_headers/free.jpg)",
+      "Bash(cp \"/Users/smpark/Downloads/3. left.jpg\" app/static/board_headers/left.jpg)",
+      "Bash(cp \"/Users/smpark/Downloads/4. right.jpg\" app/static/board_headers/right.jpg)",
+      "Bash(cp \"/Users/smpark/Downloads/5. 팩첵.jpg\" app/static/board_headers/bias.jpg)",
+      "Bash(cp \"/Users/smpark/Downloads/6. AESA.jpg\" app/static/board_headers/aesa.jpg)",
+      "Bash(cp \"/Users/smpark/Downloads/7. 모피어스.jpg\" app/static/board_headers/morpheus.jpg)",
+      "Bash(cp \"/Users/smpark/Downloads/8. 브리핑.jpg\" app/static/board_headers/briefing.jpg)",
+      "Bash(cp \"/Users/smpark/Downloads/9. 캘린더.jpg\" app/static/board_headers/calendar.jpg)",
+      "Bash(find app/models -name \"*.py\" -exec sed -i '' 's/datetime\\\\.utcnow/datetime.now/g' {} +)"
     ]
   }
 }

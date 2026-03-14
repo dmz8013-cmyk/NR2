@@ -11,8 +11,8 @@ class Post(db.Model):
     youtube_url = db.Column(db.String(500), nullable=True)
     youtube_video_id = db.Column(db.String(20), nullable=True, unique=True, index=True)
     views = db.Column(db.Integer, default=0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     # Foreign Keys
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -48,7 +48,7 @@ class PostImage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(255), nullable=False)
     order = db.Column(db.Integer, default=0)  # 이미지 순서
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
     # Foreign Keys
     post_id = db.Column(db.Integer, db.ForeignKey('posts.id'), nullable=False)
