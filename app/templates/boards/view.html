@@ -70,7 +70,7 @@
 
                     <!-- 작성자 액션 버튼 -->
                     {% if current_user.is_authenticated and (current_user.id == post.user_id or current_user.is_admin or current_user.is_vice_admin) %}
-                    <div class="flex items-center space-x-2" style="position:relative;z-index:10;">
+                    <div class="flex items-center space-x-2" style="position:relative;z-index:10;display:flex;flex-direction:row;gap:8px;align-items:center;flex-wrap:nowrap;">
                         <a href="{{ url_for('boards.edit', board_type=post.board_type, post_id=post.id) }}"
                            style="background:transparent;border:1px solid #888;border-radius:6px;padding:6px 16px;color:#555;text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;">
                             수정

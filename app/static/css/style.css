@@ -677,6 +677,14 @@ body.page-main #mobile-nav-menu a {
 .pagination .active, .page-item.active .page-link { background:#C87941; border-color:#C87941; color:white; font-weight:700; }
 .pagination .disabled, .page-item.disabled .page-link { opacity:0.3; cursor:not-allowed; }
 
+/* ── 버튼 가로 정렬 (수정/삭제 등) ──────────── */
+.post-actions, [class*="post-action"], [class*="btn-group"] { display: flex !important; flex-direction: row !important; gap: 8px !important; align-items: center !important; flex-wrap: nowrap !important; }
+.post-actions a, .post-actions button, .post-actions form { flex-shrink: 0 !important; white-space: nowrap !important; }
+
+/* ── 글쓰기/수정 에디터 배경 통일 ──────────── */
+.write-container, [class*="write-form"], [class*="editor-container"] { background: var(--color-bg) !important; border: 1px solid var(--color-border) !important; border-radius: 12px !important; }
+.ql-container, .ql-editor { background: #ffffff !important; }
+
 /* ── 모바일 UI 통일성 ──────────────────────── */
 @media (max-width: 768px) {
   /* 1. 게시글 본문 텍스트 세로 깨짐 수정 */
@@ -687,10 +695,14 @@ body.page-main #mobile-nav-menu a {
   [class*="bias-btn"], [class*="vote-option"] { width: 100% !important; min-height: 56px !important; flex-direction: row !important; align-items: center !important; justify-content: center !important; gap: 8px !important; }
   [class*="bias-btn"] span, [class*="vote-option"] span { writing-mode: horizontal-tb !important; text-orientation: mixed !important; }
 
+  /* 수정/삭제 버튼 가로 정렬 */
+  .post-meta-row { display: flex !important; flex-wrap: wrap !important; align-items: center !important; gap: 8px !important; }
+  .post-actions { margin-left: auto !important; display: flex !important; flex-direction: row !important; gap: 6px !important; }
+  .post-actions button, .post-actions a { padding: 6px 12px !important; font-size: 13px !important; white-space: nowrap !important; }
+
   /* 3. 게시판 view.html 통일성 */
   .post-header { flex-wrap: wrap !important; gap: 8px !important; }
   .post-meta { font-size: 12px !important; flex-wrap: wrap !important; }
-  .post-actions { display: flex !important; gap: 8px !important; margin-top: 8px !important; }
   h1.post-title { font-size: 22px !important; line-height: 1.4 !important; word-break: keep-all !important; }
 
   /* 4. 모바일 네비게이션 통일성 */
@@ -700,4 +712,9 @@ body.page-main #mobile-nav-menu a {
 
   /* 5. 브리핑/YouCheck 카드 모바일 통일성 */
   .briefing-card, [class*="briefing"], [class*="news-card"] { border-radius: 12px !important; padding: 16px !important; margin-bottom: 12px !important; }
+
+  /* AI브리핑 카테고리 필터 가로 스크롤 */
+  .briefing-filters, [class*="filter-tabs"], [class*="category-tabs"] { display: flex !important; flex-direction: row !important; overflow-x: auto !important; flex-wrap: nowrap !important; gap: 8px !important; padding-bottom: 8px !important; -webkit-overflow-scrolling: touch !important; scrollbar-width: none !important; }
+  .briefing-filters::-webkit-scrollbar { display: none !important; }
+  .briefing-filters button, .briefing-filters a, [class*="filter-btn"] { flex-shrink: 0 !important; white-space: nowrap !important; padding: 8px 14px !important; font-size: 13px !important; border-radius: 20px !important; }
 }
