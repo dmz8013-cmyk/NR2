@@ -296,7 +296,7 @@ body.board-left { background-image: url('/static/board_headers/left.jpg'); backg
 body.board-right { background-image: url('/static/board_headers/right.jpg'); background-size: cover; background-attachment: fixed; background-position: center; }
 body.board-aesa { background-image: url('/static/board_headers/aesa.jpg'); background-size: cover; background-attachment: fixed; background-position: center; }
 body.board-fakenews { background-image: url('/static/board_headers/bias.jpg'); background-size: cover; background-attachment: fixed; background-position: center; }
-body.board-notice { background-image: url('/static/board_headers/notice.jpg'); background-size: cover; background-attachment: fixed; background-position: center; }
+body.board-notice { background-image: url('/static/board_headers/notice_bg.jpg'); background-size: cover; background-attachment: fixed; background-position: center; }
 body.board-morpheus { background-image: url('/static/board_headers/morpheus.jpg'); background-size: cover; background-attachment: fixed; background-position: center; }
 body.board-briefing { background-image: url('/static/board_headers/briefing.jpg'); background-size: cover; background-attachment: fixed; background-position: center; }
 body.board-calendar { background-image: url('/static/board_headers/calendar.jpg'); background-size: cover; background-attachment: fixed; background-position: center; }
@@ -305,7 +305,7 @@ body[class*="board-"]::before {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.45);
-    z-index: 0;
+    z-index: -1;
     pointer-events: none;
 }
 
@@ -398,11 +398,20 @@ body[class*="board-"] .text-center.py-16 .text-gray-400 {
 }
 
 /* ── 네비게이션 컬러 하모니 ──────────────────── */
-body[class*="board-"] .nr2-nav {
-    background: rgba(26,26,46,0.75) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
-    border-bottom: 1px solid rgba(212,168,67,0.15) !important;
+body[class*="board-"] .nr2-nav,
+body[class*="board-"] nav,
+body[class*="board-"] header {
+    background: transparent !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border-bottom: 1px solid rgba(200,121,65,0.25) !important;
+    box-shadow: none !important;
+}
+body[class*="board-"] .nr2-nav *,
+body[class*="board-"] .nr2-nav a,
+body[class*="board-"] .nr2-nav span {
+    color: #ffffff !important;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8) !important;
 }
 
 /* ── 스폰서 마퀴 배너 ────────────────────────── */

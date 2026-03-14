@@ -107,7 +107,6 @@
                         <a href="{{ url_for('boards.board', board_type='morpheus') }}" class="nav-link">모피어스</a>
                         <a href="/briefings" class="nav-link">브리핑</a>
                         {% if current_user.is_authenticated %}
-                        <a href="{{ url_for('calendar.index') }}" class="nav-link">캘린더</a>
                         {% endif %}
                     </div>
                 </div>
@@ -170,7 +169,7 @@
         <div x-show="mobileOpen"
              @click.away="mobileOpen = false"
              x-transition
-             class="lg:hidden absolute w-full bg-white border-t border-[#E0E0E0] shadow-sm z-50">
+             class="lg:hidden absolute w-full bg-white border-t border-[#E0E0E0] shadow-sm" style="z-index:99999!important;position:absolute!important;">
             <div class="px-4 py-3 space-y-0.5">
                 <a href="{{ url_for('news.breaking') }}" @click="mobileOpen=false" class="mobile-nav-link text-[#C1121F] font-semibold">공지</a>
                 <a href="{{ url_for('boards.board', board_type='free') }}" @click="mobileOpen=false" class="mobile-nav-link">자유게시판</a>
@@ -181,9 +180,7 @@
                 <a href="{{ url_for('boards.board', board_type='aesa') }}" @click="mobileOpen=false" class="mobile-nav-link">AESA</a>
                 <a href="{{ url_for('boards.board', board_type='morpheus') }}" @click="mobileOpen=false" class="mobile-nav-link">모피어스</a>
                 <a href="/briefings" @click="mobileOpen=false" class="mobile-nav-link">브리핑</a>
-                {% if current_user.is_authenticated %}
-                <a href="{{ url_for('calendar.index') }}" @click="mobileOpen=false" class="mobile-nav-link">캘린더</a>
-                {% else %}
+                {% if not current_user.is_authenticated %}
                 <div class="border-t border-[#E0E0E0] my-2"></div>
                 <div class="flex gap-3 py-2">
                     <a href="{{ url_for('auth.login') }}" class="flex-1 text-center py-2 text-[13px] text-[#767676] border border-[#E0E0E0]">로그인</a>
