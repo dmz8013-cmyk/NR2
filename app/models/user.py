@@ -17,6 +17,10 @@ class User(UserMixin, db.Model):
     suspended_until = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
+    # === 이메일 인증 ===
+    email_verified = db.Column(db.Boolean, default=False)
+    email_verify_token = db.Column(db.String(100), nullable=True)
+
     # === 비밀번호 재설정 ===
     reset_token = db.Column(db.String(100), nullable=True)
     reset_token_expires = db.Column(db.DateTime, nullable=True)

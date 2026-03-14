@@ -6,217 +6,280 @@
 <div class="max-w-4xl mx-auto">
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
         <!-- Header -->
-        <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-8">
-            <div class="flex justify-between items-center">
-                <h1 class="text-3xl font-bold text-white">프로필 설정</h1>
+        <div style="background:linear-gradient(135deg, #1A1A2E 0%, #C1121F 100%);padding:24px 28px;">
+            <div style="display:flex;align-items:center;gap:16px;">
+                <img src="{% if current_user.profile_image and 'cloudinary.com' in current_user.profile_image %}{{ current_user.profile_image }}{% else %}{{ url_for('static', filename='uploads/profiles/' + current_user.profile_image) }}{% endif %}"
+                     alt="{{ current_user.nickname }}"
+                     style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,0.3);">
+                <div>
+                    <h1 style="font-size:24px;font-weight:700;color:#fff;margin:0;">{{ current_user.nickname }}</h1>
+                    <p style="font-size:13px;color:rgba(255,255,255,0.7);margin:4px 0 0;">
+                        {{ current_user.email }}
+                        {% if current_user.email_verified is defined and current_user.email_verified %}
+                        <span style="color:#4ADE80;">✓ 인증됨</span>
+                        {% elif current_user.email_verified is defined %}
+                        <span style="color:#FBBF24;">✗ 미인증</span>
+                        {% endif %}
+                    </p>
+                </div>
                 <a href="{{ url_for('auth.logout') }}"
-                   class="px-5 py-2 text-sm font-semibold text-white bg-white/20 hover:bg-white/30 backdrop-blur transition rounded-md border border-white/30">
+                   style="margin-left:auto;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);border-radius:6px;text-decoration:none;white-space:nowrap;">
                     로그아웃
                 </a>
             </div>
         </div>
 
+        <!-- Tab Navigation -->
+        <div style="border-bottom:2px solid #E5E7EB;display:flex;overflow-x:auto;">
+            <a href="{{ url_for('auth.profile', tab='info') }}"
+               style="padding:14px 20px;font-size:14px;font-weight:{% if tab == 'info' %}700{% else %}500{% endif %};color:{% if tab == 'info' %}#C1121F{% else %}#6B7280{% endif %};text-decoration:none;white-space:nowrap;border-bottom:{% if tab == 'info' %}3px solid #C1121F{% else %}3px solid transparent{% endif %};margin-bottom:-2px;">
+                프로필 정보
+            </a>
+            <a href="{{ url_for('auth.profile', tab='posts') }}"
+               style="padding:14px 20px;font-size:14px;font-weight:{% if tab == 'posts' %}700{% else %}500{% endif %};color:{% if tab == 'posts' %}#C1121F{% else %}#6B7280{% endif %};text-decoration:none;white-space:nowrap;border-bottom:{% if tab == 'posts' %}3px solid #C1121F{% else %}3px solid transparent{% endif %};margin-bottom:-2px;">
+                내가 쓴 글 <span style="font-size:12px;color:#9CA3AF;">({{ current_user.posts.count() }})</span>
+            </a>
+            <a href="{{ url_for('auth.profile', tab='comments') }}"
+               style="padding:14px 20px;font-size:14px;font-weight:{% if tab == 'comments' %}700{% else %}500{% endif %};color:{% if tab == 'comments' %}#C1121F{% else %}#6B7280{% endif %};text-decoration:none;white-space:nowrap;border-bottom:{% if tab == 'comments' %}3px solid #C1121F{% else %}3px solid transparent{% endif %};margin-bottom:-2px;">
+                내가 쓴 댓글 <span style="font-size:12px;color:#9CA3AF;">({{ current_user.comments.count() }})</span>
+            </a>
+        </div>
+
         <div class="p-6">
-            <!-- Profile Image Section -->
-            <div class="mb-8">
-            <!-- 닉네임 변경 섹션 -->
-            <div class="bg-white rounded-lg shadow p-6 mb-6">
-                <h2 class="text-xl font-bold text-gray-900 mb-4">닉네임 변경</h2>
-                <form method="POST" action="{{ url_for('auth.update_nickname') }}" class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-2">
-                            현재 닉네임: <span class="text-blue-600 font-bold">{{ current_user.nickname }}</span>
-                        </label>
+
+        {% if tab == 'info' %}
+            <!-- ═══ 프로필 정보 탭 ═══ -->
+
+            <!-- 활동 통계 -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:32px;">
+                <div style="background:#EFF6FF;border-radius:10px;padding:16px;text-align:center;">
+                    <p style="font-size:12px;color:#3B82F6;font-weight:600;">게시글</p>
+                    <p style="font-size:24px;font-weight:700;color:#1E3A5F;margin:4px 0 0;">{{ current_user.posts.count() }}</p>
+                </div>
+                <div style="background:#F0FDF4;border-radius:10px;padding:16px;text-align:center;">
+                    <p style="font-size:12px;color:#22C55E;font-weight:600;">댓글</p>
+                    <p style="font-size:24px;font-weight:700;color:#14532D;margin:4px 0 0;">{{ current_user.comments.count() }}</p>
+                </div>
+                <div style="background:#FAF5FF;border-radius:10px;padding:16px;text-align:center;">
+                    <p style="font-size:12px;color:#A855F7;font-weight:600;">좋아요</p>
+                    <p style="font-size:24px;font-weight:700;color:#581C87;margin:4px 0 0;">{{ current_user.likes.count() }}</p>
+                </div>
+            </div>
+
+            <!-- 닉네임 변경 -->
+            <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:20px;margin-bottom:20px;">
+                <h2 style="font-size:16px;font-weight:700;color:#1F2937;margin:0 0 12px;">닉네임 변경</h2>
+                <form method="POST" action="{{ url_for('auth.update_nickname') }}" style="display:flex;gap:8px;align-items:end;">
+                    <div style="flex:1;">
+                        <label style="display:block;font-size:12px;color:#6B7280;margin-bottom:4px;">현재: <strong>{{ current_user.nickname }}</strong></label>
                         <input type="text" name="nickname" required minlength="2" maxlength="20"
-                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                               placeholder="새 닉네임 입력 (2~20자)">
-                        <p class="text-sm text-gray-500 mt-1">※ 한글, 영문, 숫자 가능</p>
+                               placeholder="새 닉네임 (2~20자)"
+                               style="width:100%;padding:10px 12px;border:1px solid #D1D5DB;border-radius:8px;font-size:14px;">
                     </div>
                     <button type="submit"
-                            class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition">
-                        닉네임 변경하기
+                            style="padding:10px 20px;background:#1F2937;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;">
+                        변경
                     </button>
                 </form>
             </div>
 
-                <h2 class="text-xl font-bold text-gray-900 mb-4">프로필 이미지</h2>
-
-                <div class="flex items-center space-x-6">
-                    <!-- Current Profile Image -->
-                    <div class="flex-shrink-0">
-                        <img src="{% if current_user.profile_image and 'cloudinary.com' in current_user.profile_image %}{{ current_user.profile_image }}{% else %}{{ url_for('static', filename='uploads/profiles/' + current_user.profile_image) }}{% endif %}"
-                             alt="{{ current_user.nickname }}"
-                             class="w-32 h-32 rounded-full object-cover border-4 border-gray-200">
-                    </div>
-
-                    <!-- Upload Form -->
-                    <div class="flex-1">
-                        <form action="{{ url_for('auth.upload_profile_image') }}"
-                              method="POST"
-                              enctype="multipart/form-data"
-                              class="space-y-4">
-                            <div>
-                                <label for="profile_image"
-                                       class="block text-sm font-medium text-gray-700 mb-2">
-                                    새 이미지 선택
-                                </label>
-                                <input type="file"
-                                       id="profile_image"
-                                       name="profile_image"
-                                       accept="image/png,image/jpeg,image/jpg,image/gif"
-                                       class="block w-full text-sm text-gray-500
-                                              file:mr-4 file:py-2 file:px-4
-                                              file:rounded-md file:border-0
-                                              file:text-sm file:font-semibold
-                                              file:bg-blue-50 file:text-blue-700
-                                              hover:file:bg-blue-100
-                                              cursor-pointer">
-                                <p class="mt-1 text-xs text-gray-500">
-                                    PNG, JPG, JPEG, GIF 형식만 가능 (최대 16MB)
-                                </p>
-                            </div>
-
-                            <button type="submit"
-                                    class="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-                                이미지 업로드
-                            </button>
-                        </form>
-                    </div>
+            <!-- 프로필 이미지 -->
+            <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:20px;margin-bottom:20px;">
+                <h2 style="font-size:16px;font-weight:700;color:#1F2937;margin:0 0 12px;">프로필 이미지</h2>
+                <div style="display:flex;align-items:center;gap:16px;">
+                    <img src="{% if current_user.profile_image and 'cloudinary.com' in current_user.profile_image %}{{ current_user.profile_image }}{% else %}{{ url_for('static', filename='uploads/profiles/' + current_user.profile_image) }}{% endif %}"
+                         alt="{{ current_user.nickname }}"
+                         style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid #E5E7EB;">
+                    <form action="{{ url_for('auth.upload_profile_image') }}" method="POST" enctype="multipart/form-data" style="flex:1;">
+                        <input type="file" name="profile_image" accept="image/png,image/jpeg,image/jpg,image/gif"
+                               style="font-size:13px;margin-bottom:8px;">
+                        <br>
+                        <button type="submit"
+                                style="padding:8px 16px;background:#3B82F6;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+                            업로드
+                        </button>
+                        <span style="font-size:11px;color:#9CA3AF;margin-left:8px;">PNG, JPG, GIF (최대 16MB)</span>
+                    </form>
                 </div>
             </div>
 
-            <hr class="my-8">
-
-            <!-- 본인인증 섹션 -->
-            <div class="mb-8">
-                <h2 class="text-xl font-bold text-gray-900 mb-4">🛡️ 본인인증</h2>
+            <!-- 본인인증 -->
+            <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:20px;margin-bottom:20px;">
+                <h2 style="font-size:16px;font-weight:700;color:#1F2937;margin:0 0 12px;">본인인증</h2>
                 {% if current_user.verified_at %}
-                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div class="flex items-center space-x-3">
-                        <span class="text-2xl">✅</span>
-                        <div>
-                            <p class="font-bold text-green-800">인증 완료</p>
-                            <p class="text-sm text-green-600">
-                                {{ current_user.verify_badge }} · {{ current_user.verify_tier }} 등급
-                                · {{ current_user.verified_at|kst('%Y.%m.%d') }} 인증
-                            </p>
-                        </div>
+                <div style="display:flex;align-items:center;gap:12px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:12px 16px;">
+                    <span style="font-size:24px;">✅</span>
+                    <div>
+                        <p style="font-weight:700;color:#166534;margin:0;">인증 완료</p>
+                        <p style="font-size:12px;color:#4ADE80;margin:4px 0 0;">
+                            {{ current_user.verify_badge }} · {{ current_user.verify_tier }} 등급 · {{ current_user.verified_at|kst('%Y.%m.%d') }}
+                        </p>
                     </div>
                 </div>
                 {% else %}
-                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <p class="text-yellow-800 font-medium mb-3">
-                        🔒 YouCheck 편향 투표에 참여하려면 본인인증이 필요합니다.
-                    </p>
-                    <form method="POST" action="{{ url_for('auth.request_verify') }}" class="space-y-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">소속 카테고리 선택</label>
-                            <select name="category" required
-                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                                <option value="">-- 선택해주세요 --</option>
-                                <option value="citizen">시민</option>
-                                <option value="media">언론</option>
-                                <option value="congress">국회</option>
-                                <option value="government">정부</option>
-                                <option value="public_org">공공기관</option>
-                                <option value="local_gov">지자체</option>
-                                <option value="party">정당</option>
-                                <option value="pr">홍보/대관</option>
-                                <option value="research">연구/학계</option>
-                                <option value="legal">법조</option>
-                            </select>
-                        </div>
-                        <button type="submit"
-                                class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition">
-                            🛡️ 본인인증 하기
-                        </button>
-                    </form>
-                </div>
+                <p style="font-size:13px;color:#92400E;margin:0 0 12px;">YouCheck 편향 투표 참여를 위해 본인인증이 필요합니다.</p>
+                <form method="POST" action="{{ url_for('auth.request_verify') }}" style="display:flex;gap:8px;align-items:end;">
+                    <select name="category" required
+                            style="flex:1;padding:10px 12px;border:1px solid #D1D5DB;border-radius:8px;font-size:14px;">
+                        <option value="">소속 선택</option>
+                        <option value="citizen">시민</option>
+                        <option value="media">언론</option>
+                        <option value="congress">국회</option>
+                        <option value="government">정부</option>
+                        <option value="public_org">공공기관</option>
+                        <option value="local_gov">지자체</option>
+                        <option value="party">정당</option>
+                        <option value="pr">홍보/대관</option>
+                        <option value="research">연구/학계</option>
+                        <option value="legal">법조</option>
+                    </select>
+                    <button type="submit"
+                            style="padding:10px 20px;background:#3B82F6;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;">
+                        인증하기
+                    </button>
+                </form>
                 {% endif %}
             </div>
 
-            <hr class="my-8">
-
-            <!-- User Information -->
-            <div>
-                <h2 class="text-xl font-bold text-gray-900 mb-4">계정 정보</h2>
-
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between py-3 border-b border-gray-200">
-                        <div>
-                            <p class="text-sm font-medium text-gray-500">이메일</p>
-                            <p class="text-base text-gray-900">{{ current_user.email }}</p>
-                        </div>
+            <!-- 계정 정보 -->
+            <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:20px;">
+                <h2 style="font-size:16px;font-weight:700;color:#1F2937;margin:0 0 12px;">계정 정보</h2>
+                <div style="display:grid;gap:0;">
+                    <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #E5E7EB;">
+                        <span style="font-size:13px;color:#6B7280;">이메일</span>
+                        <span style="font-size:13px;color:#1F2937;">{{ current_user.email }}</span>
                     </div>
-
-                    <div class="flex items-center justify-between py-3 border-b border-gray-200">
-                        <div>
-                            <p class="text-sm font-medium text-gray-500">닉네임</p>
-                            <p class="text-base text-gray-900">{{ current_user.nickname }}</p>
-                        </div>
+                    <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #E5E7EB;">
+                        <span style="font-size:13px;color:#6B7280;">가입일</span>
+                        <span style="font-size:13px;color:#1F2937;">{{ current_user.created_at|kst('%Y년 %m월 %d일') }}</span>
                     </div>
-
-                    <div class="flex items-center justify-between py-3 border-b border-gray-200">
-                        <div>
-                            <p class="text-sm font-medium text-gray-500">가입일</p>
-                            <p class="text-base text-gray-900">
-                                {{ current_user.created_at|kst('%Y년 %m월 %d일') }}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="flex items-center justify-between py-3 border-b border-gray-200">
-                        <div>
-                            <p class="text-sm font-medium text-gray-500">권한</p>
-                            <p class="text-base text-gray-900">
-                                {% if current_user.is_admin %}
-                                    <span class="px-2 py-1 bg-red-100 text-red-800 rounded text-sm font-medium">
-                                        관리자
-                                    </span>
-                                {% else %}
-                                    <span class="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm font-medium">
-                                        일반 사용자
-                                    </span>
-                                {% endif %}
-                            </p>
-                        </div>
+                    <div style="display:flex;justify-content:space-between;padding:10px 0;">
+                        <span style="font-size:13px;color:#6B7280;">권한</span>
+                        <span style="font-size:13px;">
+                            {% if current_user.is_admin %}
+                            <span style="padding:2px 8px;background:#FEE2E2;color:#991B1B;border-radius:4px;font-size:12px;font-weight:600;">관리자</span>
+                            {% else %}
+                            <span style="padding:2px 8px;background:#F3F4F6;color:#4B5563;border-radius:4px;font-size:12px;font-weight:600;">일반 사용자</span>
+                            {% endif %}
+                        </span>
                     </div>
                 </div>
             </div>
 
-            <!-- Activity Stats -->
-            <div class="mt-8">
-                <h2 class="text-xl font-bold text-gray-900 mb-4">활동 통계</h2>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-blue-50 rounded-lg p-4">
-                        <p class="text-sm text-blue-600 font-medium">작성한 게시글</p>
-                        <p class="text-2xl font-bold text-blue-900 mt-1">
-                            {{ current_user.posts.count() }}개
-                        </p>
+        {% elif tab == 'posts' %}
+            <!-- ═══ 내가 쓴 글 탭 ═══ -->
+            {% if my_posts and my_posts.items %}
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                {% for post in my_posts.items %}
+                <a href="{{ url_for('boards.view', board_type=post.board_type, post_id=post.id) }}"
+                   style="display:block;padding:14px 16px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;text-decoration:none;transition:all 0.2s;"
+                   onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)';this.style.transform='translateY(-1px)'"
+                   onmouseout="this.style.boxShadow='none';this.style.transform='none'">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                        <span style="font-size:11px;padding:2px 8px;background:#E5E7EB;color:#4B5563;border-radius:4px;font-weight:600;">
+                            {{ board_names.get(post.board_type, post.board_type) }}
+                        </span>
+                        <span style="font-size:11px;color:#9CA3AF;">{{ post.created_at|kst('%Y.%m.%d %H:%M') }}</span>
                     </div>
-                    <div class="bg-green-50 rounded-lg p-4">
-                        <p class="text-sm text-green-600 font-medium">작성한 댓글</p>
-                        <p class="text-2xl font-bold text-green-900 mt-1">
-                            {{ current_user.comments.count() }}개
-                        </p>
+                    <p style="font-size:15px;font-weight:600;color:#1F2937;margin:0 0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                        {{ post.title }}
+                    </p>
+                    <div style="display:flex;gap:12px;font-size:11px;color:#9CA3AF;">
+                        <span>조회 {{ post.views or 0 }}</span>
+                        <span>좋아요 {{ post.likes_count }}</span>
+                        <span>댓글 {{ post.comments_count }}</span>
                     </div>
-                    <div class="bg-purple-50 rounded-lg p-4">
-                        <p class="text-sm text-purple-600 font-medium">좋아요</p>
-                        <p class="text-2xl font-bold text-purple-900 mt-1">
-                            {{ current_user.likes.count() }}개
-                        </p>
-                    </div>
-                </div>
+                </a>
+                {% endfor %}
             </div>
 
-            <!-- Back Button -->
-            <div class="mt-8 flex justify-end">
-                <a href="{{ url_for('main.index') }}"
-                   class="px-6 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">
-                    메인으로 돌아가기
+            <!-- 페이지네이션 -->
+            {% if my_posts.pages > 1 %}
+            <div style="display:flex;justify-content:center;gap:4px;margin-top:24px;">
+                {% for p in my_posts.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if p %}
+                    <a href="{{ url_for('auth.profile', tab='posts', page=p) }}"
+                       style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;font-size:13px;text-decoration:none;
+                              {% if p == my_posts.page %}background:#C1121F;color:#fff;font-weight:700;{% else %}background:#F3F4F6;color:#6B7280;{% endif %}">
+                        {{ p }}
+                    </a>
+                    {% else %}
+                    <span style="padding:0 4px;color:#9CA3AF;">...</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div style="text-align:center;padding:48px 0;color:#9CA3AF;">
+                <p style="font-size:40px;margin:0 0 12px;">📝</p>
+                <p style="font-size:15px;">아직 작성한 게시글이 없습니다.</p>
+                <a href="{{ url_for('boards.board', board_type='free') }}"
+                   style="display:inline-block;margin-top:16px;padding:10px 20px;background:#C1121F;color:#fff;border-radius:8px;text-decoration:none;font-size:14px;font-weight:600;">
+                    첫 글 작성하기
                 </a>
             </div>
+            {% endif %}
+
+        {% elif tab == 'comments' %}
+            <!-- ═══ 내가 쓴 댓글 탭 ═══ -->
+            {% if my_comments and my_comments.items %}
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                {% for comment in my_comments.items %}
+                {% set post = comment.post %}
+                <a href="{{ url_for('boards.view', board_type=post.board_type, post_id=post.id) }}"
+                   style="display:block;padding:14px 16px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;text-decoration:none;transition:all 0.2s;"
+                   onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)';this.style.transform='translateY(-1px)'"
+                   onmouseout="this.style.boxShadow='none';this.style.transform='none'">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                        <span style="font-size:11px;padding:2px 8px;background:#E5E7EB;color:#4B5563;border-radius:4px;font-weight:600;">
+                            {{ board_names.get(post.board_type, post.board_type) }}
+                        </span>
+                        <span style="font-size:12px;color:#6B7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">
+                            {{ post.title }}
+                        </span>
+                        <span style="font-size:11px;color:#9CA3AF;white-space:nowrap;">{{ comment.created_at|kst('%Y.%m.%d %H:%M') }}</span>
+                    </div>
+                    <p style="font-size:14px;color:#374151;margin:0;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+                        {{ comment.content|clean_preview(150) }}
+                    </p>
+                </a>
+                {% endfor %}
+            </div>
+
+            <!-- 페이지네이션 -->
+            {% if my_comments.pages > 1 %}
+            <div style="display:flex;justify-content:center;gap:4px;margin-top:24px;">
+                {% for p in my_comments.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if p %}
+                    <a href="{{ url_for('auth.profile', tab='comments', page=p) }}"
+                       style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:8px;font-size:13px;text-decoration:none;
+                              {% if p == my_comments.page %}background:#C1121F;color:#fff;font-weight:700;{% else %}background:#F3F4F6;color:#6B7280;{% endif %}">
+                        {{ p }}
+                    </a>
+                    {% else %}
+                    <span style="padding:0 4px;color:#9CA3AF;">...</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div style="text-align:center;padding:48px 0;color:#9CA3AF;">
+                <p style="font-size:40px;margin:0 0 12px;">💬</p>
+                <p style="font-size:15px;">아직 작성한 댓글이 없습니다.</p>
+            </div>
+            {% endif %}
+
+        {% endif %}
+
         </div>
+    </div>
+
+    <!-- 메인으로 -->
+    <div style="margin-top:16px;text-align:center;">
+        <a href="{{ url_for('main.index') }}"
+           style="font-size:13px;color:#6B7280;text-decoration:none;">← 메인으로 돌아가기</a>
     </div>
 </div>
 {% endblock %}
