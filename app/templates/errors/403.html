@@ -1,15 +1,15 @@
 {% extends "layouts/base.html" %}
 
-{% block title %}404 - 페이지를 찾을 수 없습니다{% endblock %}
+{% block title %}403 - 접근 권한 없음{% endblock %}
 
 {% block content %}
 <div class="min-h-screen flex items-center justify-center" style="background:#FAFAF8;">
     <div style="text-align:center;padding:40px 20px;">
         <img src="/static/images/nureongi.jpg" alt="누렁이"
              style="width:120px;height:120px;border-radius:50%;object-fit:cover;margin:0 auto 24px;display:block;">
-        <h1 style="color:#C87941;font-size:80px;font-weight:700;margin:0 0 16px;line-height:1;">404</h1>
+        <h1 style="color:#C87941;font-size:80px;font-weight:700;margin:0 0 16px;line-height:1;">403</h1>
         <p style="color:#1a1a1a;font-size:18px;font-weight:600;margin:0 0 32px;">
-            길을 잃은 누렁이... 찾는 페이지가 없어요
+            누렁이가 막아섰어요. 접근 권한이 없습니다
         </p>
         <a href="{{ url_for('main.index') }}"
            style="display:inline-block;background:#1A1A2E;color:white;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;border:1px solid #C87941;transition:opacity 0.2s;">
