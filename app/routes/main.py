@@ -2,6 +2,8 @@ from flask import Blueprint, render_template, send_file, send_from_directory, ma
 from app.models.bias import NewsArticle
 from app.models.briefing import Briefing
 from app.models.post import Post
+from app.models.post_vote import PostVote
+from app.models.user import User
 from app.models.comment import Comment
 from app import db
 from datetime import datetime, timedelta
@@ -81,19 +83,48 @@ def index():
         ).limit(10).all()
     except Exception:
         community_posts = []
-    # AESA 게시판 최신글 5개
+    # AESA 게시판 최신글 2개 (슬라이더용)
     try:
         aesa_posts = Post.query.filter(
             Post.board_type == 'aesa'
         ).order_by(
             Post.created_at.desc()
-        ).limit(5).all()
+        ).limit(2).all()
     except Exception:
         aesa_posts = []
+    # 이달의 추천/비추천 랭킹
+    month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    try:
+        like_ranking = db.session.query(
+            User.nickname,
+            func.count(PostVote.id).label('cnt')
+        ).join(Post, Post.id == PostVote.post_id)\
+         .join(User, User.id == Post.user_id)\
+         .filter(PostVote.vote_type == 'up')\
+         .filter(PostVote.created_at >= month_start)\
+         .group_by(User.nickname)\
+         .order_by(func.count(PostVote.id).desc())\
+         .limit(5).all()
+    except Exception:
+        like_ranking = []
+    try:
+        dislike_ranking = db.session.query(
+            User.nickname,
+            func.count(PostVote.id).label('cnt')
+        ).join(Post, Post.id == PostVote.post_id)\
+         .join(User, User.id == Post.user_id)\
+         .filter(PostVote.vote_type == 'down')\
+         .filter(PostVote.created_at >= month_start)\
+         .group_by(User.nickname)\
+         .order_by(func.count(PostVote.id).desc())\
+         .limit(5).all()
+    except Exception:
+        dislike_ranking = []
     return render_template('main/index.html', hot_posts=hot_posts, articles=articles,
                            latest_briefings=latest_briefings, ranking_articles=ranking_articles,
                            youcheck_count=youcheck_count, community_posts=community_posts,
-                           aesa_posts=aesa_posts)
+                           aesa_posts=aesa_posts,
+                           like_ranking=like_ranking, dislike_ranking=dislike_ranking)
 
 
 @bp.route('/methodology')
