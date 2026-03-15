@@ -216,6 +216,24 @@ def create_app(config_name='default'):
         except Exception:
             db.session.rollback()
 
+        # news_articles 테이블에 is_visible 컬럼 추가
+        try:
+            db.session.execute(db.text(
+                "ALTER TABLE news_articles ADD COLUMN is_visible BOOLEAN DEFAULT TRUE"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        # [1회성] 기존 기사 전부 is_visible=FALSE 처리 (0건에서 새로 시작)
+        try:
+            db.session.execute(db.text(
+                "UPDATE news_articles SET is_visible = FALSE WHERE is_visible = TRUE"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
         # [1회성] AESA 게시판 이준석 관련 자동 게시글 삭제
         try:
             from app.models import Post

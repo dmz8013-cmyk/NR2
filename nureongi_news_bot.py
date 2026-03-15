@@ -64,8 +64,8 @@ def save_article_to_db(art):
         bias = get_media_bias(art['press'])
         cur = conn.cursor()
         cur.execute(
-            """INSERT INTO news_articles (title, url, source, source_political, source_geopolitical, source_economic, submitted_by, created_at)
-               VALUES (%s, %s, %s, %s, %s, %s, 1, NOW())
+            """INSERT INTO news_articles (title, url, source, source_political, source_geopolitical, source_economic, is_visible, submitted_by, created_at)
+               VALUES (%s, %s, %s, %s, %s, %s, TRUE, 1, NOW())
                ON CONFLICT (url) DO NOTHING""",
             (art['title'], art['link'], art['press'],
              bias['political'], bias['geopolitical'], bias['economic'])
@@ -262,24 +262,24 @@ def _increment_daily_db_count(count=1):
         pass
 
 def _archive_old_articles():
-    """24시간 이전 기사 자동 아카이브"""
+    """24시간 이전 기사 자동 숨김 (is_visible=False + is_archived=True)"""
     conn = _get_db_conn()
     if not conn:
         return
     try:
         cur = conn.cursor()
         cur.execute(
-            "UPDATE news_articles SET is_archived = TRUE "
-            "WHERE (is_archived = FALSE OR is_archived IS NULL) "
+            "UPDATE news_articles SET is_visible = FALSE, is_archived = TRUE "
+            "WHERE (is_visible = TRUE OR is_visible IS NULL) "
             "AND created_at < NOW() - INTERVAL '24 hours'"
         )
-        archived = cur.rowcount
+        hidden = cur.rowcount
         conn.commit()
         cur.close()
-        if archived > 0:
-            print(f"[아카이브] {archived}건 아카이브 처리")
+        if hidden > 0:
+            print(f"[자동숨김] {hidden}건 is_visible=False 처리")
     except Exception as e:
-        print(f"[아카이브] 오류: {e}")
+        print(f"[자동숨김] 오류: {e}")
         conn.rollback()
     finally:
         conn.close()
@@ -526,8 +526,8 @@ def save_ranking_to_db(art):
         cur.execute(
             """INSERT INTO news_articles
                (title, url, source, source_political, source_geopolitical, source_economic,
-                is_ranking, ranking_section, ranking_rank, is_cross_platform, submitted_by, created_at)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1, NOW())
+                is_ranking, ranking_section, ranking_rank, is_cross_platform, is_visible, submitted_by, created_at)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, 1, NOW())
                ON CONFLICT (url) DO UPDATE SET
                  is_ranking = EXCLUDED.is_ranking,
                  ranking_section = EXCLUDED.ranking_section,
