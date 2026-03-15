@@ -76,8 +76,14 @@ def register():
                 flash(error, 'error')
             return render_template('auth/register.html')
 
+        # 직군 선택
+        job_category = request.form.get('job_category', 'public').strip()
+        valid_jobs = ['media', 'congress', 'govt', 'corp', 'public']
+        if job_category not in valid_jobs:
+            job_category = 'public'
+
         # Create new user
-        user = User(email=email, nickname=nickname)
+        user = User(email=email, nickname=nickname, job_category=job_category)
         user.set_password(password)
         user.email_verified = False
         user.email_verify_token = secrets.token_urlsafe(32)

@@ -34,6 +34,10 @@ class User(UserMixin, db.Model):
     verify_badge = db.Column(db.String(50), nullable=True)  # 표시용 뱃지 텍스트
     verified_at = db.Column(db.DateTime, nullable=True)
 
+    # === 직군 (라운지 게시판 접근 제어) ===
+    job_category = db.Column(db.String(20), default='public')
+    # media=언론인, congress=국회, govt=정부, corp=기업, public=행인
+
     # === 뼈다귀 포인트 ===
     bones = db.Column(db.Float, default=0.0)
     total_bias_votes = db.Column(db.Integer, default=0)

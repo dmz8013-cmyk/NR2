@@ -46,10 +46,64 @@ BOARD_NAMES = {
     'fakenews': '팩트체크',
     'morpheus': '모피어스뉴스',
     'aesa': '누렁이 AESA',
+    # 직군별 라운지
+    'lounge_media': '언론인 라운지',
+    'lounge_congress': '국회 라운지',
+    'lounge_govt': '정부 라운지',
+    'lounge_corp': '기업 라운지',
+    'lounge_public': '행인 광장',
+    'lounge_bamboo': '누렁이 대나무숲',
 }
 
 # 일반 회원이 글 작성 가능한 게시판 (나머지는 관리자 전용)
-USER_WRITABLE_BOARDS = ['free', 'left', 'right']
+USER_WRITABLE_BOARDS = ['free', 'left', 'right',
+                        'lounge_media', 'lounge_congress', 'lounge_govt',
+                        'lounge_corp', 'lounge_public', 'lounge_bamboo']
+
+# 라운지 게시판: board_type → 필요한 job_category (None = 전체 로그인 유저)
+LOUNGE_BOARDS = {
+    'lounge_media': 'media',
+    'lounge_congress': 'congress',
+    'lounge_govt': 'govt',
+    'lounge_corp': 'corp',
+    'lounge_public': None,    # 전체 로그인 회원
+    'lounge_bamboo': None,    # 전체 로그인 회원
+}
+
+# 라운지 뱃지 매핑
+LOUNGE_BADGES = {
+    'lounge_media': '익명·언론인',
+    'lounge_congress': '익명·국회',
+    'lounge_govt': '익명·정부',
+    'lounge_corp': '익명·기업',
+    'lounge_public': '익명·행인',
+    'lounge_bamboo': '익명',
+}
+
+# 직군 한글 매핑
+JOB_CATEGORY_NAMES = {
+    'media': '언론인',
+    'congress': '국회',
+    'govt': '정부',
+    'corp': '기업',
+    'public': '행인',
+}
+
+def _is_lounge_board(board_type):
+    return board_type in LOUNGE_BOARDS
+
+def _check_lounge_access(board_type):
+    """라운지 접근 권한 확인. 접근 가능하면 True, 아니면 False."""
+    if board_type not in LOUNGE_BOARDS:
+        return True
+    if not current_user.is_authenticated:
+        return False
+    if current_user.is_admin or current_user.is_vice_admin:
+        return True
+    required = LOUNGE_BOARDS[board_type]
+    if required is None:
+        return True  # 전체 로그인 유저 접근 가능
+    return current_user.job_category == required
 
 
 def extract_youtube_id(url):
@@ -86,6 +140,19 @@ def board(board_type):
         flash('존재하지 않는 게시판입니다.', 'error')
         return redirect(url_for('main.index'))
 
+    # 라운지 접근 제어 (비로그인: 목록은 보이되 글쓰기 제한)
+    is_lounge = _is_lounge_board(board_type)
+    has_access = _check_lounge_access(board_type)
+
+    if is_lounge and not current_user.is_authenticated:
+        # 비로그인: 목록은 보여주되 글 내용 클릭 시 로그인 유도
+        pass
+    elif is_lounge and not has_access:
+        required = LOUNGE_BOARDS[board_type]
+        job_name = JOB_CATEGORY_NAMES.get(required, required)
+        flash(f'해당 직군 인증 회원만 접근 가능합니다. (필요 직군: {job_name})', 'warning')
+        return redirect(url_for('boards.lounge_hub'))
+
     # 페이지 번호 가져오기 (기본값: 1)
     page = request.args.get('page', 1, type=int)
     per_page = current_app.config.get('POSTS_PER_PAGE', 20)
@@ -97,22 +164,30 @@ def board(board_type):
     # 기본 쿼리
     query = Post.query.filter_by(board_type=board_type)
 
-    # 검색 적용
+    # 검색 적용 (라운지에서는 작성자 검색 비활성화 — 익명)
     if search_query:
         if search_type == 'title':
             query = query.filter(Post.title.contains(search_query))
         elif search_type == 'content':
             query = query.filter(Post.content.contains(search_query))
-        elif search_type == 'author':
+        elif search_type == 'author' and not is_lounge:
             query = query.join(User).filter(User.nickname.contains(search_query))
         else:  # all
-            query = query.join(User).filter(
-                db.or_(
-                    Post.title.contains(search_query),
-                    Post.content.contains(search_query),
-                    User.nickname.contains(search_query)
+            if is_lounge:
+                query = query.filter(
+                    db.or_(
+                        Post.title.contains(search_query),
+                        Post.content.contains(search_query),
+                    )
                 )
-            )
+            else:
+                query = query.join(User).filter(
+                    db.or_(
+                        Post.title.contains(search_query),
+                        Post.content.contains(search_query),
+                        User.nickname.contains(search_query)
+                    )
+                )
 
     # 정렬 및 페이지네이션
     pagination = query.order_by(Post.created_at.desc())\
@@ -126,7 +201,28 @@ def board(board_type):
                          posts=posts,
                          pagination=pagination,
                          search_query=search_query,
-                         search_type=search_type)
+                         search_type=search_type,
+                         is_lounge=is_lounge,
+                         has_access=has_access,
+                         lounge_badge=LOUNGE_BADGES.get(board_type, ''))
+
+
+@bp.route('/lounge')
+def lounge_hub():
+    """라운지 허브 — 6개 직군별 게시판 안내 페이지"""
+    boards = []
+    for bt, name in BOARD_NAMES.items():
+        if bt in LOUNGE_BOARDS:
+            boards.append({
+                'board_type': bt,
+                'name': name,
+                'badge': LOUNGE_BADGES[bt],
+                'required_job': LOUNGE_BOARDS[bt],
+                'job_name': JOB_CATEGORY_NAMES.get(LOUNGE_BOARDS[bt], '전체'),
+                'has_access': _check_lounge_access(bt),
+                'count': Post.query.filter_by(board_type=bt).count(),
+            })
+    return render_template('boards/lounge_hub.html', boards=boards)
 
 
 @bp.route('/<board_type>/write', methods=['GET', 'POST'])
@@ -138,7 +234,12 @@ def write(board_type):
         flash('존재하지 않는 게시판입니다.', 'error')
         return redirect(url_for('main.index'))
 
-    # 글쓰기 권한 체크: 일반 회원은 free/left/right만 가능
+    # 라운지 접근 제어
+    if _is_lounge_board(board_type) and not _check_lounge_access(board_type):
+        flash('해당 직군 인증 회원만 글을 작성할 수 있습니다.', 'warning')
+        return redirect(url_for('boards.board', board_type=board_type))
+
+    # 글쓰기 권한 체크: 일반 회원은 free/left/right + 라운지만 가능
     if board_type not in USER_WRITABLE_BOARDS and not (current_user.is_admin or current_user.is_vice_admin):
         flash('해당 게시판은 관리자만 글을 작성할 수 있습니다.', 'error')
         return redirect(url_for('boards.board', board_type=board_type))
@@ -252,9 +353,23 @@ def view(board_type, post_id):
         vote = PostVote.query.filter_by(post_id=post.id, user_id=current_user.id).first()
         user_vote = vote.vote_type if vote else None
 
+    is_lounge = _is_lounge_board(board_type)
+
+    # 라운지 비로그인 접근 시 로그인 유도
+    if is_lounge and not current_user.is_authenticated:
+        flash('라운지 게시물을 보려면 로그인이 필요합니다.', 'warning')
+        return redirect(url_for('auth.login'))
+
+    # 라운지 직군 제한 (대나무숲/행인광장 제외)
+    if is_lounge and not _check_lounge_access(board_type):
+        flash('해당 직군 인증 회원만 접근 가능합니다.', 'warning')
+        return redirect(url_for('boards.lounge_hub'))
+
     return render_template('boards/view.html', post=post, youtube_embed_url=youtube_embed_url,
                            up_count=up_count, down_count=down_count, user_vote=user_vote,
-                           board_name=BOARD_NAMES.get(board_type, board_type))
+                           board_name=BOARD_NAMES.get(board_type, board_type),
+                           is_lounge=is_lounge,
+                           lounge_badge=LOUNGE_BADGES.get(board_type, ''))
 
 
 @bp.route('/<board_type>/<int:post_id>/edit', methods=['GET', 'POST'])

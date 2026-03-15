@@ -234,6 +234,15 @@ def create_app(config_name='default'):
         except Exception:
             db.session.rollback()
 
+        # users 테이블에 job_category 컬럼 추가
+        try:
+            db.session.execute(db.text(
+                "ALTER TABLE users ADD COLUMN job_category VARCHAR(20) DEFAULT 'public'"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
         # [1회성] AESA 게시판 이준석 관련 자동 게시글 삭제
         try:
             from app.models import Post
