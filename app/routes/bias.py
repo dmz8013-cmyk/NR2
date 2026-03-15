@@ -66,8 +66,19 @@ def index():
     try:
         page = request.args.get('page', 1, type=int)
         tab = request.args.get('tab', 'all')
+        show_archive = request.args.get('archive', '0') == '1'
 
         query = NewsArticle.query
+
+        # ── 24시간 이내 + 비아카이브 기사만 (아카이브 보기 모드 제외) ──
+        if not show_archive:
+            cutoff_24h = datetime.now() - timedelta(hours=24)
+            query = query.filter(
+                NewsArticle.is_archived != True,
+                NewsArticle.created_at >= cutoff_24h
+            )
+        else:
+            query = query.filter(NewsArticle.is_archived == True)
 
         # ── 스포츠/연예 제외 필터 ──
         EXCLUDE_SOURCES = ['스포츠조선', '스포츠서울', '스포츠동아', '텐아시아', 'OSEN', '스타뉴스']
@@ -123,16 +134,17 @@ def index():
                 )
             )
 
-        # 최대 200건 cap (최신순) — subquery로 ID만 뽑은 뒤 paginate
+        # 오늘의 TOP 10만 표시 (아카이브 모드에서는 200건)
+        display_limit = 200 if show_archive else 10
         top_ids = [r.id for r in query.order_by(
             NewsArticle.created_at.desc()
-        ).with_entities(NewsArticle.id).limit(200).all()]
+        ).with_entities(NewsArticle.id).limit(display_limit).all()]
         articles = NewsArticle.query.filter(
             NewsArticle.id.in_(top_ids)
         ).order_by(
             NewsArticle.created_at.desc()
-        ).paginate(page=page, per_page=20, error_out=False)
-        return render_template('bias/index.html', articles=articles, current_tab=tab)
+        ).paginate(page=page, per_page=10 if not show_archive else 20, error_out=False)
+        return render_template('bias/index.html', articles=articles, current_tab=tab, show_archive=show_archive)
     except Exception as e:
         current_app.logger.error(f'[BIAS INDEX ERROR] {traceback.format_exc()}')
         raise

@@ -234,13 +234,65 @@ def _deduplicate_articles(articles, threshold=0.65):
     return selected
 
 
-MAX_SEND_PER_CYCLE = 3  # 회당 최대 발송 건수 (기존 15 → 3)
+MAX_SEND_PER_CYCLE = 3  # 회당 최대 발송 건수 (텔레그램)
+MAX_DB_SAVE_PER_DAY = 10  # 하루 최대 DB 저장 건수 (YouCheck 표시용)
+
+DB_COUNT_FILE = '/tmp/youcheck_daily_count.json'
+
+def _get_daily_db_count():
+    """오늘 DB에 저장한 기사 수 확인"""
+    from datetime import date
+    try:
+        with open(DB_COUNT_FILE, 'r') as f:
+            data = json.load(f)
+        if data.get('date') == str(date.today()):
+            return data.get('count', 0)
+    except:
+        pass
+    return 0
+
+def _increment_daily_db_count(count=1):
+    """오늘 DB 저장 카운트 증가"""
+    from datetime import date
+    current = _get_daily_db_count()
+    try:
+        with open(DB_COUNT_FILE, 'w') as f:
+            json.dump({'date': str(date.today()), 'count': current + count}, f)
+    except:
+        pass
+
+def _archive_old_articles():
+    """24시간 이전 기사 자동 아카이브"""
+    conn = _get_db_conn()
+    if not conn:
+        return
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE news_articles SET is_archived = TRUE "
+            "WHERE (is_archived = FALSE OR is_archived IS NULL) "
+            "AND created_at < NOW() - INTERVAL '24 hours'"
+        )
+        archived = cur.rowcount
+        conn.commit()
+        cur.close()
+        if archived > 0:
+            print(f"[아카이브] {archived}건 아카이브 처리")
+    except Exception as e:
+        print(f"[아카이브] 오류: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
 
 
 async def send_news():
     if not BOT_TOKEN:
         print("NUREONGI_NEWS_BOT_TOKEN 환경변수 없음")
         return
+
+    # 먼저 24시간 이전 기사 아카이브
+    _archive_old_articles()
+
     sent_news = load_sent_news()
     first_run = len(sent_news) == 0
     bot = Bot(BOT_TOKEN)
@@ -256,36 +308,41 @@ async def send_news():
         print(f"[뉴스봇v2] 첫 실행 — {len(new_articles)}건 기록 (발송 건너뜀)")
         return
 
-    # 제목 유사도 기반 중복 제거 (같은 사건 → 대표 1건)
-    deduped = _deduplicate_articles(new_articles)
-    print(f"[뉴스봇v2] 신규 {len(new_articles)}건 → 중복제거 {len(deduped)}건 → 최대 {MAX_SEND_PER_CYCLE}건 발송")
+    # 제목 유사도 기반 중복 제거 (같은 사건 → 대표 1건, 임계값 강화)
+    deduped = _deduplicate_articles(new_articles, threshold=0.55)
+    daily_count = _get_daily_db_count()
+    remaining_quota = max(0, MAX_DB_SAVE_PER_DAY - daily_count)
+    print(f"[뉴스봇v2] 신규 {len(new_articles)}건 → 중복제거 {len(deduped)}건 → 일일잔여 {remaining_quota}건")
 
     new_count = 0
+    db_saved = 0
     for art in deduped:
         sent_news.add(art['link'])
-        if new_count >= MAX_SEND_PER_CYCLE:
-            continue  # 발송은 안 하지만 sent 목록에는 추가 (다음에 중복 방지)
-        message = format_message(art)
-        try:
-            await bot.send_message(
-                CHAT_ID, message,
-                parse_mode="HTML",
-                disable_web_page_preview=True
-            )
-            tag = "🚨속보" if art['is_breaking'] else "📰"
-            print(f"✅ {tag} [{art['press']}] {art['title'][:30]}")
+
+        # DB 저장: 하루 10건 제한
+        if db_saved < remaining_quota:
             save_article_to_db(art)
-            new_count += 1
-            await asyncio.sleep(2)
-        except Exception as e:
-            print(f"❌ 전송 실패: {e}")
+            db_saved += 1
 
-    # 중복제거 후 미발송 기사도 DB에 저장
-    for art in deduped[MAX_SEND_PER_CYCLE:]:
-        save_article_to_db(art)
+        # 텔레그램 발송: 회당 3건 제한
+        if new_count < MAX_SEND_PER_CYCLE:
+            message = format_message(art)
+            try:
+                await bot.send_message(
+                    CHAT_ID, message,
+                    parse_mode="HTML",
+                    disable_web_page_preview=True
+                )
+                tag = "🚨속보" if art['is_breaking'] else "📰"
+                print(f"✅ {tag} [{art['press']}] {art['title'][:30]}")
+                new_count += 1
+                await asyncio.sleep(2)
+            except Exception as e:
+                print(f"❌ 전송 실패: {e}")
 
+    _increment_daily_db_count(db_saved)
     save_sent_news(sent_news)
-    print(f"[뉴스봇v2] 완료 — {new_count}개 발송, {len(deduped) - new_count}개 DB만 저장")
+    print(f"[뉴스봇v2] 완료 — 텔레그램 {new_count}건, DB {db_saved}건 (오늘 총 {daily_count + db_saved}/{MAX_DB_SAVE_PER_DAY}건)")
 
     # 랭킹 기사 수집 (네이버 + 다음 교집합 우선, 나머지도 저장)
     try:
