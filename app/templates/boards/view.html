@@ -69,11 +69,19 @@
             <div class="border-t border-b border-[#E0E0E0] py-3">
                 <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;">
                     <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+                        {% if is_lounge %}
+                        <div style="width:32px;height:32px;border-radius:50%;background:#E5E7EB;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;">👤</div>
+                        {% else %}
                         <img src="{{ post.author.profile_image if post.author.profile_image and 'cloudinary.com' in post.author.profile_image else url_for('static', filename='uploads/profiles/' + (post.author.profile_image or 'default_profile.jpeg')) }}"
                              alt="{{ post.author.nickname }}"
                              style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                        {% endif %}
                         <div style="font-size:12px;white-space:normal;line-height:1.6;">
+                            {% if is_lounge %}
+                            <span style="font-weight:600;color:#4338CA;background:#EEF2FF;padding:2px 8px;border-radius:4px;font-size:11px;">[{{ lounge_badge }}]</span>
+                            {% else %}
                             <span style="font-weight:500;color:#1a1a1a;">{{ post.author.nickname }}</span>
+                            {% endif %}
                             <span style="color:#bbb;margin:0 3px;">&middot;</span>
                             <span style="color:#767676;">{{ post.created_at|kst }}</span>
                             <span style="color:#bbb;margin:0 3px;">&middot;</span>
@@ -227,11 +235,19 @@
                     <!-- 댓글 내용 -->
                     <div class="flex justify-between items-start mb-2">
                         <div class="flex items-center space-x-2">
+                            {% if is_lounge %}
+                            <div style="width:28px;height:28px;border-radius:50%;background:#E5E7EB;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">👤</div>
+                            {% else %}
                             <img src="{{ comment.author.profile_image if comment.author.profile_image and 'cloudinary.com' in comment.author.profile_image else url_for('static', filename='uploads/profiles/' + (comment.author.profile_image or 'default_profile.jpeg')) }}"
                                  alt="{{ comment.author.nickname }}"
                                  class="w-7 h-7 rounded-full object-cover">
+                            {% endif %}
                             <div>
+                                {% if is_lounge %}
+                                <span style="font-weight:600;color:#4338CA;background:#EEF2FF;padding:1px 6px;border-radius:3px;font-size:11px;">[{{ lounge_badge }}]</span>
+                                {% else %}
                                 <span class="font-medium text-[#1a1a1a] text-[13px]">{{ comment.author.nickname }}</span>
+                                {% endif %}
                                 <span class="text-[11px] text-[#bbb] ml-2">{{ comment.created_at|kst }}</span>
                                 {% if comment.created_at != comment.updated_at %}
                                 <span class="text-[10px] text-[#bbb] ml-1">(수정됨)</span>

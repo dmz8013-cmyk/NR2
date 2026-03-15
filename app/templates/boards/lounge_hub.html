@@ -1,0 +1,53 @@
+{% extends "layouts/base.html" %}
+{% block title %}라운지 - NR2 Network{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+  <div style="background:linear-gradient(135deg,#1A1A2E 0%,#2D1B69 100%);border-radius:16px;padding:32px;margin-bottom:32px;color:#fff;">
+    <h1 style="font-size:28px;font-weight:800;margin:0 0 8px;">라운지</h1>
+    <p style="font-size:14px;color:rgba(255,255,255,0.7);margin:0;">직군별 익명 커뮤니티 — 같은 업계 사람들과 솔직하게 대화하세요</p>
+    {% if current_user.is_authenticated %}
+    <div style="margin-top:12px;padding:8px 14px;background:rgba(255,255,255,0.1);border-radius:8px;display:inline-block;font-size:13px;">
+      내 직군: <strong style="color:#A78BFA;">{{ {'media':'언론인','congress':'국회','govt':'정부','corp':'기업','public':'행인'}.get(current_user.job_category, '행인') }}</strong>
+    </div>
+    {% endif %}
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">
+    {% for b in boards %}
+    <a href="{{ url_for('boards.board', board_type=b.board_type) }}"
+       style="display:block;background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:24px;text-decoration:none;color:inherit;transition:all 0.2s;{% if not b.has_access and b.required_job %}opacity:0.5;{% endif %}"
+       onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 25px rgba(0,0,0,0.1)'"
+       onmouseout="this.style.transform='';this.style.boxShadow=''">
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <h3 style="font-size:18px;font-weight:700;margin:0;color:#111;">{{ b.name }}</h3>
+        <span style="font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600;
+          {% if b.board_type == 'lounge_bamboo' %}background:#F0FDF4;color:#166534;
+          {% elif b.has_access %}background:#EEF2FF;color:#4338CA;
+          {% else %}background:#FEF2F2;color:#991B1B;{% endif %}">
+          {% if b.board_type == 'lounge_bamboo' %}전체
+          {% elif b.has_access %}접근 가능
+          {% else %}🔒 {{ b.job_name }} 전용{% endif %}
+        </span>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:12px;padding:3px 8px;background:#F3F4F6;border-radius:4px;color:#6B7280;font-weight:600;">[{{ b.badge }}]</span>
+        <span style="font-size:13px;color:#9CA3AF;">게시글 {{ b.count }}개</span>
+      </div>
+
+      <p style="font-size:13px;color:#6B7280;margin:0;">
+        {% if b.board_type == 'lounge_media' %}기자, PD, 언론사 관계자들의 익명 소통 공간
+        {% elif b.board_type == 'lounge_congress' %}보좌진, 당직자, 국회 관계자들의 익명 라운지
+        {% elif b.board_type == 'lounge_govt' %}공무원, 공공기관, 공기업 종사자들의 익명 라운지
+        {% elif b.board_type == 'lounge_corp' %}기업 홍보, 대관, 임원들의 익명 소통 공간
+        {% elif b.board_type == 'lounge_public' %}모든 회원이 자유롭게 소통하는 익명 광장
+        {% elif b.board_type == 'lounge_bamboo' %}직군 구분 없이 완전 익명으로 제보하는 대나무숲
+        {% endif %}
+      </p>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
