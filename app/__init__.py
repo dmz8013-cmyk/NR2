@@ -198,6 +198,24 @@ def create_app(config_name='default'):
         except Exception:
             db.session.rollback()
 
+        # news_articles 테이블에 is_archived 컬럼 추가
+        try:
+            db.session.execute(db.text(
+                "ALTER TABLE news_articles ADD COLUMN is_archived BOOLEAN DEFAULT FALSE"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        # [1회성] 기존 기사 전부 아카이브 처리 (24시간 이전 기사)
+        try:
+            db.session.execute(db.text(
+                "UPDATE news_articles SET is_archived = TRUE WHERE is_archived = FALSE AND created_at < NOW() - INTERVAL '24 hours'"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
         # [1회성] AESA 게시판 이준석 관련 자동 게시글 삭제
         try:
             from app.models import Post

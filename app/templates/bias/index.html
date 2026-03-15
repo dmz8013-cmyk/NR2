@@ -29,17 +29,24 @@
         <a href="{{ url_for('bias.submit') }}" style="display:inline-flex;align-items:center;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);border-radius:8px;text-decoration:none;white-space:nowrap;flex-shrink:0;">+ 기사 등록</a>
         {% endif %}
       </div>
-      <p style="font-size:13px;color:rgba(255,255,255,0.7);margin:6px 0 0;">시민과 전문가가 함께 판단하는 뉴스 편향 지수</p>
+      <p style="font-size:13px;color:rgba(255,255,255,0.7);margin:6px 0 0;">
+        {% if show_archive %}
+          📂 아카이브 — 과거 기사 모아보기
+        {% else %}
+          오늘의 TOP 뉴스 — 시민과 전문가가 함께 판단하는 편향 지수
+        {% endif %}
+      </p>
     </div>
   </div>
 
   {# --- 필터 탭 --- #}
   <div style="display:flex;gap:8px;margin-bottom:20px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;" class="hide-scrollbar">
-    <a href="{{ url_for('bias.index', tab='all') }}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition {% if current_tab == 'all' %}bg-amber-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">📰 전체</a>
+    <a href="{{ url_for('bias.index', tab='all') }}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition {% if current_tab == 'all' and not show_archive %}bg-amber-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">📰 오늘의 TOP</a>
     <a href="{{ url_for('bias.index', tab='ranking') }}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition {% if current_tab == 'ranking' %}bg-orange-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">🔥 랭킹</a>
     <a href="{{ url_for('bias.index', tab='politics') }}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition {% if current_tab == 'politics' %}bg-blue-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">🏛️ 정치</a>
     <a href="{{ url_for('bias.index', tab='economy') }}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition {% if current_tab == 'economy' %}bg-green-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">💰 경제</a>
     <a href="{{ url_for('bias.index', tab='world') }}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition {% if current_tab == 'world' %}bg-purple-500 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">🌏 국제</a>
+    <a href="{{ url_for('bias.index', archive='1') }}" class="px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition {% if show_archive %}bg-gray-700 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-gray-200{% endif %}">📂 아카이브</a>
   </div>
 
   {% if not current_user.is_authenticated %}
