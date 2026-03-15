@@ -70,15 +70,11 @@ def index():
 
         query = NewsArticle.query
 
-        # ── 24시간 이내 + 비아카이브 기사만 (아카이브 보기 모드 제외) ──
+        # ── is_visible=True 기사만 메인 노출 (아카이브 모드에서는 숨긴 기사) ──
         if not show_archive:
-            cutoff_24h = datetime.now() - timedelta(hours=24)
-            query = query.filter(
-                NewsArticle.is_archived != True,
-                NewsArticle.created_at >= cutoff_24h
-            )
+            query = query.filter(NewsArticle.is_visible == True)
         else:
-            query = query.filter(NewsArticle.is_archived == True)
+            query = query.filter(NewsArticle.is_visible == False)
 
         # ── 스포츠/연예 제외 필터 ──
         EXCLUDE_SOURCES = ['스포츠조선', '스포츠서울', '스포츠동아', '텐아시아', 'OSEN', '스타뉴스']
