@@ -120,15 +120,13 @@
   {# ═══════════════════════════════════════════
      PARTNERS — 다크 마퀴 배너
      ═══════════════════════════════════════════ #}
-  <div id="marquee-wrap" style="background:rgba(26,26,46,0.85);border-top:1px solid rgba(200,121,65,0.3);border-bottom:1px solid rgba(200,121,65,0.3);padding:10px 0;overflow:hidden;touch-action:pan-y;">
+  <div id="marquee-wrap" style="background:rgba(26,26,46,0.85);border-top:1px solid rgba(200,121,65,0.3);border-bottom:1px solid rgba(200,121,65,0.3);padding:10px 0;overflow:hidden;touch-action:pan-y;cursor:grab;">
     <div id="marquee-track" style="display:flex;width:max-content;align-items:center;gap:80px;padding:0 40px;will-change:transform;">
-      <span style="color:rgba(255,255,255,0.5);font-size:11px;letter-spacing:0.1em;">PARTNERS</span>
       <a href="https://sob.kr" target="_blank" rel="noopener noreferrer" style="display:inline-block;"><img src="/static/images/partners/sob-production.jpg" alt="SOB Production" style="height:28px;object-fit:contain;opacity:0.9;border-radius:6px;"></a>
       <a href="#" style="display:inline-block;"><img src="/static/images/partners/solaris.png" alt="솔라리스 법률사무소" style="height:28px;object-fit:contain;opacity:0.85;"></a>
       <a href="#" style="display:inline-block;"><img src="/static/images/partners/goodgang.png" alt="GOODGANG LABS" style="height:28px;object-fit:contain;opacity:0.85;"></a>
       <a href="#" style="display:inline-block;"><img src="/static/images/partners/voted.png" alt="voted" style="height:28px;object-fit:contain;opacity:0.85;"></a>
       <a href="https://walklabstudio.com/" target="_blank" rel="noopener noreferrer" style="display:inline-block;"><img src="/static/images/partners/walklab.png" alt="WalklabStudio" style="height:28px;object-fit:contain;opacity:0.9;border-radius:8px;"></a>
-      <span style="color:rgba(255,255,255,0.5);font-size:11px;letter-spacing:0.1em;">PARTNERS</span>
       <a href="https://sob.kr" target="_blank" rel="noopener noreferrer" style="display:inline-block;"><img src="/static/images/partners/sob-production.jpg" alt="SOB Production" style="height:28px;object-fit:contain;opacity:0.9;border-radius:6px;"></a>
       <a href="#" style="display:inline-block;"><img src="/static/images/partners/solaris.png" alt="솔라리스 법률사무소" style="height:28px;object-fit:contain;opacity:0.85;"></a>
       <a href="#" style="display:inline-block;"><img src="/static/images/partners/goodgang.png" alt="GOODGANG LABS" style="height:28px;object-fit:contain;opacity:0.85;"></a>
@@ -174,6 +172,33 @@
     }
     wrap.addEventListener('touchend',endTouch,{passive:true});
     wrap.addEventListener('touchcancel',endTouch,{passive:true});
+    /* Mouse drag — desktop */
+    var mouseDown=false,mouseStartX=0,mouseStartPos=0,mouseLastX=0,mouseSwipeV=0;
+    wrap.addEventListener('mousedown',function(e){
+      e.preventDefault();
+      mouseDown=true;mouseStartX=e.clientX;mouseStartPos=pos;mouseLastX=e.clientX;mouseSwipeV=0;
+      speed=0;wrap.style.cursor='grabbing';
+    });
+    window.addEventListener('mousemove',function(e){
+      if(!mouseDown)return;
+      var dx=e.clientX-mouseStartX;
+      mouseSwipeV=e.clientX-mouseLastX;mouseLastX=e.clientX;
+      pos=mouseStartPos+dx;
+      if(pos<=-half)pos+=half;if(pos>0)pos-=half;
+    });
+    function endMouse(){
+      if(!mouseDown)return;mouseDown=false;wrap.style.cursor='grab';
+      if(Math.abs(mouseSwipeV)>2){
+        speed=mouseSwipeV>0?-BASE_SPEED*2.5:BASE_SPEED*2.5;
+      }else{speed=BASE_SPEED;}
+      setTimeout(function(){speed=BASE_SPEED;},1500);
+    }
+    window.addEventListener('mouseup',endMouse);
+    wrap.addEventListener('mouseleave',endMouse);
+    /* Prevent link clicks after drag */
+    wrap.addEventListener('click',function(e){
+      if(Math.abs(mouseLastX-mouseStartX)>5)e.preventDefault();
+    },true);
   })();
   </script>
 
