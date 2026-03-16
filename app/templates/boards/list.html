@@ -92,15 +92,21 @@
 <div class="max-w-4xl mx-auto">
 
     {# ── Board Header (Hero Image) ────────────── #}
-    <div class="board-hero">
-        <div style="width:100%;">
+    <div class="board-hero" style="position:relative;overflow:hidden;">
+        {% if lounge_image %}
+        <div style="position:absolute;inset:0;background:url('/static/images/{{ lounge_image }}') center/cover no-repeat;opacity:0.2;"></div>
+        <div style="position:absolute;inset:0;background:linear-gradient(135deg,rgba(26,26,46,0.85),rgba(45,27,105,0.85));"></div>
+        {% endif %}
+        <div style="width:100%;position:relative;z-index:1;">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
                 <h1 class="font-serif-kr" style="font-size:32px;font-weight:700;color:#fff;line-height:1.2;margin:0;">{{ board_name }}</h1>
-                {% if current_user.is_authenticated and (board_type in ['free','left','right'] or current_user.is_admin or current_user.is_vice_admin) %}
+                {% if current_user.is_authenticated and (board_type in ['free','left','right'] or current_user.is_admin or current_user.is_vice_admin or is_lounge) %}
+                {% if not is_lounge or has_access %}
                 <a href="{{ url_for('boards.write', board_type=board_type) }}"
                    style="display:inline-flex;align-items:center;padding:8px 16px;font-size:13px;font-weight:600;color:#fff;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);border-radius:8px;text-decoration:none;white-space:nowrap;flex-shrink:0;">
                     글쓰기
                 </a>
+                {% endif %}
                 {% endif %}
             </div>
             <p style="font-size:13px;color:rgba(255,255,255,0.7);margin:6px 0 0;">
@@ -110,6 +116,12 @@
                 {% elif board_type == 'morpheus' %}빨간약을 선택한 사람들의 공간
                 {% elif board_type == 'free' %}
                 {% elif board_type == 'fakenews' %}사실과 거짓을 가려내는 곳
+                {% elif board_type == 'lounge_media' %}기자, PD, 언론사 관계자들의 익명 소통 공간
+                {% elif board_type == 'lounge_congress' %}보좌진, 당직자, 국회 관계자들의 익명 라운지
+                {% elif board_type == 'lounge_govt' %}공무원, 공공기관, 공기업 종사자들의 익명 라운지
+                {% elif board_type == 'lounge_corp' %}기업 홍보, 대관, 임원들의 익명 소통 공간
+                {% elif board_type == 'lounge_public' %}모든 회원이 자유롭게 소통하는 익명 광장
+                {% elif board_type == 'lounge_bamboo' %}직군 구분 없이 완전 익명으로 제보하는 대나무숲
                 {% else %}커뮤니티 게시판{% endif %}
             </p>
         </div>
