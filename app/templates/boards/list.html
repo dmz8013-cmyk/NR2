@@ -10,6 +10,24 @@
 
 {% block extra_css %}
 <style>
+{% if lounge_image %}
+body.board-{{ board_type }} {
+    background: url('/static/images/{{ lounge_image }}') center/cover no-repeat fixed;
+}
+body.board-{{ board_type }}::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.82);
+    z-index: 0;
+    pointer-events: none;
+}
+body.board-{{ board_type }} > * {
+    position: relative;
+    z-index: 1;
+}
+{% endif %}
+
 {% set board_colors = {
     'aesa': '#1a56db',
     'left': '#047857',
