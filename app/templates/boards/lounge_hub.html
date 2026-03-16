@@ -3,14 +3,18 @@
 
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 py-8">
-  <div style="background:linear-gradient(135deg,#1A1A2E 0%,#2D1B69 100%);border-radius:16px;padding:32px;margin-bottom:32px;color:#fff;">
-    <h1 style="font-size:28px;font-weight:800;margin:0 0 8px;">라운지</h1>
-    <p style="font-size:14px;color:rgba(255,255,255,0.7);margin:0;">직군별 익명 커뮤니티 — 같은 업계 사람들과 솔직하게 대화하세요</p>
-    {% if current_user.is_authenticated %}
-    <div style="margin-top:12px;padding:8px 14px;background:rgba(255,255,255,0.1);border-radius:8px;display:inline-block;font-size:13px;">
-      내 직군: <strong style="color:#A78BFA;">{{ {'media':'언론인','congress':'국회','govt':'정부','corp':'기업','public':'행인'}.get(current_user.job_category, '행인') }}</strong>
+  <div style="position:relative;border-radius:16px;padding:32px;margin-bottom:32px;color:#fff;overflow:hidden;">
+    <div style="position:absolute;inset:0;background:url('/static/images/lounge/lounge-main.jpg') center/cover no-repeat;"></div>
+    <div style="position:absolute;inset:0;background:rgba(0,0,0,0.55);"></div>
+    <div style="position:relative;z-index:1;">
+      <h1 style="font-size:28px;font-weight:800;margin:0 0 8px;">라운지</h1>
+      <p style="font-size:14px;color:rgba(255,255,255,0.7);margin:0;">직군별 익명 커뮤니티 — 같은 업계 사람들과 솔직하게 대화하세요</p>
+      {% if current_user.is_authenticated %}
+      <div style="margin-top:12px;padding:8px 14px;background:rgba(255,255,255,0.1);border-radius:8px;display:inline-block;font-size:13px;">
+        내 직군: <strong style="color:#A78BFA;">{{ {'media':'언론인','congress':'국회','govt':'정부','corp':'기업','public':'행인'}.get(current_user.job_category, '행인') }}</strong>
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
 
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">
