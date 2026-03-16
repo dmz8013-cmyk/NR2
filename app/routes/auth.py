@@ -89,6 +89,11 @@ def register():
         user.email_verify_token = secrets.token_urlsafe(32)
 
         db.session.add(user)
+        db.session.flush()
+
+        # NP 가입 보너스
+        from app.models.np_point import award_np
+        award_np(user, 'signup_bonus')
         db.session.commit()
 
         login_user(user)
@@ -162,6 +167,27 @@ def login():
 
         # Login user
         login_user(user, remember=remember)
+
+        # 연속 접속 체크 + NP 보상
+        from datetime import date as date_cls
+        from app.models.np_point import award_np
+        today = date_cls.today()
+        if user.last_login_date != today:
+            if user.last_login_date and (today - user.last_login_date).days == 1:
+                user.login_streak = (user.login_streak or 0) + 1
+            elif user.last_login_date and (today - user.last_login_date).days > 1:
+                user.login_streak = 1
+            else:
+                user.login_streak = (user.login_streak or 0) + 1
+            user.last_login_date = today
+
+            if user.login_streak == 7:
+                award_np(user, 'weekly_streak')
+            elif user.login_streak == 30:
+                award_np(user, 'monthly_streak')
+                user.login_streak = 0  # 리셋
+            db.session.commit()
+
         flash(f'{user.nickname}님, 환영합니다!', 'success')
 
         # Redirect to next page or home
@@ -198,6 +224,7 @@ def profile():
 
     my_posts = None
     my_comments = None
+    point_history = []
 
     if tab == 'posts':
         my_posts = Post.query.filter_by(user_id=current_user.id) \
@@ -208,12 +235,17 @@ def profile():
             .options(db.joinedload(Comment.post)) \
             .order_by(Comment.created_at.desc()) \
             .paginate(page=page, per_page=per_page, error_out=False)
+    else:
+        from app.models.np_point import PointHistory
+        point_history = PointHistory.query.filter_by(user_id=current_user.id) \
+            .order_by(PointHistory.created_at.desc()).limit(20).all()
 
     return render_template('auth/profile.html',
                            tab=tab,
                            my_posts=my_posts,
                            my_comments=my_comments,
-                           board_names=BOARD_NAMES)
+                           board_names=BOARD_NAMES,
+                           point_history=point_history)
 
 
 @bp.route('/profile/upload', methods=['POST'])

@@ -12,6 +12,7 @@ from app.models.bias import NewsArticle, BiasVote, BoneTransaction
 from app.models.briefing import Briefing
 from app.models.page_visit import PageVisit
 from app.models.user_bias_log import UserBiasLog
+from app.models.np_point import PointHistory
 
 __all__ = [
     'User',
@@ -31,4 +32,5 @@ __all__ = [
     'BiasVote',
     'BoneTransaction',
     'UserBiasLog',
+    'PointHistory',
 ]

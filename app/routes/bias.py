@@ -271,7 +271,10 @@ def vote(article_id):
         db.session.add(new_vote)
         current_user.add_bones(1, 'bias_vote')
         current_user.total_bias_votes += 1
-        flash('투표 완료! +1 🦴', 'success')
+        # NP 적립
+        from app.models.np_point import award_np
+        np_earned = award_np(current_user, 'youcheck_vote')
+        flash(f'투표 완료! +1 🦴 +{np_earned} NP', 'success')
 
     article.recalculate()
     db.session.commit()

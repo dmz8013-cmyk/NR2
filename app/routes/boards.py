@@ -320,7 +320,15 @@ def write(board_type):
             import logging
             logging.getLogger(__name__).info(f"[텔레그램] 전송 건너뜀: board_type={board_type}")
 
-        flash('게시글이 작성되었습니다.', 'success')
+        # NP 적립
+        from app.models.np_point import award_np
+        np_earned = award_np(current_user, 'post_write')
+        db.session.commit()
+
+        if np_earned:
+            flash(f'게시글이 작성되었습니다. +{np_earned} NP 적립!', 'success')
+        else:
+            flash('게시글이 작성되었습니다.', 'success')
         return redirect(url_for('boards.view', board_type=board_type, post_id=post.id))
 
     return render_template('boards/write.html',
@@ -526,9 +534,16 @@ def add_comment(board_type, post_id):
         parent_id=parent_id
     )
     db.session.add(comment)
+
+    # NP 적립
+    from app.models.np_point import award_np
+    np_earned = award_np(current_user, 'comment_write')
     db.session.commit()
 
-    flash('댓글이 작성되었습니다.', 'success')
+    if np_earned:
+        flash(f'댓글이 작성되었습니다. +{np_earned} NP 적립!', 'success')
+    else:
+        flash('댓글이 작성되었습니다.', 'success')
     return redirect(url_for('boards.view', board_type=board_type, post_id=post_id) + f'#comment-{comment.id}')
 
 
@@ -669,6 +684,20 @@ def vote_post(post_id):
 
     up_count = PostVote.query.filter_by(post_id=post_id, vote_type='up').count()
     down_count = PostVote.query.filter_by(post_id=post_id, vote_type='down').count()
+
+    # 추천 10개 돌파 시 글쓴이에게 NP 보너스
+    np_msg = ''
+    if up_count == 10 and vote_type == 'up' and action == 'voted':
+        from app.models.np_point import award_np, PointHistory
+        already = PointHistory.query.filter_by(
+            user_id=post.user_id, action_type='post_likes_10',
+            description=f'글 추천 10개 돌파 (#{post.id})'
+        ).first()
+        if not already:
+            post_author = User.query.get(post.user_id)
+            if post_author:
+                award_np(post_author, 'post_likes_10', f'글 추천 10개 돌파 (#{post.id})')
+                db.session.commit()
 
     return jsonify({
         'action': action,

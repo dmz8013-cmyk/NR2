@@ -176,7 +176,7 @@
                             {% if is_lounge %}
                             <span class="font-medium text-[#6b7280]">[{{ lounge_badge }}]</span>
                             {% else %}
-                            <span class="font-medium text-[#6b7280]">{{ post.author.nickname }}</span>
+                            <span class="font-medium text-[#6b7280]">{{ post.author.np_grade_icon }} {{ post.author.nickname }}</span>
                             {% endif %}
                             <span>{{ post.created_at|kst_short }}</span>
                             <span class="flex items-center gap-0.5">

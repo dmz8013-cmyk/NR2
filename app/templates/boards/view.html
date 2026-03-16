@@ -80,7 +80,7 @@
                             {% if is_lounge %}
                             <span style="font-weight:600;color:#4338CA;background:#EEF2FF;padding:2px 8px;border-radius:4px;font-size:11px;">[{{ lounge_badge }}]</span>
                             {% else %}
-                            <span style="font-weight:500;color:#1a1a1a;">{{ post.author.nickname }}</span>
+                            <span style="font-weight:500;color:#1a1a1a;">{{ post.author.np_grade_icon }} {{ post.author.nickname }}</span>
                             {% endif %}
                             <span style="color:#bbb;margin:0 3px;">&middot;</span>
                             <span style="color:#767676;">{{ post.created_at|kst }}</span>
@@ -246,7 +246,7 @@
                                 {% if is_lounge %}
                                 <span style="font-weight:600;color:#4338CA;background:#EEF2FF;padding:1px 6px;border-radius:3px;font-size:11px;">[{{ lounge_badge }}]</span>
                                 {% else %}
-                                <span class="font-medium text-[#1a1a1a] text-[13px]">{{ comment.author.nickname }}</span>
+                                <span class="font-medium text-[#1a1a1a] text-[13px]">{{ comment.author.np_grade_icon }} {{ comment.author.nickname }}</span>
                                 {% endif %}
                                 <span class="text-[11px] text-[#bbb] ml-2">{{ comment.created_at|kst }}</span>
                                 {% if comment.created_at != comment.updated_at %}
