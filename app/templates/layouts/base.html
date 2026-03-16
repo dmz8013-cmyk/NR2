@@ -191,13 +191,6 @@
         </div>
     </nav>
 
-    <!-- Email Verification Banner -->
-    {% if current_user.is_authenticated and current_user.email_verified is defined and not current_user.email_verified %}
-    <div class="email-verify-banner" style="background:#1A1A2E;color:#ffffff;border-bottom:2px solid #C87941;padding:10px 16px;text-align:center;font-size:14px;font-weight:600;">
-        📧 이메일 인증이 완료되지 않았습니다.
-        <a href="{{ url_for('auth.resend_verification') }}" style="color:#C87941;font-weight:700;text-decoration:underline;margin-left:8px;">인증 메일 재발송</a>
-    </div>
-    {% endif %}
 
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}

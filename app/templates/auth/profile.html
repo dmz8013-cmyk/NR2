@@ -15,11 +15,6 @@
                     <h1 style="font-size:24px;font-weight:700;color:#fff;margin:0;">{{ current_user.nickname }}</h1>
                     <p style="font-size:13px;color:rgba(255,255,255,0.7);margin:4px 0 0;">
                         {{ current_user.email }}
-                        {% if current_user.email_verified is defined and current_user.email_verified %}
-                        <span style="color:#4ADE80;">✓ 인증됨</span>
-                        {% elif current_user.email_verified is defined %}
-                        <span style="color:#FBBF24;">✗ 미인증</span>
-                        {% endif %}
                     </p>
                 </div>
                 <a href="{{ url_for('auth.logout') }}"

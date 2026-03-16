@@ -185,6 +185,15 @@ def create_app(config_name='default'):
             except Exception:
                 db.session.rollback()
 
+        # 미인증 회원 전원 인증 처리
+        try:
+            db.session.execute(db.text(
+                "UPDATE users SET email_verified = TRUE WHERE email_verified = FALSE OR email_verified IS NULL"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
         # 댓글 대댓글(parent_id) 컬럼 추가
         try:
             db.session.execute(db.text(

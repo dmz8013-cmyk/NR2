@@ -12,7 +12,6 @@ from app.models.post import Post
 from app.models.comment import Comment
 from app.utils.validators import validate_password_strength, sanitize_html, validate_nickname
 from app.utils.image_processing import save_upload_image, delete_image
-from app.utils.email import send_verification_email
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -85,8 +84,7 @@ def register():
         # Create new user
         user = User(email=email, nickname=nickname, job_category=job_category)
         user.set_password(password)
-        user.email_verified = False
-        user.email_verify_token = secrets.token_urlsafe(32)
+        user.email_verified = True
 
         db.session.add(user)
         db.session.flush()
@@ -98,13 +96,7 @@ def register():
 
         login_user(user)
 
-        # 인증 메일 발송
-        try:
-            send_verification_email(user)
-            flash(f'{user.nickname}님, 환영합니다! 인증 메일을 발송했습니다. 메일함을 확인해주세요.', 'success')
-        except Exception as e:
-            flash(f'{user.nickname}님, 환영합니다! 메일 발송에 실패했습니다. 관리자에게 문의해주세요.', 'error')
-            print(f'Mail error: {e}')
+        flash(f'{user.nickname}님, 환영합니다!', 'success')
 
         return redirect(url_for('main.index'))
 
@@ -354,17 +346,8 @@ def request_verify():
 
 @bp.route('/verify-email/<token>')
 def verify_email(token):
-    """이메일 인증 처리"""
-    user = User.query.filter_by(email_verify_token=token).first()
-    if not user:
-        flash('유효하지 않은 인증 링크입니다.', 'error')
-        return redirect(url_for('main.index'))
-
-    user.email_verified = True
-    user.email_verify_token = None
-    db.session.commit()
-
-    flash('이메일 인증이 완료되었습니다! 🎉', 'success')
+    """이메일 인증 (레거시 링크 호환용)"""
+    flash('이메일 인증이 더 이상 필요하지 않습니다.', 'info')
     if current_user.is_authenticated:
         return redirect(url_for('auth.profile'))
     return redirect(url_for('auth.login'))
@@ -373,21 +356,8 @@ def verify_email(token):
 @bp.route('/resend-verification')
 @login_required
 def resend_verification():
-    """인증 메일 재발송"""
-    if current_user.email_verified:
-        flash('이미 인증된 이메일입니다.', 'info')
-        return redirect(url_for('auth.profile'))
-
-    current_user.email_verify_token = secrets.token_urlsafe(32)
-    db.session.commit()
-
-    try:
-        send_verification_email(current_user)
-        flash('인증 메일을 발송했습니다. 메일함을 확인해주세요.', 'success')
-    except Exception as e:
-        flash('메일 발송에 실패했습니다. 관리자에게 문의해주세요.', 'error')
-        print(f'Mail error: {e}')
-
+    """인증 메일 재발송 (비활성화)"""
+    flash('이메일 인증이 더 이상 필요하지 않습니다.', 'info')
     return redirect(url_for('auth.profile'))
 
 
