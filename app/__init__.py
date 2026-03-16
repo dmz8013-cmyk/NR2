@@ -126,6 +126,11 @@ def create_app(config_name='default'):
         return clean[:length] + '...' if len(clean) > length else clean
     app.jinja_env.filters['clean_preview'] = clean_preview
 
+    # NP 등급 필터
+    from app.models.np_point import get_next_grade, get_grade
+    app.jinja_env.filters['np_next_grade'] = lambda np: get_next_grade(np or 0)
+    app.jinja_env.filters['np_grade'] = lambda np: get_grade(np or 0)
+
     # Import models for Flask-Migrate
     from app import models
 
@@ -242,6 +247,69 @@ def create_app(config_name='default'):
             db.session.commit()
         except Exception:
             db.session.rollback()
+
+        # users 테이블에 NP 관련 컬럼 추가
+        try:
+            db.session.execute(db.text(
+                "ALTER TABLE users ADD COLUMN total_np INTEGER DEFAULT 0"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        try:
+            db.session.execute(db.text(
+                "ALTER TABLE users ADD COLUMN last_login_date DATE"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        try:
+            db.session.execute(db.text(
+                "ALTER TABLE users ADD COLUMN login_streak INTEGER DEFAULT 0"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        # point_history 테이블 생성
+        try:
+            db.session.execute(db.text("""
+                CREATE TABLE IF NOT EXISTS point_history (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER NOT NULL REFERENCES users(id),
+                    action_type VARCHAR(50) NOT NULL,
+                    points INTEGER NOT NULL,
+                    description VARCHAR(200) NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        # [1회성] 기존 가입자 NP 소급 지급
+        try:
+            from app.models.np_point import PointHistory
+            already_done = PointHistory.query.filter_by(action_type='retroactive_bulk').first()
+            if not already_done:
+                from app.models import User, Post, Comment
+                users = User.query.all()
+                for u in users:
+                    np = 100  # 가입 보너스
+                    post_count = Post.query.filter_by(user_id=u.id).count()
+                    comment_count = Comment.query.filter_by(user_id=u.id).count()
+                    np += post_count * 10
+                    np += comment_count * 5
+                    u.total_np = np
+                    db.session.add(PointHistory(
+                        user_id=u.id, action_type='retroactive_bulk',
+                        points=np, description=f'소급지급: 가입100+글{post_count}x10+댓글{comment_count}x5'
+                    ))
+                db.session.commit()
+                app.logger.info('[NP] 기존 가입자 NP 소급 지급 완료')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f'[NP] 소급 지급 오류: {e}')
 
         # [1회성] AESA 게시판 이준석 관련 자동 게시글 삭제
         try:

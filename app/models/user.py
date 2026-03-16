@@ -38,6 +38,11 @@ class User(UserMixin, db.Model):
     job_category = db.Column(db.String(20), default='public')
     # media=언론인, congress=국회, govt=정부, corp=기업, public=행인
 
+    # === 누렁이 포인트(NP) ===
+    total_np = db.Column(db.Integer, default=0)
+    last_login_date = db.Column(db.Date, nullable=True)  # 연속 접속 체크용
+    login_streak = db.Column(db.Integer, default=0)  # 연속 접속일
+
     # === 뼈다귀 포인트 ===
     bones = db.Column(db.Float, default=0.0)
     total_bias_votes = db.Column(db.Integer, default=0)
@@ -52,6 +57,15 @@ class User(UserMixin, db.Model):
     bias_votes = db.relationship('BiasVote', backref='voter', lazy='dynamic', cascade='all, delete-orphan')
     bone_transactions = db.relationship('BoneTransaction', backref='user', lazy='dynamic', cascade='all, delete-orphan')
     submitted_articles = db.relationship('NewsArticle', backref='submitter', lazy='dynamic', cascade='all, delete-orphan')
+
+    @property
+    def np_grade(self):
+        from app.models.np_point import get_grade
+        return get_grade(self.total_np or 0)
+
+    @property
+    def np_grade_icon(self):
+        return self.np_grade['icon']
 
     @property
     def vote_weight(self):
