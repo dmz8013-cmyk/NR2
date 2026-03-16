@@ -141,8 +141,8 @@
   {# ═══════════════════════════════════════════
      PARTNERS — 다크 마퀴 배너
      ═══════════════════════════════════════════ #}
-  <div style="background:rgba(26,26,46,0.85);border-top:1px solid rgba(200,121,65,0.3);border-bottom:1px solid rgba(200,121,65,0.3);padding:10px 0;overflow:hidden;">
-    <div style="display:flex;animation:marquee-scroll 28s linear infinite;width:max-content;align-items:center;gap:80px;padding:0 40px;">
+  <div id="marquee-wrap" style="background:rgba(26,26,46,0.85);border-top:1px solid rgba(200,121,65,0.3);border-bottom:1px solid rgba(200,121,65,0.3);padding:10px 0;overflow:hidden;touch-action:pan-y;">
+    <div id="marquee-track" style="display:flex;width:max-content;align-items:center;gap:80px;padding:0 40px;will-change:transform;">
       <span style="color:rgba(255,255,255,0.5);font-size:11px;letter-spacing:0.1em;">PARTNERS</span>
       <a href="https://sob.kr" target="_blank" rel="noopener noreferrer" style="display:inline-block;"><img src="/static/images/partners/sob-production.jpg" alt="SOB Production" style="height:28px;object-fit:contain;opacity:0.9;border-radius:6px;"></a>
       <a href="#" style="display:inline-block;"><img src="/static/images/partners/solaris.png" alt="솔라리스 법률사무소" style="height:28px;object-fit:contain;opacity:0.85;"></a>
@@ -157,7 +157,46 @@
       <a href="https://walklabstudio.com/" target="_blank" rel="noopener noreferrer" style="display:inline-block;"><img src="/static/images/partners/walklab.png" alt="WalklabStudio" style="height:28px;object-fit:contain;opacity:0.9;border-radius:8px;"></a>
     </div>
   </div>
-  <style>@keyframes marquee-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}</style>
+  <script>
+  (function(){
+    var track=document.getElementById('marquee-track');
+    if(!track)return;
+    var BASE_SPEED=1.2, speed=BASE_SPEED, pos=0, half=track.scrollWidth/2;
+    var raf, touchStartX=0, touchStartPos=0, isDragging=false, lastMoveX=0, swipeV=0;
+    function tick(){
+      pos-=speed;
+      if(pos<=-half)pos+=half;
+      if(pos>0)pos-=half;
+      track.style.transform='translateX('+pos+'px)';
+      raf=requestAnimationFrame(tick);
+    }
+    raf=requestAnimationFrame(tick);
+    /* Touch swipe — mobile only */
+    var wrap=document.getElementById('marquee-wrap');
+    wrap.addEventListener('touchstart',function(e){
+      isDragging=true;touchStartX=e.touches[0].clientX;touchStartPos=pos;lastMoveX=touchStartX;swipeV=0;
+      speed=0;
+    },{passive:true});
+    wrap.addEventListener('touchmove',function(e){
+      if(!isDragging)return;
+      var cx=e.touches[0].clientX,dx=cx-touchStartX;
+      swipeV=cx-lastMoveX;lastMoveX=cx;
+      pos=touchStartPos+dx;
+      if(pos<=-half)pos+=half;if(pos>0)pos-=half;
+    },{passive:true});
+    function endTouch(){
+      if(!isDragging)return;isDragging=false;
+      /* swipeV > 0 = swipe right, < 0 = swipe left */
+      if(Math.abs(swipeV)>2){
+        speed=swipeV>0?-BASE_SPEED*2.5:BASE_SPEED*2.5;
+      }else{speed=BASE_SPEED;}
+      /* ease back to normal speed */
+      setTimeout(function(){speed=BASE_SPEED;},1500);
+    }
+    wrap.addEventListener('touchend',endTouch,{passive:true});
+    wrap.addEventListener('touchcancel',endTouch,{passive:true});
+  })();
+  </script>
 
   {# ═══════════════════════════════════════════
      ② 커뮤니티 인기글 (자유+LEFT+RIGHT 통합 Top 10)
