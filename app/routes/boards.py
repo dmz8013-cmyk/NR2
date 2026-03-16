@@ -89,6 +89,16 @@ JOB_CATEGORY_NAMES = {
     'public': '행인',
 }
 
+# 라운지 배경 이미지 매핑
+LOUNGE_IMAGES = {
+    'lounge_media': 'lounge/media.png',
+    'lounge_congress': 'lounge/congress.png',
+    'lounge_govt': 'lounge/govt.png',
+    'lounge_corp': 'lounge/corp.jpg',
+    'lounge_public': 'lounge/public.png',
+    'lounge_bamboo': 'lounge/bamboo.png',
+}
+
 def _is_lounge_board(board_type):
     return board_type in LOUNGE_BOARDS
 
@@ -204,7 +214,8 @@ def board(board_type):
                          search_type=search_type,
                          is_lounge=is_lounge,
                          has_access=has_access,
-                         lounge_badge=LOUNGE_BADGES.get(board_type, ''))
+                         lounge_badge=LOUNGE_BADGES.get(board_type, ''),
+                         lounge_image=LOUNGE_IMAGES.get(board_type, ''))
 
 
 @bp.route('/lounge')
@@ -221,6 +232,7 @@ def lounge_hub():
                 'job_name': JOB_CATEGORY_NAMES.get(LOUNGE_BOARDS[bt], '전체'),
                 'has_access': _check_lounge_access(bt),
                 'count': Post.query.filter_by(board_type=bt).count(),
+                'image': LOUNGE_IMAGES.get(bt, ''),
             })
     return render_template('boards/lounge_hub.html', boards=boards)
 
@@ -377,7 +389,8 @@ def view(board_type, post_id):
                            up_count=up_count, down_count=down_count, user_vote=user_vote,
                            board_name=BOARD_NAMES.get(board_type, board_type),
                            is_lounge=is_lounge,
-                           lounge_badge=LOUNGE_BADGES.get(board_type, ''))
+                           lounge_badge=LOUNGE_BADGES.get(board_type, ''),
+                         lounge_image=LOUNGE_IMAGES.get(board_type, ''))
 
 
 @bp.route('/<board_type>/<int:post_id>/edit', methods=['GET', 'POST'])
