@@ -25,6 +25,7 @@ from schedule_bot import send_schedule
 from vip_alert_bot import run_vip_alert
 from app.utils.bias_report import generate_weekly_report, send_weekly_report_to_telegram
 from scripts.daily_scrap import run as daily_scrap_run
+from nr2_web_bot import poll_commands, send_youcheck_daily
 
 scheduler = BlockingScheduler(timezone='Asia/Seoul')
 INTERVAL_MINUTES = int(os.environ.get('YOUTUBE_CHECK_INTERVAL', 10))
@@ -97,6 +98,19 @@ def daily_scrap_morning():
 def daily_scrap_afternoon():
     logger.info('[Scheduler] 단독 뉴스 스크랩 — 오후판 실행 중...')
     daily_scrap_run('afternoon')
+
+@scheduler.scheduled_job('interval', minutes=1, id='web_bot_poll',
+                          coalesce=True, max_instances=1)
+def web_bot_poll():
+    """텔레그램 /web 명령어 폴링 (1분 간격)"""
+    logger.info('[Scheduler] 웹봇 명령어 폴링 중...')
+    poll_commands(app)
+
+@scheduler.scheduled_job('cron', hour=8, minute=0, id='youcheck_daily', timezone='Asia/Seoul')
+def youcheck_daily():
+    """매일 오전 8시 YouCheck 기사 채널 발송"""
+    logger.info('[Scheduler] YouCheck 일일 발송 중...')
+    send_youcheck_daily(app)
 
 # [4월말 활성화 예정] YouTube Data API v3 — 1시간마다 새 영상 체크
 # @scheduler.scheduled_job('interval', hours=1, id='youtube_api_check',

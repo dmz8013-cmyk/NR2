@@ -319,18 +319,14 @@ def write(board_type):
 
         db.session.commit()
 
-        # 텔레그램 알림 (AESA 게시판만)
-        if board_type == 'aesa':
-            try:
-                import logging
-                logging.getLogger(__name__).info(f"[텔레그램] AESA 글 전송: id={post.id}, board_type={board_type}")
-                notify_new_post(post)
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).error(f"[텔레그램] 전송 실패: {e}")
-        else:
+        # 텔레그램 알림 (모든 게시판)
+        try:
             import logging
-            logging.getLogger(__name__).info(f"[텔레그램] 전송 건너뜀: board_type={board_type}")
+            logging.getLogger(__name__).info(f"[텔레그램] 새 글 전송: id={post.id}, board_type={board_type}")
+            notify_new_post(post)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"[텔레그램] 전송 실패: {e}")
 
         # NP 적립
         from app.models.np_point import award_np
