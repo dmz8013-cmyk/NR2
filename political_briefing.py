@@ -299,6 +299,12 @@ def send_political_briefing(is_afternoon=True):
             db.session.add(record)
             db.session.commit()
             logger.info(f"정치 브리핑 DB 저장 완료 (id={record.id})")
+            # 채널 알림
+            try:
+                from app.utils.telegram_notify import notify_new_briefing
+                notify_new_briefing(record)
+            except Exception as ne:
+                logger.error(f"정치 브리핑 채널 알림 실패: {ne}")
     except Exception as e:
         logger.error(f"정치 브리핑 DB 저장 실패: {e}")
     if success:
