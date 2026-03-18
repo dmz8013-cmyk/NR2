@@ -66,9 +66,10 @@
                 {% for user in users %}
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <img src="{{ url_for('static', filename='uploads/profiles/' + user.profile_image) }}"
+                        <img src="{% if user.profile_image and 'cloudinary.com' in user.profile_image %}{{ user.profile_image }}{% else %}{{ url_for('static', filename='uploads/profiles/' + (user.profile_image or 'default_profile.jpeg')) }}{% endif %}"
                              alt="{{ user.nickname }}"
-                             class="w-10 h-10 rounded-full object-cover">
+                             class="w-10 h-10 rounded-full object-cover"
+                             onerror="this.src='{{ url_for('static', filename='uploads/profiles/default_profile.jpeg') }}'">
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="text-sm font-medium text-gray-900">{{ user.nickname }}</div>
