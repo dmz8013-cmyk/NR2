@@ -239,11 +239,27 @@ def create_app(config_name='default'):
         except Exception:
             db.session.rollback()
 
-        # [1회성] 기존 기사 전부 is_visible=FALSE 처리 (0건에서 새로 시작)
+        # 오늘자 시사·정치·AI·경제 기사 중 최신 10개 자동 노출
         try:
-            db.session.execute(db.text(
-                "UPDATE news_articles SET is_visible = FALSE WHERE is_visible = TRUE"
-            ))
+            db.session.execute(db.text("""
+                UPDATE news_articles SET is_visible = TRUE
+                WHERE id IN (
+                    SELECT id FROM news_articles
+                    WHERE created_at >= NOW() - INTERVAL '48 hours'
+                      AND is_archived = FALSE
+                      AND (
+                        title ILIKE '%정치%' OR title ILIKE '%대통령%' OR title ILIKE '%국회%'
+                        OR title ILIKE '%여야%' OR title ILIKE '%민주당%' OR title ILIKE '%국민의힘%'
+                        OR title ILIKE '%AI%' OR title ILIKE '%인공지능%' OR title ILIKE '%ChatGPT%'
+                        OR title ILIKE '%경제%' OR title ILIKE '%금리%' OR title ILIKE '%환율%'
+                        OR title ILIKE '%삼성%' OR title ILIKE '%반도체%' OR title ILIKE '%테슬라%'
+                        OR title ILIKE '%시사%' OR title ILIKE '%검찰%' OR title ILIKE '%외교%'
+                        OR title ILIKE '%트럼프%' OR title ILIKE '%북한%' OR title ILIKE '%안보%'
+                      )
+                    ORDER BY created_at DESC
+                    LIMIT 10
+                )
+            """))
             db.session.commit()
         except Exception:
             db.session.rollback()

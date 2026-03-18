@@ -13,6 +13,15 @@
       <div style="margin-top:12px;padding:8px 14px;background:rgba(255,255,255,0.1);border-radius:8px;display:inline-block;font-size:13px;">
         내 직군: <strong style="color:#A78BFA;">{{ {'media':'언론인','congress':'국회','govt':'정부','corp':'기업','public':'행인'}.get(current_user.job_category, '행인') }}</strong>
       </div>
+      {% else %}
+      <div style="margin-top:16px;padding:14px 18px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:10px;font-size:14px;color:rgba(255,255,255,0.9);line-height:1.6;">
+        🔑 <strong>로그인 후 직군을 선택</strong>하면 전용 라운지가 열립니다<br>
+        <span style="font-size:12px;color:rgba(255,255,255,0.6);">행인 광장 · 대나무숲은 모든 회원에게 열려 있어요</span>
+        <div style="margin-top:12px;">
+          <a href="{{ url_for('auth.login') }}" style="display:inline-block;padding:8px 20px;background:#A78BFA;color:#fff;font-size:13px;font-weight:600;border-radius:6px;text-decoration:none;margin-right:8px;">로그인</a>
+          <a href="{{ url_for('auth.register') }}" style="display:inline-block;padding:8px 20px;background:rgba(255,255,255,0.15);color:#fff;font-size:13px;font-weight:600;border-radius:6px;text-decoration:none;border:1px solid rgba(255,255,255,0.3);">가입하기</a>
+        </div>
+      </div>
       {% endif %}
     </div>
   </div>
