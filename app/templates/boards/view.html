@@ -196,22 +196,22 @@ body.board-{{ post.board_type }} > * {
             <span class="text-[13px]">댓글 {{ post.comments_count }}</span>
         </div>
 
-        <!-- 공유 버튼 -->
-        <div style="display:flex;gap:8px;justify-content:center;margin:16px 0;flex-wrap:wrap;">
-            <button onclick="copyLink()" style="background:transparent;border:1px solid rgba(0,0,0,0.15);border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:4px;">
+        <!-- 공유 버튼 (2×2 그리드) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:320px;margin:16px auto;">
+            <button onclick="copyLink()" style="background:transparent;border:1px solid rgba(0,0,0,0.15);border-radius:8px;padding:10px 0;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;gap:4px;">
                 🔗 링크복사
             </button>
-            <button onclick="shareKakao()" style="background:#FAE100;color:#3A1D1D;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px;font-weight:700;display:flex;align-items:center;gap:4px;">
+            <button onclick="shareKakao()" style="background:#FAE100;color:#3A1D1D;border:none;border-radius:8px;padding:10px 0;cursor:pointer;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;">
                 💬 카카오톡
             </button>
             <a href="https://twitter.com/intent/tweet?url=https://nr2.kr{{ url_for('boards.view', board_type=post.board_type, post_id=post.id)|urlencode }}&text={{ post.title|urlencode }}"
                target="_blank" rel="noopener noreferrer"
-               style="background:#000;color:#fff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px;font-weight:700;display:flex;align-items:center;gap:4px;text-decoration:none;">
+               style="background:#000;color:#fff;border:none;border-radius:8px;padding:10px 0;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;text-decoration:none;">
                 𝕏 포스트
             </a>
             <a href="https://t.me/share/url?url=https://nr2.kr{{ url_for('boards.view', board_type=post.board_type, post_id=post.id)|urlencode }}&text={{ post.title|urlencode }}"
                target="_blank" rel="noopener noreferrer"
-               style="background:#2AABEE;color:#fff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px;font-weight:700;display:flex;align-items:center;gap:4px;text-decoration:none;">
+               style="background:#2AABEE;color:#fff;border:none;border-radius:8px;padding:10px 0;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:4px;text-decoration:none;">
                 ✈️ 텔레그램
             </a>
         </div>
