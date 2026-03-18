@@ -109,7 +109,6 @@
   {# ═══════════════════════════════════════════
      ⓪ 지금 뜨는 쇼츠 — Hero 위
      ═══════════════════════════════════════════ #}
-  {% if shorts_posts %}
   <div style="background:#000;padding:20px 0 24px;">
     <div class="max-w-[1200px] mx-auto px-4 sm:px-6">
       <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;">
@@ -120,27 +119,57 @@
         <button class="shorts-nav" style="left:8px;" onclick="slideShortsBy(-1)" aria-label="이전">‹</button>
         <button class="shorts-nav" style="right:8px;" onclick="slideShortsBy(1)" aria-label="다음">›</button>
         <div id="shorts-track" class="shorts-slider">
-          {% for s in shorts_posts %}
-          {% set vid = s.shorts_video_id %}
-          {% if vid %}
-          <div class="shorts-card">
-            <div style="position:relative;width:100%;padding-bottom:177.78%;border-radius:12px;overflow:hidden;background:#111;">
-              <iframe src="https://www.youtube.com/embed/{{ vid }}?rel=0&modestbranding=1&playsinline=1"
-                      loading="lazy"
-                      sandbox="allow-scripts allow-same-origin allow-presentation"
-                      allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
-                      allowfullscreen
-                      style="position:absolute;inset:0;width:100%;height:100%;border:none;"></iframe>
+          {% if shorts_posts %}
+            {% for s in shorts_posts %}
+            {% set vid = s.shorts_video_id %}
+            {% if vid %}
+            <div class="shorts-card">
+              <div style="position:relative;width:100%;padding-bottom:177.78%;border-radius:12px;overflow:hidden;background:#111;">
+                <iframe src="https://www.youtube.com/embed/{{ vid }}?rel=0&modestbranding=1&playsinline=1"
+                        loading="lazy"
+                        sandbox="allow-scripts allow-same-origin allow-presentation"
+                        allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen
+                        style="position:absolute;inset:0;width:100%;height:100%;border:none;"></iframe>
+              </div>
+              <div style="padding:10px 4px 0;">
+                <p style="font-size:13px;font-weight:600;color:#fff;margin:0;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ s.title }}</p>
+                {% if s.content and s.content|striptags|trim|length > 0 %}
+                <p style="font-size:11px;color:rgba(255,255,255,0.5);margin:4px 0 0;">{{ s.content|striptags|truncate(60) }}</p>
+                {% endif %}
+              </div>
+              <div style="display:flex;gap:8px;margin-top:10px;">
+                <a href="https://www.youtube.com/watch?v={{ vid }}" target="_blank" rel="noopener noreferrer"
+                   style="flex:1;text-align:center;padding:8px 0;background:#FF0000;color:#fff;font-size:12px;font-weight:700;border-radius:6px;text-decoration:none;">▶ 유튜브에서 보기</a>
+                <a href="{{ url_for('boards.board', board_type='pick') }}"
+                   style="flex:1;text-align:center;padding:8px 0;background:#1A1A2E;color:#fff;font-size:12px;font-weight:700;border-radius:6px;text-decoration:none;">💬 nr2.kr에서 토론</a>
+              </div>
             </div>
-            <div style="padding:10px 4px 0;">
-              <p style="font-size:13px;font-weight:600;color:#fff;margin:0;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ s.title }}</p>
-              {% if s.content and s.content|striptags|trim|length > 0 %}
-              <p style="font-size:11px;color:rgba(255,255,255,0.5);margin:4px 0 0;line-height:1.3;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;">{{ s.content|striptags|truncate(60) }}</p>
-              {% endif %}
+            {% endif %}
+            {% endfor %}
+          {% else %}
+            {# 하드코딩 폴백: DB에 쇼츠 없을 때 #}
+            <div class="shorts-card">
+              <div style="position:relative;width:100%;padding-bottom:177.78%;border-radius:12px;overflow:hidden;background:#111;">
+                <iframe src="https://www.youtube.com/embed/dBtHRpoBPO0?rel=0&modestbranding=1&playsinline=1"
+                        loading="lazy"
+                        sandbox="allow-scripts allow-same-origin allow-presentation"
+                        allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen
+                        style="position:absolute;inset:0;width:100%;height:100%;border:none;"></iframe>
+              </div>
+              <div style="padding:10px 4px 0;">
+                <p style="font-size:13px;font-weight:600;color:#fff;margin:0;line-height:1.4;">누렁이 AESA — 세계를 바라보는 눈</p>
+                <p style="font-size:11px;color:rgba(255,255,255,0.5);margin:4px 0 0;">지금 가장 뜨거운 이슈, 직접 보세요</p>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:10px;">
+                <a href="https://www.youtube.com/watch?v=dBtHRpoBPO0" target="_blank" rel="noopener noreferrer"
+                   style="flex:1;text-align:center;padding:8px 0;background:#FF0000;color:#fff;font-size:12px;font-weight:700;border-radius:6px;text-decoration:none;">▶ 유튜브에서 보기</a>
+                <a href="{{ url_for('boards.board', board_type='pick') }}"
+                   style="flex:1;text-align:center;padding:8px 0;background:#1A1A2E;color:#fff;font-size:12px;font-weight:700;border-radius:6px;text-decoration:none;">💬 nr2.kr에서 토론</a>
+              </div>
             </div>
-          </div>
           {% endif %}
-          {% endfor %}
         </div>
       </div>
     </div>
@@ -157,7 +186,6 @@
     };
   })();
   </script>
-  {% endif %}
 
   {# ═══════════════════════════════════════════
      ① HERO — Gradient background
