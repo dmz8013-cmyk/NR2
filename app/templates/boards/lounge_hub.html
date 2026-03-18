@@ -8,7 +8,7 @@
     <div style="position:absolute;inset:0;background:rgba(0,0,0,0.55);"></div>
     <div style="position:relative;z-index:1;">
       <h1 style="font-size:28px;font-weight:800;margin:0 0 8px;">라운지</h1>
-      <p style="font-size:14px;color:rgba(255,255,255,0.7);margin:0;">직군별 익명 커뮤니티 — 같은 업계 사람들과 솔직하게 대화하세요</p>
+      <p style="font-size:14px;color:rgba(255,255,255,0.7);margin:0;">자유게시판 + 직군별 익명 커뮤니티</p>
       {% if current_user.is_authenticated %}
       <div style="margin-top:12px;padding:8px 14px;background:rgba(255,255,255,0.1);border-radius:8px;display:inline-block;font-size:13px;">
         내 직군: <strong style="color:#A78BFA;">{{ {'media':'언론인','congress':'국회','govt':'정부','corp':'기업','public':'행인'}.get(current_user.job_category, '행인') }}</strong>
@@ -16,7 +16,7 @@
       {% else %}
       <div style="margin-top:16px;padding:14px 18px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:10px;font-size:14px;color:rgba(255,255,255,0.9);line-height:1.6;">
         🔑 <strong>로그인 후 직군을 선택</strong>하면 전용 라운지가 열립니다<br>
-        <span style="font-size:12px;color:rgba(255,255,255,0.6);">행인 광장 · 대나무숲은 모든 회원에게 열려 있어요</span>
+        <span style="font-size:12px;color:rgba(255,255,255,0.6);">자유게시판 · 행인 광장 · 대나무숲은 모든 회원에게 열려 있어요</span>
         <div style="margin-top:12px;">
           <a href="{{ url_for('auth.login') }}" style="display:inline-block;padding:8px 20px;background:#A78BFA;color:#fff;font-size:13px;font-weight:600;border-radius:6px;text-decoration:none;margin-right:8px;">로그인</a>
           <a href="{{ url_for('auth.register') }}" style="display:inline-block;padding:8px 20px;background:rgba(255,255,255,0.15);color:#fff;font-size:13px;font-weight:600;border-radius:6px;text-decoration:none;border:1px solid rgba(255,255,255,0.3);">가입하기</a>
@@ -29,11 +29,11 @@
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">
     {% for b in boards %}
     <a href="{{ url_for('boards.board', board_type=b.board_type) }}"
-       style="display:block;border-radius:12px;text-decoration:none;color:inherit;transition:all 0.2s;overflow:hidden;position:relative;{% if not b.has_access and b.required_job %}opacity:0.6;{% endif %}"
+       style="display:block;border-radius:12px;text-decoration:none;color:inherit;transition:all 0.2s;overflow:hidden;position:relative;"
        onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 25px rgba(0,0,0,0.15)'"
        onmouseout="this.style.transform='';this.style.boxShadow=''">
 
-      {# ── Background Image ── #}
+      {# ── Background ── #}
       {% if b.image %}
       <div style="position:absolute;inset:0;background:url('/static/images/{{ b.image }}') center/cover no-repeat;"></div>
       <div style="position:absolute;inset:0;background:linear-gradient(135deg,rgba(26,26,46,0.82),rgba(45,27,105,0.78));"></div>
@@ -42,25 +42,16 @@
       {% endif %}
 
       <div style="position:relative;z-index:1;padding:24px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
           <h3 style="font-size:18px;font-weight:700;margin:0;color:#fff;">{{ b.name }}</h3>
-          <span style="font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600;
-            {% if b.board_type == 'lounge_bamboo' %}background:rgba(240,253,244,0.9);color:#166534;
-            {% elif b.has_access %}background:rgba(238,242,255,0.9);color:#4338CA;
-            {% else %}background:rgba(254,242,242,0.9);color:#991B1B;{% endif %}">
-            {% if b.board_type == 'lounge_bamboo' %}전체
-            {% elif b.has_access %}접근 가능
-            {% else %}🔒 {{ b.job_name }} 전용{% endif %}
-          </span>
+          <span style="font-size:11px;padding:3px 8px;border-radius:4px;background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.7);">{{ b.job_name }}</span>
         </div>
 
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <span style="font-size:12px;padding:3px 8px;background:rgba(255,255,255,0.15);border-radius:4px;color:rgba(255,255,255,0.8);font-weight:600;">[{{ b.badge }}]</span>
-          <span style="font-size:13px;color:rgba(255,255,255,0.6);">게시글 {{ b.count }}개</span>
-        </div>
+        <span style="font-size:13px;color:rgba(255,255,255,0.5);">게시글 {{ b.count }}개</span>
 
-        <p style="font-size:13px;color:rgba(255,255,255,0.7);margin:0;">
-          {% if b.board_type == 'lounge_media' %}기자, PD, 언론사 관계자들의 익명 소통 공간
+        <p style="font-size:13px;color:rgba(255,255,255,0.7);margin:8px 0 0;">
+          {% if b.board_type == 'free' %}누구나 자유롭게 대화하는 열린 게시판
+          {% elif b.board_type == 'lounge_media' %}기자, PD, 언론사 관계자들의 익명 소통 공간
           {% elif b.board_type == 'lounge_congress' %}보좌진, 당직자, 국회 관계자들의 익명 라운지
           {% elif b.board_type == 'lounge_govt' %}공무원, 공공기관, 공기업 종사자들의 익명 라운지
           {% elif b.board_type == 'lounge_corp' %}기업 홍보, 대관, 임원들의 익명 소통 공간

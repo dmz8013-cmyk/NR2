@@ -106,8 +106,7 @@
                     <!-- PC menu -->
                     <div class="hidden lg:ml-10 lg:flex lg:items-center lg:space-x-0.5">
                         <a href="{{ url_for('news.breaking') }}" class="nav-link nav-link-accent">공지</a>
-                        <a href="{{ url_for('boards.board', board_type='free') }}" class="nav-link">자유게시판</a>
-                        <a href="{{ url_for('boards.lounge_hub') }}" class="nav-link">라운지(직군별)</a>
+                        <a href="{{ url_for('boards.lounge_hub') }}" class="nav-link">라운지</a>
                         <a href="{{ url_for('boards.board', board_type='left') }}" class="nav-link">LEFT</a>
                         <a href="{{ url_for('boards.board', board_type='right') }}" class="nav-link">RIGHT</a>
                         <span class="w-px h-4 bg-[#E0E0E0] mx-1"></span>
@@ -180,8 +179,7 @@
              class="lg:hidden w-full shadow-lg" style="z-index:999999!important;position:fixed!important;left:0;top:58px;background:#ffffff!important;">
             <div class="px-4 py-3 space-y-0.5" style="background:#ffffff!important;">
                 <a href="{{ url_for('news.breaking') }}" @click="mobileOpen=false" class="mobile-nav-link text-[#C1121F] font-semibold">공지</a>
-                <a href="{{ url_for('boards.board', board_type='free') }}" @click="mobileOpen=false" class="mobile-nav-link">자유게시판</a>
-                <a href="{{ url_for('boards.lounge_hub') }}" @click="mobileOpen=false" class="mobile-nav-link">라운지(직군별)</a>
+                <a href="{{ url_for('boards.lounge_hub') }}" @click="mobileOpen=false" class="mobile-nav-link">라운지</a>
                 <a href="{{ url_for('boards.board', board_type='left') }}" @click="mobileOpen=false" class="mobile-nav-link">LEFT</a>
                 <a href="{{ url_for('boards.board', board_type='right') }}" @click="mobileOpen=false" class="mobile-nav-link">RIGHT</a>
                 <div class="border-t border-[#E0E0E0] my-2"></div>

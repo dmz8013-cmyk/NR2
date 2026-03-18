@@ -220,8 +220,20 @@ def board(board_type):
 
 @bp.route('/lounge')
 def lounge_hub():
-    """라운지 허브 — 6개 직군별 게시판 안내 페이지"""
+    """라운지 허브 — 자유게시판 + 직군별 게시판 통합"""
     boards = []
+    # 자유게시판을 첫 번째로 추가
+    boards.append({
+        'board_type': 'free',
+        'name': '자유게시판',
+        'badge': '전체',
+        'required_job': None,
+        'job_name': '전체',
+        'has_access': True,
+        'count': Post.query.filter_by(board_type='free').count(),
+        'image': '',
+        'description': '누구나 자유롭게 대화하는 열린 게시판',
+    })
     for bt, name in BOARD_NAMES.items():
         if bt in LOUNGE_BOARDS:
             boards.append({
