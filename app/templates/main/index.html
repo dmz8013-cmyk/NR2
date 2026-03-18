@@ -93,11 +93,71 @@
 .counter-num { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 28px; color: #fff; }
 .counter-label { font-size: 12px; color: rgba(255,255,255,0.6); letter-spacing: 0.05em; }
 .pick-scroll::-webkit-scrollbar { display: none; }
+/* 쇼츠 슬라이더 */
+.shorts-slider { display:flex; gap:16px; transition:transform 0.3s ease; }
+.shorts-card { flex:0 0 100%; max-width:100%; }
+@media(min-width:768px) { .shorts-card { flex:0 0 calc(33.333% - 11px); max-width:calc(33.333% - 11px); } }
+.shorts-nav { position:absolute; top:50%; transform:translateY(-50%); width:36px; height:36px; background:rgba(0,0,0,0.5); color:#fff; border:none; border-radius:50%; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; z-index:2; }
+.shorts-nav:hover { background:rgba(0,0,0,0.7); }
+@media(min-width:768px) { .shorts-nav { display:none; } }
 </style>
 {% endblock %}
 
 {% block content %}
 <div>
+
+  {# ═══════════════════════════════════════════
+     ⓪ 지금 뜨는 쇼츠 — Hero 위
+     ═══════════════════════════════════════════ #}
+  {% if shorts_posts %}
+  <div style="background:#000;padding:20px 0 24px;">
+    <div class="max-w-[1200px] mx-auto px-4 sm:px-6">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;">
+        <span style="font-size:18px;font-weight:800;color:#fff;">🎬 지금 뜨는 쇼츠</span>
+        <a href="{{ url_for('boards.board', board_type='pick') }}" style="font-size:12px;color:#C1121F;font-weight:600;text-decoration:none;">누렁이 픽 전체보기 →</a>
+      </div>
+      <div style="position:relative;overflow:hidden;">
+        <button class="shorts-nav" style="left:8px;" onclick="slideShortsBy(-1)" aria-label="이전">‹</button>
+        <button class="shorts-nav" style="right:8px;" onclick="slideShortsBy(1)" aria-label="다음">›</button>
+        <div id="shorts-track" class="shorts-slider">
+          {% for s in shorts_posts %}
+          {% set vid = s.shorts_video_id %}
+          {% if vid %}
+          <div class="shorts-card">
+            <div style="position:relative;width:100%;padding-bottom:177.78%;border-radius:12px;overflow:hidden;background:#111;">
+              <iframe src="https://www.youtube.com/embed/{{ vid }}?rel=0&modestbranding=1&playsinline=1"
+                      loading="lazy"
+                      sandbox="allow-scripts allow-same-origin allow-presentation"
+                      allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
+                      allowfullscreen
+                      style="position:absolute;inset:0;width:100%;height:100%;border:none;"></iframe>
+            </div>
+            <div style="padding:10px 4px 0;">
+              <p style="font-size:13px;font-weight:600;color:#fff;margin:0;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ s.title }}</p>
+              {% if s.content and s.content|striptags|trim|length > 0 %}
+              <p style="font-size:11px;color:rgba(255,255,255,0.5);margin:4px 0 0;line-height:1.3;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;">{{ s.content|striptags|truncate(60) }}</p>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+  (function(){
+    var idx=0, track=document.getElementById('shorts-track');
+    if(!track) return;
+    var cards=track.querySelectorAll('.shorts-card'), total=cards.length;
+    window.slideShortsBy=function(dir){
+      if(window.innerWidth>=768) return;
+      idx=Math.max(0,Math.min(total-1,idx+dir));
+      track.style.transform='translateX(-'+(idx*100)+'%)';
+    };
+  })();
+  </script>
+  {% endif %}
 
   {# ═══════════════════════════════════════════
      ① HERO — Gradient background

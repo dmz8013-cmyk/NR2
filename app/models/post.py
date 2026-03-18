@@ -36,6 +36,26 @@ class Post(db.Model):
         return self.comments.count()
 
     @property
+    def shorts_video_id(self):
+        """유튜브 쇼츠/일반 URL에서 VIDEO_ID 추출"""
+        if not self.external_url:
+            return None
+        import re
+        # youtube.com/shorts/{ID}
+        m = re.search(r'youtube\.com/shorts/([a-zA-Z0-9_-]{11})', self.external_url)
+        if m:
+            return m.group(1)
+        # youtu.be/{ID}
+        m = re.search(r'youtu\.be/([a-zA-Z0-9_-]{11})', self.external_url)
+        if m:
+            return m.group(1)
+        # youtube.com/watch?v={ID}
+        m = re.search(r'youtube\.com/watch\?v=([a-zA-Z0-9_-]{11})', self.external_url)
+        if m:
+            return m.group(1)
+        return None
+
+    @property
     def external_domain(self):
         """외부 링크 도메인 추출"""
         if not self.external_url:

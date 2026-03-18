@@ -101,6 +101,17 @@ def index():
         ).limit(5).all()
     except Exception:
         pick_posts = []
+    # 쇼츠 (pick 중 youtube shorts/youtu.be URL)
+    try:
+        shorts_posts = Post.query.filter(
+            Post.board_type == 'pick',
+            or_(
+                Post.external_url.like('%youtube.com/shorts/%'),
+                Post.external_url.like('%youtu.be/%'),
+            )
+        ).order_by(Post.created_at.desc()).limit(3).all()
+    except Exception:
+        shorts_posts = []
     # 이달의 추천/비추천 랭킹
     month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     try:
@@ -145,7 +156,7 @@ def index():
     return render_template('main/index.html', hot_posts=hot_posts, articles=articles,
                            latest_briefings=latest_briefings, ranking_articles=ranking_articles,
                            youcheck_count=youcheck_count, community_posts=community_posts,
-                           aesa_posts=aesa_posts, pick_posts=pick_posts,
+                           aesa_posts=aesa_posts, pick_posts=pick_posts, shorts_posts=shorts_posts,
                            like_ranking=like_ranking, dislike_ranking=dislike_ranking,
                            member_count=member_count, today_votes=today_votes,
                            online_count=online_count)
