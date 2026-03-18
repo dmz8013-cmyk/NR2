@@ -38,7 +38,9 @@ input:focus, textarea:focus, select:focus {
 
 /* ── Nav ───────────────────────────────────── */
 .nr2-nav {
-  background: #FFFFFF;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-border-strong);
 }
 
@@ -729,21 +731,7 @@ body.page-main #mobile-nav-menu a {
   .briefing-filters button, .briefing-filters a, [class*="filter-btn"] { flex-shrink: 0 !important; white-space: nowrap !important; padding: 8px 14px !important; font-size: 13px !important; border-radius: 20px !important; }
 }
 
-/* ── 이메일 인증 배너 ──────────────────────── */
-.email-verify-banner, [class*="verify-banner"], [id*="verify-banner"] {
-  background: #1A1A2E !important;
-  color: #ffffff !important;
-  border-bottom: 2px solid #C87941 !important;
-  padding: 10px 16px !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  text-align: center !important;
-}
-.email-verify-banner a, [class*="verify-banner"] a {
-  color: #C87941 !important;
-  font-weight: 700 !important;
-  text-decoration: underline !important;
-}
+/* ── (이메일 인증 배너 — 제거됨, 2026.3.18) ── */
 
 /* ── 플래시 메시지 스타일 통일 ──────────────── */
 .flash-message, .alert, [class*="flash"], [class*="alert"] {
@@ -769,4 +757,28 @@ body.page-main #mobile-nav-menu a {
   word-break: break-all !important;
   white-space: normal !important;
   max-width: 100% !important;
+}
+
+/* ══ 모바일 터치 최적화 ═══════════════════════ */
+/* 모든 인터랙티브 요소 최소 터치 영역 44px */
+@media (max-width: 768px) {
+  button, a.btn, [type="submit"], [type="button"],
+  .mobile-nav-link, .nav-link,
+  .vote-btn, [class*="bias-btn"],
+  .pagination a, .pagination span {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+
+  /* 라운지 직군 선택 드롭다운 화면 밖 방지 */
+  select, .lounge-select, [name="job_category"],
+  [class*="dropdown"], [class*="select"] {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 라운지 허브 카드 그리드 1열 */
+  .lounge-grid {
+    grid-template-columns: 1fr !important;
+  }
 }
