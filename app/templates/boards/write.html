@@ -192,6 +192,59 @@
             </div>
             {% endif %}
 
+            <!-- 외부 URL (누렁이 픽 전용) -->
+            {% if board_type == 'pick' %}
+            <div class="mb-6">
+                <label for="external_url" class="block text-sm font-bold text-[#555] mb-2">🔗 URL (필수)</label>
+                <div style="display:flex;gap:8px;">
+                    <input type="url" id="external_url" name="external_url"
+                           value="{{ external_url or '' }}"
+                           class="flex-1 px-4 py-3 bg-white border border-[#e5e5e5] text-[#1a1a1a] placeholder-[#9ca3af] focus:outline-none focus:ring-2 focus:ring-[#C1121F]/20 focus:border-[#C1121F]"
+                           placeholder="https://..." required>
+                    <button type="button" id="btn-parse-og"
+                            style="padding:0 20px;background:#C1121F;color:#fff;font-size:13px;font-weight:700;border:none;border-radius:4px;cursor:pointer;white-space:nowrap;">
+                        자동 파싱
+                    </button>
+                </div>
+                <p class="text-xs text-[#9ca3af] mt-1">URL을 입력하고 "자동 파싱"을 누르면 제목과 썸네일이 자동으로 채워집니다.</p>
+                <input type="hidden" id="og_image" name="og_image" value="{{ og_image or '' }}">
+                <div id="og-preview" style="display:none;margin-top:12px;padding:12px;background:#f9fafb;border:1px solid #e5e5e5;border-radius:8px;">
+                    <img id="og-preview-img" src="" style="width:100%;max-height:200px;object-fit:cover;border-radius:6px;margin-bottom:8px;">
+                    <p id="og-preview-domain" style="font-size:11px;color:#999;"></p>
+                </div>
+            </div>
+            <script>
+            document.getElementById('btn-parse-og').addEventListener('click', function() {
+                var url = document.getElementById('external_url').value.trim();
+                if (!url) { alert('URL을 입력해주세요.'); return; }
+                this.textContent = '파싱 중...';
+                this.disabled = true;
+                fetch('/boards/api/parse-og', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url: url})
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) { alert(data.error); return; }
+                    if (data.title && !document.getElementById('title-input').value) {
+                        document.getElementById('title-input').value = data.title;
+                    }
+                    if (data.image) {
+                        document.getElementById('og_image').value = data.image;
+                        document.getElementById('og-preview-img').src = data.image;
+                        document.getElementById('og-preview').style.display = 'block';
+                    }
+                    if (data.domain) {
+                        document.getElementById('og-preview-domain').textContent = data.domain;
+                    }
+                })
+                .catch(e => alert('파싱 실패: ' + e))
+                .finally(() => { this.textContent = '자동 파싱'; this.disabled = false; });
+            });
+            </script>
+            {% endif %}
+
             <!-- 이미지 업로드 -->
             <div class="mb-6">
                 <label class="block text-sm font-bold text-[#555] mb-2">이미지 (최대 5개)</label>

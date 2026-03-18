@@ -53,10 +53,11 @@ BOARD_NAMES = {
     'lounge_corp': '기업 라운지',
     'lounge_public': '행인 광장',
     'lounge_bamboo': '누렁이 대나무숲',
+    'pick': '누렁이 픽',
 }
 
 # 일반 회원이 글 작성 가능한 게시판 (나머지는 관리자 전용)
-USER_WRITABLE_BOARDS = ['free', 'left', 'right',
+USER_WRITABLE_BOARDS = ['free', 'left', 'right', 'pick',
                         'lounge_media', 'lounge_congress', 'lounge_govt',
                         'lounge_corp', 'lounge_public', 'lounge_bamboo']
 
@@ -272,6 +273,8 @@ def write(board_type):
         title = request.form.get('title', '').strip()
         content = sanitize_html(request.form.get('content', '').strip())
         youtube_url = request.form.get('youtube_url', '').strip() or None
+        external_url = request.form.get('external_url', '').strip() or None
+        og_image_url = request.form.get('og_image', '').strip() or None
 
         # 유효성 검사
         errors = []
@@ -286,6 +289,9 @@ def write(board_type):
         if youtube_url and not extract_youtube_id(youtube_url):
             errors.append('유효한 유튜브 URL을 입력해주세요.')
 
+        if board_type == 'pick' and not external_url:
+            errors.append('누렁이 픽은 URL을 입력해야 합니다.')
+
         if errors:
             for error in errors:
                 flash(error, 'error')
@@ -294,7 +300,9 @@ def write(board_type):
                                  board_name=BOARD_NAMES[board_type],
                                  title=title,
                                  content=content,
-                                 youtube_url=youtube_url or '')
+                                 youtube_url=youtube_url or '',
+                                 external_url=external_url or '',
+                                 og_image=og_image_url or '')
 
         # 게시글 생성
         post = Post(
@@ -302,6 +310,8 @@ def write(board_type):
             content=content,
             board_type=board_type,
             youtube_url=youtube_url,
+            external_url=external_url,
+            og_image=og_image_url,
             user_id=current_user.id
         )
         db.session.add(post)
@@ -726,3 +736,67 @@ def vote_post(post_id):
         'down_count': down_count,
         'user_vote': vote_type if action != 'cancelled' else None
     })
+
+
+# ──────────────────────────────────────────────
+# OG 태그 파싱 API (누렁이 픽용)
+# ──────────────────────────────────────────────
+
+@bp.route('/api/parse-og', methods=['POST'])
+@login_required
+def parse_og():
+    """URL에서 og:title, og:image 파싱"""
+    url = request.json.get('url', '').strip()
+    if not url:
+        return jsonify({'error': 'URL을 입력해주세요.'}), 400
+
+    # 유튜브 썸네일 자동 추출
+    yt_id = extract_youtube_id(url)
+    if yt_id:
+        return jsonify({
+            'title': '',  # 유튜브 제목은 클라이언트에서 수동 입력
+            'image': f'https://img.youtube.com/vi/{yt_id}/mqdefault.jpg',
+            'domain': 'youtube.com',
+        })
+
+    import requests as req
+    try:
+        resp = req.get(url, timeout=8, headers={
+            'User-Agent': 'Mozilla/5.0 (compatible; NR2Bot/1.0; +https://nr2.kr)'
+        })
+        resp.raise_for_status()
+        html = resp.text[:50000]  # 앞부분만 파싱
+
+        og_title = ''
+        og_image = ''
+
+        # og:title
+        m = re.search(r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)["\']', html, re.I)
+        if not m:
+            m = re.search(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:title["\']', html, re.I)
+        if m:
+            og_title = m.group(1).strip()
+
+        # og:image
+        m = re.search(r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']', html, re.I)
+        if not m:
+            m = re.search(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']', html, re.I)
+        if m:
+            og_image = m.group(1).strip()
+
+        # fallback: <title>
+        if not og_title:
+            m = re.search(r'<title[^>]*>([^<]+)</title>', html, re.I)
+            if m:
+                og_title = m.group(1).strip()
+
+        from urllib.parse import urlparse
+        domain = urlparse(url).netloc.replace('www.', '')
+
+        return jsonify({
+            'title': og_title,
+            'image': og_image,
+            'domain': domain,
+        })
+    except Exception as e:
+        return jsonify({'error': f'파싱 실패: {str(e)}'}), 400

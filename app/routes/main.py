@@ -92,6 +92,15 @@ def index():
         ).limit(2).all()
     except Exception:
         aesa_posts = []
+    # 누렁이 픽 최신 5개
+    try:
+        pick_posts = Post.query.filter(
+            Post.board_type == 'pick'
+        ).order_by(
+            Post.created_at.desc()
+        ).limit(5).all()
+    except Exception:
+        pick_posts = []
     # 이달의 추천/비추천 랭킹
     month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     try:
@@ -136,7 +145,7 @@ def index():
     return render_template('main/index.html', hot_posts=hot_posts, articles=articles,
                            latest_briefings=latest_briefings, ranking_articles=ranking_articles,
                            youcheck_count=youcheck_count, community_posts=community_posts,
-                           aesa_posts=aesa_posts,
+                           aesa_posts=aesa_posts, pick_posts=pick_posts,
                            like_ranking=like_ranking, dislike_ranking=dislike_ranking,
                            member_count=member_count, today_votes=today_votes,
                            online_count=online_count)

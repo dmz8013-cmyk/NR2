@@ -264,6 +264,17 @@ def create_app(config_name='default'):
         except Exception:
             db.session.rollback()
 
+        # posts 테이블에 external_url, og_image 컬럼 추가 (누렁이 픽)
+        for col_sql in [
+            "ALTER TABLE posts ADD COLUMN external_url VARCHAR(500)",
+            "ALTER TABLE posts ADD COLUMN og_image VARCHAR(500)",
+        ]:
+            try:
+                db.session.execute(db.text(col_sql))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
         # users 테이블에 job_category 컬럼 추가
         try:
             db.session.execute(db.text(

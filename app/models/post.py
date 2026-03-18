@@ -10,6 +10,8 @@ class Post(db.Model):
     board_type = db.Column(db.String(20), nullable=False)  # 'free', 'left', 'right', 'fakenews', 'aesa'
     youtube_url = db.Column(db.String(500), nullable=True)
     youtube_video_id = db.Column(db.String(20), nullable=True, unique=True, index=True)
+    external_url = db.Column(db.String(500), nullable=True)   # 누렁이 픽: 외부 링크
+    og_image = db.Column(db.String(500), nullable=True)       # 누렁이 픽: OG 이미지 URL
     views = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
@@ -32,6 +34,17 @@ class Post(db.Model):
     def comments_count(self):
         """댓글 개수 (대댓글 포함)"""
         return self.comments.count()
+
+    @property
+    def external_domain(self):
+        """외부 링크 도메인 추출"""
+        if not self.external_url:
+            return ''
+        try:
+            from urllib.parse import urlparse
+            return urlparse(self.external_url).netloc.replace('www.', '')
+        except Exception:
+            return ''
 
     def increment_views(self):
         """조회수 증가"""

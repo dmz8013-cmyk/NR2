@@ -92,6 +92,7 @@
 /* 활동 카운터 */
 .counter-num { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 28px; color: #fff; }
 .counter-label { font-size: 12px; color: rgba(255,255,255,0.6); letter-spacing: 0.05em; }
+.pick-scroll::-webkit-scrollbar { display: none; }
 </style>
 {% endblock %}
 
@@ -127,6 +128,40 @@
       </div>
     </div>
   </section>
+
+  {# ═══════════════════════════════════════════
+     누렁이 픽 — 외부 링크 가로 스크롤
+     ═══════════════════════════════════════════ #}
+  {% if pick_posts %}
+  <div style="background:linear-gradient(135deg,#0f0c29,#1a1a2e);padding:28px 0;border-bottom:1px solid rgba(200,121,65,0.2);">
+    <div class="max-w-[1200px] mx-auto px-4 sm:px-6">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;">
+        <div>
+          <span style="font-size:20px;font-weight:800;color:#fff;">누렁이 픽</span>
+          <span style="font-size:12px;color:rgba(255,255,255,0.5);margin-left:8px;">누렁이가 직접 고른 콘텐츠</span>
+        </div>
+        <a href="{{ url_for('boards.board', board_type='pick') }}" style="font-size:12px;color:#C1121F;font-weight:600;text-decoration:none;">더보기 →</a>
+      </div>
+      <div style="display:flex;gap:14px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch;scrollbar-width:none;" class="pick-scroll">
+        {% for p in pick_posts %}
+        <a href="{{ p.external_url or url_for('boards.view', board_type='pick', post_id=p.id) }}"
+           target="{{ '_blank' if p.external_url else '_self' }}" rel="noopener noreferrer"
+           style="flex:0 0 240px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:12px;overflow:hidden;text-decoration:none;transition:transform 0.2s;"
+           onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform=''">
+          <div style="width:240px;height:135px;background:#111 url('{{ p.og_image or '/static/images/nureongi.jpg' }}') center/cover no-repeat;"></div>
+          <div style="padding:12px;">
+            <p style="font-size:13px;font-weight:600;color:#fff;margin:0 0 6px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ p.title }}</p>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span style="font-size:11px;color:rgba(255,255,255,0.4);">{{ p.external_domain or 'nr2.kr' }}</span>
+              <span style="font-size:11px;color:rgba(255,255,255,0.4);">💬 {{ p.comments_count }}</span>
+            </div>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   {# ═══════════════════════════════════════════
      PARTNERS — 다크 마퀴 배너
