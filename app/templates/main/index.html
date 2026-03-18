@@ -95,8 +95,9 @@
 .pick-scroll::-webkit-scrollbar { display: none; }
 /* 쇼츠 슬라이더 */
 .shorts-slider { display:flex; gap:16px; transition:transform 0.3s ease; }
-.shorts-card { flex:0 0 100%; max-width:100%; }
-@media(min-width:768px) { .shorts-card { flex:0 0 calc(33.333% - 11px); max-width:calc(33.333% - 11px); } }
+.shorts-card { flex:0 0 100%; max-width:480px; margin:0 auto; }
+@media(min-width:768px) { .shorts-card { flex:0 0 calc(50% - 8px); max-width:calc(50% - 8px); margin:0; } }
+@media(min-width:1024px) { .shorts-card { flex:0 0 calc(33.333% - 11px); max-width:calc(33.333% - 11px); } }
 .shorts-nav { position:absolute; top:50%; transform:translateY(-50%); width:36px; height:36px; background:rgba(0,0,0,0.5); color:#fff; border:none; border-radius:50%; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; z-index:2; }
 .shorts-nav:hover { background:rgba(0,0,0,0.7); }
 @media(min-width:768px) { .shorts-nav { display:none; } }
@@ -109,10 +110,10 @@
   {# ═══════════════════════════════════════════
      ⓪ 지금 뜨는 쇼츠 — Hero 위
      ═══════════════════════════════════════════ #}
-  <div style="background:#000;padding:20px 0 24px;">
+  <div style="background:#000;padding:16px 0 20px;">
     <div class="max-w-[1200px] mx-auto px-4 sm:px-6">
-      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;">
-        <span style="font-size:18px;font-weight:800;color:#fff;">🎬 지금 뜨는 쇼츠</span>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;">
+        <span style="font-size:16px;font-weight:800;color:#fff;">🎬 지금 뜨는 영상</span>
         <a href="{{ url_for('boards.board', board_type='pick') }}" style="font-size:12px;color:#C1121F;font-weight:600;text-decoration:none;">누렁이 픽 전체보기 →</a>
       </div>
       <div style="position:relative;overflow:hidden;">
@@ -124,7 +125,7 @@
             {% set vid = s.shorts_video_id %}
             {% if vid %}
             <div class="shorts-card">
-              <div style="position:relative;width:100%;padding-bottom:177.78%;border-radius:12px;overflow:hidden;background:#111;">
+              <div style="position:relative;width:100%;padding-bottom:56.25%;border-radius:12px;overflow:hidden;background:#111;">
                 <iframe src="https://www.youtube.com/embed/{{ vid }}?rel=0&modestbranding=1&playsinline=1"
                         loading="lazy"
                         sandbox="allow-scripts allow-same-origin allow-presentation"
@@ -150,8 +151,8 @@
           {% else %}
             {# 하드코딩 폴백: DB에 쇼츠 없을 때 #}
             <div class="shorts-card">
-              <div style="position:relative;width:100%;padding-bottom:177.78%;border-radius:12px;overflow:hidden;background:#111;">
-                <iframe src="https://www.youtube.com/embed/dBtHRpoBPO0?rel=0&modestbranding=1&playsinline=1"
+              <div style="position:relative;width:100%;padding-bottom:56.25%;border-radius:12px;overflow:hidden;background:#111;">
+                <iframe src="https://www.youtube.com/embed/uflTK8c4w0c?rel=0&modestbranding=1&playsinline=1"
                         loading="lazy"
                         sandbox="allow-scripts allow-same-origin allow-presentation"
                         allow="accelerometer; encrypted-media; gyroscope; picture-in-picture"
@@ -163,7 +164,7 @@
                 <p style="font-size:11px;color:rgba(255,255,255,0.5);margin:4px 0 0;">지금 가장 뜨거운 이슈, 직접 보세요</p>
               </div>
               <div style="display:flex;gap:8px;margin-top:10px;">
-                <a href="https://www.youtube.com/watch?v=dBtHRpoBPO0" target="_blank" rel="noopener noreferrer"
+                <a href="https://www.youtube.com/watch?v=uflTK8c4w0c" target="_blank" rel="noopener noreferrer"
                    style="flex:1;text-align:center;padding:8px 0;background:#FF0000;color:#fff;font-size:12px;font-weight:700;border-radius:6px;text-decoration:none;">▶ 유튜브에서 보기</a>
                 <a href="{{ url_for('boards.board', board_type='pick') }}"
                    style="flex:1;text-align:center;padding:8px 0;background:#1A1A2E;color:#fff;font-size:12px;font-weight:700;border-radius:6px;text-decoration:none;">💬 nr2.kr에서 토론</a>
