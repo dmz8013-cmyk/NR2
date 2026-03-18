@@ -297,5 +297,27 @@
 
     {% block extra_js %}{% endblock %}
     <script src="/static/js/pwa-install.js"></script>
+
+    {# ── UTM 텔레그램 환영 모달 ── #}
+    {% if not current_user.is_authenticated %}
+    <div id="utm-modal" style="display:none;position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+      <div style="background:#fff;border-radius:16px;max-width:420px;width:90%;padding:32px 28px;text-align:center;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+        <button onclick="document.getElementById('utm-modal').style.display='none'" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:24px;color:#999;cursor:pointer;">&times;</button>
+        <div style="font-size:48px;margin-bottom:12px;">🐾</div>
+        <h2 style="font-size:20px;font-weight:800;color:#1a1a1a;margin:0 0 8px;">텔레그램 정보방에서 오셨군요!</h2>
+        <p style="font-size:14px;color:#666;line-height:1.6;margin:0 0 20px;">가입하고 친구 초대하면<br><strong style="color:#FF1744;font-size:16px;">너 +30NP · 친구 +30NP</strong> 즉시 지급!</p>
+        <a href="{{ url_for('auth.register') }}" style="display:inline-block;background:linear-gradient(135deg,#FF4D4D,#FF1744);color:#fff;font-size:15px;font-weight:700;padding:12px 36px;border-radius:10px;text-decoration:none;box-shadow:0 4px 16px rgba(255,29,68,0.3);">지금 가입하기 →</a>
+        <p style="font-size:11px;color:#bbb;margin:12px 0 0;">가입 후 프로필에서 리퍼럴 링크 확인!</p>
+      </div>
+    </div>
+    <script>
+    (function(){
+      if(new URLSearchParams(location.search).get('utm_source')==='telegram'){
+        var m=document.getElementById('utm-modal');
+        if(m) m.style.display='flex';
+      }
+    })();
+    </script>
+    {% endif %}
 </body>
 </html>

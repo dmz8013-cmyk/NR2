@@ -318,6 +318,19 @@
         </div>
     </div>
 
+    {# ── 리퍼럴 링크 ── #}
+    <div style="margin-top:20px;background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);padding:24px 28px;">
+        <h3 style="font-size:16px;font-weight:700;color:#1a1a1a;margin:0 0 6px;">🐾 친구 초대하고 NP 받기</h3>
+        <p style="font-size:13px;color:#666;margin:0 0 16px;">아래 링크로 친구가 가입하면 <strong style="color:#FF1744;">너 +30NP, 친구 +30NP</strong> 즉시 지급!</p>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <input id="referral-link" readonly value="https://nr2.kr/?utm_source=telegram&ref={{ current_user.id }}"
+                   style="flex:1;padding:10px 14px;font-size:13px;border:1px solid #E5E7EB;border-radius:8px;background:#F9FAFB;color:#1a1a1a;min-width:0;">
+            <button onclick="navigator.clipboard.writeText(document.getElementById('referral-link').value);this.textContent='복사됨!';setTimeout(()=>this.textContent='복사',1500);"
+                    style="padding:10px 20px;background:#C1121F;color:#fff;font-size:13px;font-weight:700;border:none;border-radius:8px;cursor:pointer;white-space:nowrap;">복사</button>
+        </div>
+        <p style="font-size:11px;color:#bbb;margin:8px 0 0;">카카오톡, 텔레그램, SNS에 공유해보세요!</p>
+    </div>
+
     <!-- 메인으로 -->
     <div style="margin-top:16px;text-align:center;">
         <a href="{{ url_for('main.index') }}"
