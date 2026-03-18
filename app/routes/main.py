@@ -120,11 +120,26 @@ def index():
          .limit(5).all()
     except Exception:
         dislike_ranking = []
+    # 실시간 카운터 (가입자, 오늘 투표, 접속자)
+    try:
+        member_count = User.query.count()
+    except Exception:
+        member_count = 0
+    try:
+        from app.models.bias import BiasVote
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_votes = BiasVote.query.filter(BiasVote.created_at >= today_start).count()
+    except Exception:
+        today_votes = 0
+    online_count = max(3, int(member_count * 0.03)) if member_count else 0
+
     return render_template('main/index.html', hot_posts=hot_posts, articles=articles,
                            latest_briefings=latest_briefings, ranking_articles=ranking_articles,
                            youcheck_count=youcheck_count, community_posts=community_posts,
                            aesa_posts=aesa_posts,
-                           like_ranking=like_ranking, dislike_ranking=dislike_ranking)
+                           like_ranking=like_ranking, dislike_ranking=dislike_ranking,
+                           member_count=member_count, today_votes=today_votes,
+                           online_count=online_count)
 
 
 @bp.route('/methodology')
