@@ -132,8 +132,12 @@ def fetch_news_by_category(
                 for entry in feed.entries:
                     pub = _parse_pub_date(entry)
 
-                    # 시간 필터: 시간 정보가 있으면 범위 체크
-                    if pub and (pub < start_time or pub > end_time):
+                    # 발행일 없는 기사는 무조건 제외 (구식 기사 혼입 방지)
+                    if pub is None:
+                        continue
+
+                    # 시간 필터: 커버리지 윈도우 밖이면 제외
+                    if pub < start_time or pub > end_time:
                         continue
 
                     title = (entry.get("title") or "").strip()
@@ -215,6 +219,8 @@ def generate_briefing_with_ai(
 9. 제공된 헤드라인이 적더라도 반드시 브리핑을 작성하세요. 헤드라인 제목만으로 충분히 요약 가능합니다.
 10. "정보가 부족합니다", "브리핑을 작성할 수 없습니다" 같은 거부 메시지는 절대 출력하지 마세요. 어떤 상황에서든 반드시 브리핑 형식으로 작성하세요.
 11. 특정 분야 기사가 없으면 해당 분야는 "주요 보도 없음"으로 짧게 언급하고 다음 분야로 넘어가세요.
+12. [팩트 정확도] 헤드라인에 명시된 내용만 요약하세요. 헤드라인에 없는 감정, 반응, 발언을 지어내지 마세요. 예: "OO 열애설" 헤드라인 → "열애설이 보도됐다"까지만. "심기불편", "분노" 등 추측성 표현 절대 금지.
+13. [시의성] 제공된 헤드라인은 모두 오늘자입니다. "최근", "지난달" 등 모호한 시점 대신 "오늘", "금일" 기준으로 작성하세요.
 
 [오늘의 뉴스 헤드라인]
 {news_block}"""
@@ -302,8 +308,23 @@ def send_briefing():
 
         # 2) RSS 수집
         categorized = fetch_news_by_category(start, end)
-        total = sum(len(v) for v in categorized.values())
-        logger.info(f"총 수집 뉴스: {total}건")
+        total_raw = sum(len(v) for v in categorized.values())
+        logger.info(f"RSS 수집 완료: {total_raw}건")
+
+        # 2.5) 타임라인 필터 2차 검증 (절대 상한 체크)
+        try:
+            from timeline_filter import filter_articles
+            btype = 'ai_morning' if '아침' in period else 'ai_evening'
+            for cat in categorized:
+                categorized[cat] = filter_articles(
+                    categorized[cat], start, end, briefing_type=btype
+                )
+            total = sum(len(v) for v in categorized.values())
+            if total < total_raw:
+                logger.warning(f"[타임라인 필터] {total_raw}건 → {total}건 (구식 {total_raw - total}건 제거)")
+        except Exception as tf_err:
+            logger.error(f"[타임라인 필터] 실행 실패: {tf_err}")
+            total = total_raw
 
         if total == 0:
             logger.warning("수집된 뉴스가 없어 브리핑을 건너뜁니다.")

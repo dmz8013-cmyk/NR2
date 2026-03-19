@@ -110,6 +110,22 @@ def collect_political_news(is_afternoon=True):
     all_articles.sort(key=lambda x: x['pub_date'], reverse=True)
     all_articles = all_articles[:40]
 
+    # 타임라인 필터 2차 검증 (절대 상한 체크)
+    try:
+        from timeline_filter import filter_naver_articles
+        btype = 'political_afternoon' if is_afternoon else 'political_evening'
+        before_count = len(all_articles)
+        all_articles = filter_naver_articles(
+            all_articles, start_time, end_time, briefing_type=btype
+        )
+        if len(all_articles) < before_count:
+            logger.warning(
+                f"[타임라인 필터] {before_count}건 → {len(all_articles)}건 "
+                f"(구식 {before_count - len(all_articles)}건 제거)"
+            )
+    except Exception as tf_err:
+        logger.error(f"[타임라인 필터] 실행 실패: {tf_err}")
+
     logger.info(f"수집된 정치 기사: {len(all_articles)}개 ({'오후' if is_afternoon else '저녁'})")
     return all_articles
 
@@ -193,6 +209,8 @@ def generate_political_briefing(articles, is_afternoon=True):
 7. 제목은 반드시 자극적이고 흥미를 유발하는 문구로
 8. 첫 줄 🔥【한방에 정리하는 정치권 이슈 - 반박시니말이맞음(...)】🔥는 절대 수정하지 말것. 이 줄은 고정 텍스트이며 자극적 제목은 반드시 그 다음 줄에 별도로 작성
 9. "정보가 부족합니다", "브리핑을 작성할 수 없습니다" 같은 거부 메시지는 절대 출력하지 마세요. 기사가 적더라도 반드시 위 포맷대로 브리핑을 완성하세요.
+10. [팩트 정확도] 기사 제목과 요약에 명시된 내용만 사용하세요. 기사에 없는 감정("심기불편", "분노"), 반응, 발언을 지어내지 마세요. 사실 기반 서술만 허용됩니다.
+11. [시의성] 제공된 기사는 모두 오늘자입니다. "최근", "지난달" 등 모호한 시점 대신 구체적 시점으로 작성하세요.
 
 [오늘 {time_range} 정치 뉴스]
 {news_block}"""
