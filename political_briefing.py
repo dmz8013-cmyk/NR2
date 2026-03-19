@@ -133,7 +133,14 @@ def generate_political_briefing(articles, is_afternoon=True):
     for i, article in enumerate(articles, 1):
         news_block += f"{i}. [{article['title']}]\n   {article['description'][:150]}\n\n"
 
-    prompt = f"""당신은 한국 정치 전문 뉴스 브리핑 AI입니다.
+    # 팩트 컨텍스트 자동 주입
+    try:
+        from fact_checker import get_fact_context
+        fact_context = get_fact_context()
+    except Exception:
+        fact_context = ""
+
+    prompt = f"""{fact_context}당신은 한국 정치 전문 뉴스 브리핑 AI입니다.
 아래 {len(articles)}개의 정치 뉴스 기사를 분석하여 텔레그램용 정치 브리핑을 작성하세요.
 
 [포맷 - 반드시 정확히 따르세요. 한 글자도 빠짐없이 이 구조를 지키세요]
@@ -280,6 +287,29 @@ def send_political_briefing(is_afternoon=True):
     if not briefing:
         logger.error("브리핑 생성 실패")
         return
+
+    # 팩트체크 — 발송 전 인물·직책 오류 자동 감지·수정
+    try:
+        from fact_checker import run_fact_check, auto_fix
+        fc_result = run_fact_check(briefing)
+        if not fc_result["passed"]:
+            logger.warning(f"[팩트체크 오류] {fc_result['errors']}")
+            briefing = auto_fix(briefing)
+
+            # 관리자에게 수정 내역 별도 알림
+            admin_msg = "⚠️ <b>정치 브리핑 팩트 자동수정</b>\n\n"
+            for err in fc_result["errors"]:
+                admin_msg += f"• '{err['found']}' → '{err['should_be']}'\n"
+                admin_msg += f"  문맥: {err.get('context', '')}\n"
+            try:
+                from app.utils.telegram_notify import send_to_admin
+                send_to_admin(admin_msg)
+            except Exception:
+                pass
+        else:
+            logger.info("[팩트체크] 오류 없음 — 통과")
+    except Exception as fc_err:
+        logger.error(f"[팩트체크] 실행 실패 (브리핑은 그대로 발송): {fc_err}")
 
     success = send_telegram_message(briefing)
 # DB 저장

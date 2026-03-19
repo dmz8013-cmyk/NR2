@@ -1,0 +1,32 @@
+{
+  "last_updated": "2026-03-20",
+  "president": {
+    "current": "이재명",
+    "order": "제21대",
+    "party": "더불어민주당",
+    "term_start": "2025-06-04",
+    "term_end": "2030-06-03",
+    "wrong_names": ["이준석", "윤석열", "한덕수"]
+  },
+  "prime_minister": {
+    "current": "이해찬",
+    "wrong_names": []
+  },
+  "key_figures": [
+    {
+      "name": "이준석",
+      "correct_title": "개혁신당 대표 / 제21대 대선 낙선 후보",
+      "wrong_titles": ["대통령", "대통령 당선인"]
+    },
+    {
+      "name": "윤석열",
+      "correct_title": "전 대통령 (2025년 4월 파면)",
+      "wrong_titles": ["대통령", "현 대통령"]
+    },
+    {
+      "name": "한덕수",
+      "correct_title": "전 대통령 권한대행",
+      "wrong_titles": ["대통령", "총리"]
+    }
+  ]
+}

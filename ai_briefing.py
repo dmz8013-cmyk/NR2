@@ -189,7 +189,14 @@ def generate_briefing_with_ai(
 
     time_str = "06:00" if "아침" in period else "18:00"
 
-    prompt = f"""당신은 '누렁이 정보공유방'의 뉴스 브리핑 AI입니다.
+    # 팩트 컨텍스트 자동 주입
+    try:
+        from fact_checker import get_fact_context
+        fact_context = get_fact_context()
+    except Exception:
+        fact_context = ""
+
+    prompt = f"""{fact_context}당신은 '누렁이 정보공유방'의 뉴스 브리핑 AI입니다.
 아래 뉴스 헤드라인들을 바탕으로 {period} 브리핑을 작성하세요.
 
 [작성 규칙]
@@ -307,6 +314,29 @@ def send_briefing():
         if not briefing:
             logger.warning("AI 브리핑 생성 실패 — 건너뜁니다.")
             return
+
+        # 3.5) 팩트체크 — 발송 전 인물·직책 오류 자동 감지·수정
+        try:
+            from fact_checker import run_fact_check, auto_fix
+            fc_result = run_fact_check(briefing)
+            if not fc_result["passed"]:
+                logger.warning(f"[팩트체크 오류] {fc_result['errors']}")
+                briefing = auto_fix(briefing)
+
+                # 관리자에게 수정 내역 별도 알림
+                admin_msg = "⚠️ <b>AI 브리핑 팩트 자동수정</b>\n\n"
+                for err in fc_result["errors"]:
+                    admin_msg += f"• '{err['found']}' → '{err['should_be']}'\n"
+                    admin_msg += f"  문맥: {err.get('context', '')}\n"
+                try:
+                    from app.utils.telegram_notify import send_to_admin
+                    send_to_admin(admin_msg)
+                except Exception:
+                    pass
+            else:
+                logger.info("[팩트체크] 오류 없음 — 통과")
+        except Exception as fc_err:
+            logger.error(f"[팩트체크] 실행 실패 (브리핑은 그대로 발송): {fc_err}")
 
         # 4) 텔레그램 전송
         send_to_telegram(briefing)
