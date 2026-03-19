@@ -5,7 +5,7 @@ import requests
 
 
 def send_telegram_message(text, chat_id=None):
-    """텔레그램 채널에 메시지 전송"""
+    """텔레그램 메시지 전송 (chat_id 명시 필수)"""
     token = os.environ.get('TELEGRAM_BOT_TOKEN')
     chat_id = chat_id or os.environ.get('TELEGRAM_CHAT_ID')
 
@@ -31,6 +31,12 @@ def send_telegram_message(text, chat_id=None):
 def send_to_channel(text):
     """공개 채널(@gazzzza2025)에 메시지 전송"""
     return send_telegram_message(text, chat_id='@gazzzza2025')
+
+
+def send_to_admin(text):
+    """관리자 개인 DM 전송 (채널과 분리)"""
+    admin_chat_id = os.environ.get('TELEGRAM_ADMIN_CHAT_ID', '5132309076')
+    return send_telegram_message(text, chat_id=admin_chat_id)
 
 
 # ── 게시판명 매핑 ──
@@ -116,7 +122,7 @@ def notify_new_post(post):
     board_name = BOARD_DISPLAY.get(post.board_type, post.board_type)
     is_lounge = post.board_type.startswith('lounge_')
 
-    # ── 관리자 DM (모든 게시판, 상세 정보) ──
+    # ── 관리자 개인 DM (채널과 분리, 모든 게시판 상세 정보) ──
     admin_text = (
         f"🐕 <b>NR2 새 글 알림</b>\n\n"
         f"📌 게시판: {board_name}\n"
@@ -124,7 +130,7 @@ def notify_new_post(post):
         f"👤 작성자: {post.author.nickname}\n\n"
         f"🔗 https://nr2.kr/boards/{post.board_type}/{post.id}"
     )
-    send_telegram_message(admin_text)
+    send_to_admin(admin_text)
 
     # ── 라운지 익명글: 관리자에게 별도 알림 ──
     if is_lounge:
@@ -135,7 +141,7 @@ def notify_new_post(post):
             f"작성자(내부): {post.author.nickname}\n"
             f"🔗 https://nr2.kr/boards/{post.board_type}/{post.id}"
         )
-        send_telegram_message(lounge_admin)
+        send_to_admin(lounge_admin)
 
     # ── 채널 발송 (게시판별 포맷) ──
     if is_lounge:
