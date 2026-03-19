@@ -1,5 +1,6 @@
 """브리핑 아카이브 라우트"""
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask_login import login_required, current_user
 from app.models.briefing import Briefing
 from app import db
 
@@ -43,3 +44,38 @@ def detail(briefing_id):
                            briefing=briefing,
                            prev_briefing=prev_briefing,
                            next_briefing=next_briefing)
+
+
+@bp.route('/<int:briefing_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit(briefing_id):
+    """브리핑 수정 (관리자 전용)"""
+    if not current_user.is_admin:
+        flash('관리자만 수정할 수 있습니다.', 'danger')
+        return redirect(url_for('briefings.detail', briefing_id=briefing_id))
+
+    briefing = Briefing.query.get_or_404(briefing_id)
+
+    if request.method == 'POST':
+        briefing.title = request.form.get('title', briefing.title)
+        briefing.content = request.form.get('content', briefing.content)
+        db.session.commit()
+        flash('브리핑이 수정되었습니다.', 'success')
+        return redirect(url_for('briefings.detail', briefing_id=briefing_id))
+
+    return render_template('briefings/edit.html', briefing=briefing)
+
+
+@bp.route('/<int:briefing_id>/delete', methods=['POST'])
+@login_required
+def delete(briefing_id):
+    """브리핑 삭제 (관리자 전용)"""
+    if not current_user.is_admin:
+        flash('관리자만 삭제할 수 있습니다.', 'danger')
+        return redirect(url_for('briefings.detail', briefing_id=briefing_id))
+
+    briefing = Briefing.query.get_or_404(briefing_id)
+    db.session.delete(briefing)
+    db.session.commit()
+    flash('브리핑이 삭제되었습니다.', 'success')
+    return redirect(url_for('briefings.index'))

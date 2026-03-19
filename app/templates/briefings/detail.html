@@ -46,6 +46,22 @@
             {% if briefing.title %}
             <h1 class="text-xl font-bold text-gray-900">{{ briefing.title }}</h1>
             {% endif %}
+
+            {% if current_user.is_authenticated and current_user.is_admin %}
+            <div class="flex gap-2 mt-3">
+                <a href="{{ url_for('briefings.edit', briefing_id=briefing.id) }}"
+                   class="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">
+                    수정
+                </a>
+                <form method="POST" action="{{ url_for('briefings.delete', briefing_id=briefing.id) }}"
+                      onsubmit="return confirm('정말 삭제하시겠습니까?');" style="display:inline;">
+                    <button type="submit"
+                            class="text-xs px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200">
+                        삭제
+                    </button>
+                </form>
+            </div>
+            {% endif %}
         </div>
 
         <!-- 본문 -->
