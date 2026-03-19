@@ -4,7 +4,7 @@ import bleach
 from werkzeug.utils import secure_filename
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, jsonify
 from flask_login import login_required, current_user
-from app import db
+from app import db, csrf
 
 # Quill 에디터 HTML 허용 태그/속성
 ALLOWED_TAGS = [
@@ -37,6 +37,53 @@ from app.utils.telegram_notify import notify_new_post
 from app.models import Post, PostImage, Comment, Like, PostVote, User
 
 bp = Blueprint('boards', __name__, url_prefix='/boards')
+
+
+# ── 관리자 API: 게시물 생성 (CSRF 불필요, API 키 인증) ──
+@bp.route('/api/create-post', methods=['POST'])
+@csrf.exempt
+def api_create_post():
+    """API 키 인증으로 게시물 생성 — 외부 스크립트/CLI용"""
+    api_key = request.headers.get('X-API-Key') or request.form.get('api_key')
+    expected = current_app.config.get('SECRET_KEY', '')
+    if not api_key or api_key != expected:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    board_type = request.form.get('board_type', 'free')
+    title = request.form.get('title', '').strip()
+    content = request.form.get('content', '').strip()
+    user_id = request.form.get('user_id', 1, type=int)
+    external_url = request.form.get('external_url', '').strip() or None
+
+    if not title:
+        return jsonify({'error': 'title required'}), 400
+
+    safe_content = sanitize_html(content)
+
+    post = Post(
+        title=title,
+        content=safe_content,
+        board_type=board_type,
+        user_id=user_id,
+    )
+    if external_url and hasattr(post, 'external_url'):
+        post.external_url = external_url
+
+    db.session.add(post)
+    db.session.commit()
+
+    # 텔레그램 알림
+    try:
+        notify_new_post(post)
+    except Exception as e:
+        current_app.logger.error(f"[API] 텔레그램 알림 실패: {e}")
+
+    return jsonify({
+        'ok': True,
+        'post_id': post.id,
+        'url': f'https://nr2.kr/boards/{board_type}/{post.id}',
+    }), 201
+
 
 # 게시판 이름 매핑
 BOARD_NAMES = {
