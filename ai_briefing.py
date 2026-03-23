@@ -359,8 +359,14 @@ def send_briefing():
         except Exception as fc_err:
             logger.error(f"[팩트체크] 실행 실패 (브리핑은 그대로 발송): {fc_err}")
 
-        # 4) 텔레그램 전송
-        send_to_telegram(briefing)
+        # 4) 텔레그램 전송 (nr2.kr 유입 문구 추가)
+        nr2_footer = (
+            "\n\n━━━━━━━━━━━━━━━━\n"
+            "📖 오늘 브리핑 전문 + 심층 토론\n"
+            "👉 https://nr2.kr\n"
+            "━━━━━━━━━━━━━━━━"
+        )
+        send_to_telegram(briefing + nr2_footer)
         # 5) DB 저장
         try:
             from app import create_app, db

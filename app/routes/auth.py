@@ -98,6 +98,10 @@ def register():
 
         flash(f'{user.nickname}님, 환영합니다!', 'success')
 
+        # 신규 가입자 온보딩
+        if not user.onboarding_completed:
+            return redirect(url_for('auth.onboarding'))
+
         return redirect(url_for('main.index'))
 
     return render_template('auth/register.html')
@@ -181,6 +185,10 @@ def login():
             db.session.commit()
 
         flash(f'{user.nickname}님, 환영합니다!', 'success')
+
+        # 신규 가입자 온보딩
+        if not user.onboarding_completed:
+            return redirect(url_for('auth.onboarding'))
 
         # Redirect to next page or home
         next_page = request.args.get('next')
@@ -438,3 +446,21 @@ def reset_password(token):
         return redirect(url_for('auth.login'))
 
     return render_template('auth/reset_password.html', token=token)
+
+
+@bp.route('/onboarding')
+@login_required
+def onboarding():
+    """신규 가입자 온보딩 페이지"""
+    if current_user.onboarding_completed:
+        return redirect(url_for('main.index'))
+    return render_template('auth/onboarding.html')
+
+
+@bp.route('/onboarding/complete', methods=['POST'])
+@login_required
+def onboarding_complete():
+    """온보딩 완료 처리"""
+    current_user.onboarding_completed = True
+    db.session.commit()
+    return redirect(url_for('main.index'))

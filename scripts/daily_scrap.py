@@ -278,6 +278,11 @@ def _format_message(edition: str, now: datetime,
         lines.append('')
 
     lines.append(f'<i>총 {total}건 | NR2 단독 스크랩봇</i>')
+    lines.append('')
+    lines.append('━━━━━━━━━━━━━━━━')
+    lines.append('📖 오늘 브리핑 전문 + 심층 토론')
+    lines.append('👉 https://nr2.kr')
+    lines.append('━━━━━━━━━━━━━━━━')
     return '\n'.join(lines)
 
 

@@ -234,6 +234,105 @@ def _deduplicate_articles(articles, threshold=0.65):
     return selected
 
 
+# === nr2.kr 크로스포스팅 ===
+
+# 텔레그램 섹션 → nr2.kr 게시판 매핑
+SECTION_TO_BOARD = {
+    '정치': 'free',       # 정치/시사 → 자유정보
+    '경제': 'free',       # 경제/산업 → 자유정보
+    '세계': 'free',       # 세계 → 자유정보
+    'IT/과학': 'free',    # IT/과학 → 자유정보
+}
+
+# 누렁이봇 시스템 계정 user_id (admin = 1)
+CROSSPOST_USER_ID = 1
+
+
+def _ensure_crosspost_table():
+    """crossposted_articles 테이블 생성 (없으면)"""
+    conn = _get_db_conn()
+    if not conn:
+        return
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS crossposted_articles (
+                id SERIAL PRIMARY KEY,
+                url TEXT UNIQUE NOT NULL,
+                posted_at TIMESTAMP DEFAULT NOW(),
+                board_type VARCHAR(20),
+                post_id INTEGER
+            )
+        """)
+        conn.commit()
+        cur.close()
+    except Exception as e:
+        print(f"[크로스포스팅] 테이블 생성 오류: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+def crosspost_to_nr2(art):
+    """텔레그램 발행 기사를 nr2.kr 게시판에 자동 포스팅
+
+    Args:
+        art: dict with keys: title, link, press, section
+    """
+    conn = _get_db_conn()
+    if not conn:
+        return
+
+    board_type = SECTION_TO_BOARD.get(art['section'], 'free')
+    url = art['link']
+    title = art['title']
+    press = art.get('press', '미상')
+
+    try:
+        cur = conn.cursor()
+
+        # 중복 확인
+        cur.execute("SELECT id FROM crossposted_articles WHERE url = %s", (url,))
+        if cur.fetchone():
+            cur.close()
+            return  # 이미 크로스포스팅됨
+
+        # 게시글 본문 구성
+        content = (
+            f"<p><b>{title}</b></p>"
+            f"<p>🏷️ 언론사: {press}</p>"
+            f"<br>"
+            f"<p>🔗 <a href=\"{url}\" target=\"_blank\">원문 보기</a></p>"
+            f"<p>📡 출처: 누렁이 텔레그램 (<a href=\"https://t.me/gazzzza2025\" target=\"_blank\">@gazzzza2025</a>)</p>"
+        )
+
+        # posts 테이블에 삽입
+        cur.execute(
+            """INSERT INTO posts (title, content, board_type, external_url, user_id, created_at, updated_at)
+               VALUES (%s, %s, %s, %s, %s, NOW(), NOW())
+               RETURNING id""",
+            (title, content, board_type, url, CROSSPOST_USER_ID)
+        )
+        post_id = cur.fetchone()[0]
+
+        # crossposted_articles에 기록
+        cur.execute(
+            """INSERT INTO crossposted_articles (url, board_type, post_id)
+               VALUES (%s, %s, %s)
+               ON CONFLICT (url) DO NOTHING""",
+            (url, board_type, post_id)
+        )
+
+        conn.commit()
+        cur.close()
+        print(f"  📌 nr2.kr 크로스포스팅: [{board_type}] {title[:30]} (post_id={post_id})")
+    except Exception as e:
+        print(f"  ❌ nr2.kr 크로스포스팅 실패: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
+
+
 MAX_SEND_PER_CYCLE = 3  # 회당 최대 발송 건수 (텔레그램)
 MAX_DB_SAVE_PER_DAY = 10  # 하루 최대 DB 저장 건수 (YouCheck 표시용)
 
@@ -293,6 +392,9 @@ async def send_news():
     # 먼저 24시간 이전 기사 아카이브
     _archive_old_articles()
 
+    # 크로스포스팅 테이블 보장
+    _ensure_crosspost_table()
+
     sent_news = load_sent_news()
     first_run = len(sent_news) == 0
     bot = Bot(BOT_TOKEN)
@@ -339,6 +441,12 @@ async def send_news():
                 await asyncio.sleep(2)
             except Exception as e:
                 print(f"❌ 전송 실패: {e}")
+
+            # nr2.kr 크로스포스팅 (텔레그램과 독립적으로 동작)
+            try:
+                crosspost_to_nr2(art)
+            except Exception as e:
+                print(f"❌ 크로스포스팅 실패: {e}")
 
     _increment_daily_db_count(db_saved)
     save_sent_news(sent_news)

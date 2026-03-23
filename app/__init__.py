@@ -307,6 +307,24 @@ def create_app(config_name='default'):
         except Exception:
             db.session.rollback()
 
+        # 온보딩 완료 여부 컬럼 추가
+        try:
+            db.session.execute(db.text(
+                "ALTER TABLE users ADD COLUMN onboarding_completed BOOLEAN DEFAULT FALSE"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        # 첫 댓글 보상 여부 컬럼 추가
+        try:
+            db.session.execute(db.text(
+                "ALTER TABLE users ADD COLUMN first_comment_rewarded BOOLEAN DEFAULT FALSE"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
         # point_history 테이블 생성
         try:
             db.session.execute(db.text("""
@@ -375,5 +393,102 @@ def create_app(config_name='default'):
         if not app.debug:
             response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
         return response
+
+    # === Flask CLI: 라운지 시딩 ===
+    @app.cli.command('seed-lounges')
+    def seed_lounges_command():
+        """각 라운지 게시판에 첫 질문 글 시딩 (3개 미만일 때만)"""
+        from app.models.post import Post
+
+        SEED_DATA = [
+            {
+                'board_type': 'lounge_media',
+                'title': '요즘 기사 쓰면서 AI 어떻게 활용하고 계세요?',
+                'content': (
+                    'ChatGPT, Claude, Vrew 등 AI 도구가 취재·작성 방식을 바꾸고 있는데, '
+                    '실제 현장에서 어떻게 쓰고 계신지 궁금합니다. '
+                    '잘 쓰는 방법도, 한계도 솔직하게 나눠봐요.'
+                ),
+            },
+            {
+                'board_type': 'lounge_congress',
+                'title': '이번 지방선거에서 기초의원 후보 고르는 기준이 있으신가요?',
+                'content': (
+                    '6월 3일 지방선거가 다가오고 있습니다. '
+                    '구의원·시의원 후보를 선택할 때 어떤 기준으로 보시나요? '
+                    '정당? 인물? 공약? 솔직한 이야기 나눠봐요.'
+                ),
+            },
+            {
+                'board_type': 'lounge_govt',
+                'title': '최근 행정 처리 중 가장 황당했던 경험 있으신가요?',
+                'content': (
+                    '법은 안 어겼는데 행정이 벽이 되는 순간들, 다들 한 번쯤 겪어봤을 것 같아요. '
+                    '민원 대응, 인허가, 공문 처리 등 경험담 편하게 올려주세요.'
+                ),
+            },
+            {
+                'board_type': 'lounge_corp',
+                'title': '스타트업·중소기업 대표님들, 요즘 가장 큰 고민이 뭔가요?',
+                'content': (
+                    '자금, 인력, 영업, 정부지원 등 다양한 이슈가 있을 텐데, '
+                    '현재 가장 발목 잡는 문제가 무엇인지 솔직하게 이야기 나눠봐요.'
+                ),
+            },
+            {
+                'board_type': 'lounge_public',
+                'title': 'nr2.kr 처음 왔는데, 어떻게 알고 오셨나요?',
+                'content': (
+                    '텔레그램 정보방을 통해? 지인 소개? 유튜브를 보고? '
+                    '여기까지 오신 경로가 궁금합니다. 자기소개도 함께 남겨주세요 🙌'
+                ),
+            },
+            {
+                'board_type': 'lounge_bamboo',
+                'title': '요즘 직장에서 AI 때문에 달라진 일상, 익명으로 털어놓기',
+                'content': (
+                    'AI가 생산성을 높여줬나요, 아니면 오히려 스트레스인가요? '
+                    '회사에서 AI 사용 강요받거나 반대로 못 쓰게 막는 경우도 있다고 하던데. '
+                    '익명이니까 솔직하게요.'
+                ),
+            },
+        ]
+
+        # 누렁이봇 또는 admin 계정 찾기
+        bot_user = User.query.filter_by(nickname='누렁이봇').first()
+        if not bot_user:
+            bot_user = User.query.filter_by(is_admin=True).first()
+        if not bot_user:
+            print('[시딩] 누렁이봇 또는 admin 계정을 찾을 수 없습니다.')
+            return
+
+        seeded = 0
+        for data in SEED_DATA:
+            board_type = data['board_type']
+            count = Post.query.filter_by(board_type=board_type).count()
+            if count >= 3:
+                print(f'  ⏭️  {board_type}: 이미 {count}개 글이 있어 스킵')
+                continue
+
+            # 동일 제목 중복 방지
+            exists = Post.query.filter_by(
+                board_type=board_type, title=data['title']
+            ).first()
+            if exists:
+                print(f'  ⏭️  {board_type}: 이미 시딩된 글 존재 — 스킵')
+                continue
+
+            post = Post(
+                title=data['title'],
+                content=data['content'],
+                board_type=board_type,
+                user_id=bot_user.id,
+            )
+            db.session.add(post)
+            seeded += 1
+            print(f'  ✅ {board_type}: "{data["title"][:30]}..." 시딩 완료')
+
+        db.session.commit()
+        print(f'[시딩] 완료 — {seeded}개 라운지에 첫 글 게시')
 
     return app

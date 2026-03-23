@@ -65,8 +65,10 @@ def _build_message(ranked):
         lines.append(f'→ nr2.kr/boards/{p.board_type}/{p.id}')
         lines.append('')
 
-    lines.append('━━━━━━━━━━━━━━━━━━')
-    lines.append('📌 더 많은 토론은 nr2.kr')
+    lines.append('━━━━━━━━━━━━━━━━')
+    lines.append('📖 오늘 브리핑 전문 + 심층 토론')
+    lines.append('👉 https://nr2.kr')
+    lines.append('━━━━━━━━━━━━━━━━')
 
     return '\n'.join(lines)
 

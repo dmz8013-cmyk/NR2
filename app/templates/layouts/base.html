@@ -192,6 +192,29 @@
     </nav>
 
 
+    <!-- 첫 댓글 이벤트 배너 -->
+    {% if current_user.is_authenticated and current_user.comments.count() == 0 and not current_user.first_comment_rewarded %}
+    <div x-data="{ dismissed: sessionStorage.getItem('first_comment_banner_dismissed') === 'true' }"
+         x-show="!dismissed"
+         x-transition
+         style="background-color:#C87941;color:#fff;width:100%;">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap"
+             style="font-size:14px;">
+            <p class="m-0 flex-1" style="min-width:0;">
+                🎁 <b>첫 댓글 이벤트</b> | 지금 첫 댓글을 달면 NP 포인트 100점 증정!
+            </p>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <a href="{{ url_for('boards.board', board_type='lounge_public') }}"
+                   style="background:#1A1A2E;color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;white-space:nowrap;text-decoration:none;">
+                    댓글 달러 가기 →
+                </a>
+                <button @click="dismissed = true; sessionStorage.setItem('first_comment_banner_dismissed', 'true')"
+                        style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;opacity:0.8;padding:0 4px;">&times;</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}

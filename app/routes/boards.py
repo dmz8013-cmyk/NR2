@@ -616,9 +616,19 @@ def add_comment(board_type, post_id):
     # NP 적립
     from app.models.np_point import award_np
     np_earned = award_np(current_user, 'comment_write')
+
+    # 첫 댓글 보너스 (100 NP)
+    first_comment_bonus = 0
+    if not current_user.first_comment_rewarded:
+        current_user.first_comment_rewarded = True
+        current_user.total_np = (current_user.total_np or 0) + 100
+        first_comment_bonus = 100
+
     db.session.commit()
 
-    if np_earned:
+    if first_comment_bonus:
+        flash(f'🎉 첫 댓글 보너스! NP 100점이 적립됐습니다', 'success')
+    elif np_earned:
         flash(f'댓글이 작성되었습니다. +{np_earned} NP 적립!', 'success')
     else:
         flash('댓글이 작성되었습니다.', 'success')

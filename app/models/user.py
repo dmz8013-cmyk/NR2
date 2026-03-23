@@ -48,6 +48,12 @@ class User(UserMixin, db.Model):
     total_bias_votes = db.Column(db.Integer, default=0)
     accurate_votes = db.Column(db.Integer, default=0)
 
+    # === 온보딩 ===
+    onboarding_completed = db.Column(db.Boolean, default=False)
+
+    # === 첫 댓글 보상 ===
+    first_comment_rewarded = db.Column(db.Boolean, default=False)
+
     # Relationships
     posts = db.relationship('Post', backref='author', lazy='dynamic', cascade='all, delete-orphan')
     comments = db.relationship('Comment', backref='author', lazy='dynamic', cascade='all, delete-orphan')

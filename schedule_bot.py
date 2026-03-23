@@ -115,8 +115,14 @@ def send_schedule():
     else:
         message_parts.append("⚠️ 뉴스1 일정 기사를 찾지 못했습니다.")
     
+    message_parts.append('')
+    message_parts.append('━━━━━━━━━━━━━━━━')
+    message_parts.append('📖 오늘 브리핑 전문 + 심층 토론')
+    message_parts.append('👉 https://nr2.kr')
+    message_parts.append('━━━━━━━━━━━━━━━━')
+
     message = '\n'.join(message_parts)
-    
+
     try:
         url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
         resp = requests.post(url, json={

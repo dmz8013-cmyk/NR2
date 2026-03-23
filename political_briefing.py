@@ -329,7 +329,14 @@ def send_political_briefing(is_afternoon=True):
     except Exception as fc_err:
         logger.error(f"[팩트체크] 실행 실패 (브리핑은 그대로 발송): {fc_err}")
 
-    success = send_telegram_message(briefing)
+    # nr2.kr 유입 문구 추가
+    nr2_footer = (
+        "\n\n━━━━━━━━━━━━━━━━\n"
+        "📖 오늘 브리핑 전문 + 심층 토론\n"
+        "👉 https://nr2.kr\n"
+        "━━━━━━━━━━━━━━━━"
+    )
+    success = send_telegram_message(briefing + nr2_footer)
 # DB 저장
     try:
         from app import create_app, db

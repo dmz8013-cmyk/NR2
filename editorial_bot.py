@@ -72,6 +72,11 @@ def format_message(editorials):
 
     lines.append(f'\n출처: https://t.me/gazzzza2025')
     lines.append('(실시간 텔레그램 정보방)')
+    lines.append('')
+    lines.append('━━━━━━━━━━━━━━━━')
+    lines.append('📖 오늘 브리핑 전문 + 심층 토론')
+    lines.append('👉 https://nr2.kr')
+    lines.append('━━━━━━━━━━━━━━━━')
     return '\n'.join(lines)
 
 
