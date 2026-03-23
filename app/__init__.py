@@ -384,6 +384,30 @@ def create_app(config_name='default'):
             db.session.rollback()
             app.logger.error(f'[AESA 정리] 삭제 실패: {e}')
 
+    # === 아티클 자동 시딩 (누렁이 픽) ===
+    with app.app_context():
+        try:
+            from app.models.post import Post
+            musk_title = '"돈의 시대가 끝난다?" 일론 머스크가 말하는 \'폭발적 풍요\'의 미래와 5가지 충격적 통찰'
+            if not Post.query.filter_by(title=musk_title, board_type='pick').first():
+                bot_user = User.query.filter_by(nickname='누렁이봇').first()
+                if not bot_user:
+                    bot_user = User.query.filter_by(is_admin=True).first()
+                if bot_user:
+                    from scripts.seed_musk_article import CONTENT
+                    post = Post(
+                        title=musk_title,
+                        content=CONTENT,
+                        board_type='pick',
+                        user_id=bot_user.id,
+                    )
+                    db.session.add(post)
+                    db.session.commit()
+                    app.logger.info(f'[아티클 시딩] 머스크 아티클 게시 완료 (post_id={post.id})')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f'[아티클 시딩] 실패: {e}')
+
     # Security headers
     @app.after_request
     def set_security_headers(response):
