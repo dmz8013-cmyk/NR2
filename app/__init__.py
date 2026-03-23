@@ -419,6 +419,39 @@ def create_app(config_name='default'):
             db.session.rollback()
             app.logger.error(f'[아티클 시딩] 실패: {e}')
 
+    # === 자유게시판 정리: None 글 + 잘못 배치된 크로스포스팅 글 삭제 ===
+    with app.app_context():
+        try:
+            from app.models.post import Post
+
+            # 1) title이 None/NULL인 글 삭제
+            null_posts = Post.query.filter(
+                db.or_(Post.title == 'None', Post.title == 'none', Post.title.is_(None))
+            ).all()
+            null_count = len(null_posts)
+            for p in null_posts:
+                db.session.delete(p)
+
+            # 2) 자유게시판(free)에 잘못 올라간 크로스포스팅 글 삭제
+            #    (user_id=1이고 external_url이 있는 뉴스성 글)
+            misplaced = Post.query.filter(
+                Post.board_type == 'free',
+                Post.user_id == 1,
+                Post.external_url.isnot(None),
+            ).all()
+            misplaced_count = len(misplaced)
+            for p in misplaced:
+                db.session.delete(p)
+
+            if null_count or misplaced_count:
+                db.session.commit()
+                app.logger.info(
+                    f'[정리] None 글 {null_count}개, 자유게시판 잘못 배치 글 {misplaced_count}개 삭제'
+                )
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f'[정리] 자유게시판 정리 실패: {e}')
+
     # Security headers
     @app.after_request
     def set_security_headers(response):

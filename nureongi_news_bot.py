@@ -238,11 +238,12 @@ def _deduplicate_articles(articles, threshold=0.65):
 
 # 텔레그램 섹션 → nr2.kr 게시판 매핑
 SECTION_TO_BOARD = {
-    '정치': 'free',       # 정치/시사 → 자유정보
-    '경제': 'free',       # 경제/산업 → 자유정보
-    '세계': 'free',       # 세계 → 자유정보
-    'IT/과학': 'free',    # IT/과학 → 자유정보
+    '정치': 'lounge_congress',   # 정치/시사 → 국회 라운지
+    '경제': 'lounge_corp',       # 경제/산업 → 기업 라운지
+    '세계': 'lounge_media',      # 세계 → 언론인 라운지
+    'IT/과학': 'lounge_media',   # IT/과학 → 언론인 라운지
 }
+# 기본값: 위에 없는 섹션은 'lounge_public' (행인 광장)으로 포스팅
 
 # 누렁이봇 시스템 계정 user_id (admin = 1)
 CROSSPOST_USER_ID = 1
@@ -283,7 +284,7 @@ def crosspost_to_nr2(art):
     if not conn:
         return
 
-    board_type = SECTION_TO_BOARD.get(art['section'], 'free')
+    board_type = SECTION_TO_BOARD.get(art['section'], 'lounge_public')
     url = art['link']
     title = art['title']
     press = art.get('press', '미상')
