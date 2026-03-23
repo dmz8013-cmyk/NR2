@@ -404,6 +404,12 @@ def create_app(config_name='default'):
                     db.session.add(post)
                     db.session.commit()
                     app.logger.info(f'[아티클 시딩] 머스크 아티클 게시 완료 (post_id={post.id})')
+                    # 텔레그램 알림
+                    try:
+                        from app.utils.telegram_notify import notify_new_post
+                        notify_new_post(post)
+                    except Exception:
+                        pass
         except Exception as e:
             db.session.rollback()
             app.logger.error(f'[아티클 시딩] 실패: {e}')

@@ -82,6 +82,14 @@ def main():
         print(f'게시 완료: post_id={post.id}')
         print(f'URL: https://nr2.kr/boards/pick/{post.id}')
 
+        # 텔레그램 알림
+        try:
+            from app.utils.telegram_notify import notify_new_post
+            notify_new_post(post)
+            print('텔레그램 알림 전송 완료')
+        except Exception as e:
+            print(f'텔레그램 알림 실패 (게시는 완료됨): {e}')
+
 
 if __name__ == '__main__':
     main()
