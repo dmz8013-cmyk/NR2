@@ -394,10 +394,15 @@ def create_app(config_name='default'):
                 if not bot_user:
                     bot_user = User.query.filter_by(is_admin=True).first()
                 if bot_user:
-                    from scripts.seed_musk_article import CONTENT
+                    # 콘텐츠 파일 직접 읽기 (순환 import 방지)
+                    content_path = os.path.join(
+                        os.path.dirname(__file__), '..', 'scripts', 'seed_musk_article_content.html'
+                    )
+                    with open(content_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
                     post = Post(
                         title=musk_title,
-                        content=CONTENT,
+                        content=content,
                         board_type='pick',
                         user_id=bot_user.id,
                     )
