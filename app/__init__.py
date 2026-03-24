@@ -419,6 +419,34 @@ def create_app(config_name='default'):
             db.session.rollback()
             app.logger.error(f'[아티클 시딩] 실패: {e}')
 
+    # === AESA 브리핑 아티클 시딩 ===
+    with app.app_context():
+        try:
+            from app.models.post import Post
+            aesa_title = '2026 경제·산업 전망 및 글로벌 AI 기술 혁신 브리핑'
+            if not Post.query.filter_by(title=aesa_title, board_type='aesa').first():
+                bot_user = User.query.filter_by(nickname='누렁이봇').first()
+                if not bot_user:
+                    bot_user = User.query.filter_by(is_admin=True).first()
+                if bot_user:
+                    content_path = os.path.join(
+                        os.path.dirname(__file__), '..', 'scripts', 'seed_aesa_briefing_content.html'
+                    )
+                    with open(content_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    post = Post(
+                        title=aesa_title,
+                        content=content,
+                        board_type='aesa',
+                        user_id=bot_user.id,
+                    )
+                    db.session.add(post)
+                    db.session.commit()
+                    app.logger.info(f'[AESA 시딩] 경제·AI 브리핑 게시 완료 (post_id={post.id})')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f'[AESA 시딩] 실패: {e}')
+
     # === 자유게시판 정리: None 글 + 잘못 배치된 크로스포스팅 글 삭제 ===
     with app.app_context():
         try:
