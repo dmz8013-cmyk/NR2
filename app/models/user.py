@@ -63,6 +63,12 @@ class User(UserMixin, db.Model):
     bias_votes = db.relationship('BiasVote', backref='voter', lazy='dynamic', cascade='all, delete-orphan')
     bone_transactions = db.relationship('BoneTransaction', backref='user', lazy='dynamic', cascade='all, delete-orphan')
     submitted_articles = db.relationship('NewsArticle', backref='submitter', lazy='dynamic', cascade='all, delete-orphan')
+    user_badges = db.relationship('UserBadge', backref='user', lazy='dynamic', cascade='all, delete-orphan')
+
+    @property
+    def primary_badge(self):
+        pb = self.user_badges.filter_by(is_primary=True).first()
+        return pb.badge if pb else None
 
     @property
     def np_grade(self):

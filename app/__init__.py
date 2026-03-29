@@ -141,6 +141,41 @@ def create_app(config_name='default'):
     # DB 테이블 자동 생성 + 마이그레이션 보완
     with app.app_context():
         db.create_all()
+
+        # 뱃지 기본 데이터 시딩
+        try:
+            from app.models.badge import Badge
+            seed_badges = [
+                # 출석 뱃지
+                {'code': 'ATTEND_7', 'name': '7일 출석', 'description': '7일 연속 로그인 달성', 'icon': '🚶', 'badge_type': 'attendance', 'condition_value': 7},
+                {'code': 'ATTEND_30', 'name': '30일 출석', 'description': '30일 연속 로그인 달성', 'icon': '🏃', 'badge_type': 'attendance', 'condition_value': 30},
+                {'code': 'ATTEND_100', 'name': '100일 출석', 'description': '100일 연속 로그인 달성', 'icon': '🔥', 'badge_type': 'attendance', 'condition_value': 100},
+                # 글쓰기 뱃지
+                {'code': 'POST_10', 'name': '게시판 꿈나무', 'description': '게시글 10개 작성', 'icon': '🌱', 'badge_type': 'post', 'condition_value': 10},
+                {'code': 'POST_50', 'name': '게시판 인싸', 'description': '게시글 50개 작성', 'icon': '🎤', 'badge_type': 'post', 'condition_value': 50},
+                {'code': 'POST_100', 'name': '게시판 고인물', 'description': '게시글 100개 작성', 'icon': '👑', 'badge_type': 'post', 'condition_value': 100},
+                # 댓글 뱃지
+                {'code': 'COMMENT_50', 'name': '소통의 시작', 'description': '댓글 50개 작성', 'icon': '💬', 'badge_type': 'comment', 'condition_value': 50},
+                {'code': 'COMMENT_200', 'name': '프로 소통러', 'description': '댓글 200개 작성', 'icon': '🗣️', 'badge_type': 'comment', 'condition_value': 200},
+                # NP 뱃지
+                {'code': 'NP_1000', 'name': '천만 다행', 'description': 'NP 1,000점 달성', 'icon': '💰', 'badge_type': 'np', 'condition_value': 1000},
+                {'code': 'NP_5000', 'name': '오천만 원', 'description': 'NP 5,000점 달성', 'icon': '💸', 'badge_type': 'np', 'condition_value': 5000},
+                {'code': 'NP_10000', 'name': '만수르', 'description': 'NP 10,000점 달성', 'icon': '💎', 'badge_type': 'np', 'condition_value': 10000},
+                # 직군 뱃지
+                {'code': 'JOB_AI', 'name': 'AI 엔지니어', 'description': 'AI 관련 직군 인증', 'icon': '🤖', 'badge_type': 'job', 'condition_value': 0},
+                {'code': 'JOB_DEV', 'name': '개발자', 'description': '개발 관련 직군 인증', 'icon': '💻', 'badge_type': 'job', 'condition_value': 0},
+                {'code': 'JOB_MARKETER', 'name': '마케터', 'description': '마케팅 관련 직군 인증', 'icon': '📈', 'badge_type': 'job', 'condition_value': 0},
+            ]
+            
+            for b_data in seed_badges:
+                if not Badge.query.filter_by(code=b_data['code']).first():
+                    b = Badge(**b_data)
+                    db.session.add(b)
+            db.session.commit()
+            app.logger.info('[Badge] 기본 뱃지 시딩 완료')
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f'[Badge] 기본 뱃지 시딩 실패: {e}')
         # youtube_video_id 컬럼이 없으면 추가 (db.create_all은 기존 테이블에 컬럼 추가 불가)
         try:
             db.session.execute(db.text(

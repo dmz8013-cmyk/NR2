@@ -13,6 +13,7 @@ from app.models.briefing import Briefing
 from app.models.page_visit import PageVisit
 from app.models.user_bias_log import UserBiasLog
 from app.models.np_point import PointHistory
+from app.models.badge import Badge, UserBadge
 
 __all__ = [
     'User',
@@ -33,4 +34,6 @@ __all__ = [
     'BoneTransaction',
     'UserBiasLog',
     'PointHistory',
+    'Badge',
+    'UserBadge',
 ]
