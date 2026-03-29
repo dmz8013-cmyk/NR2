@@ -61,6 +61,60 @@
                 </div>
             </div>
 
+            <!-- ═══ 나의 트로피 룸 (뱃지) ═══ -->
+            <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;padding:20px;margin-bottom:20px;">
+                <h2 style="font-size:16px;font-weight:700;color:#1F2937;margin:0 0 16px;display:flex;align-items:center;gap:6px;">
+                    🏆 나의 트로피 룸
+                    <span style="font-size:12px;color:#6B7280;font-weight:500;">({{ current_user.user_badges.count() }}/{{ all_badges|length if all_badges else 0 }})</span>
+                </h2>
+                
+                {% set my_badge_ids = current_user.user_badges.all()|map(attribute='badge_id')|list %}
+                {% set primary_badge_id = (current_user.primary_badge.id) if current_user.primary_badge else None %}
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(70px, 1fr));gap:12px;">
+                    {% if all_badges %}
+                    {% for badge in all_badges %}
+                        {% set is_earned = badge.id in my_badge_ids %}
+                        {% set is_primary = badge.id == primary_badge_id %}
+                        
+                        {% if is_earned %}
+                            <form action="{{ url_for('auth.set_primary_badge', badge_id=badge.id) }}" method="POST" style="margin:0;">
+                                <button type="submit" title="{{ badge.name }} - {{ badge.description }}" 
+                                        style="width:100%;background:{% if is_primary %}#FEF2F2{% else %}#fff{% endif %};
+                                               border:2px solid {% if is_primary %}#DC2626{% else %}#E5E7EB{% endif %};
+                                               border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;
+                                               transition:all 0.2s;"
+                                        onmouseover="this.style.transform='translateY(-2px)';"
+                                        onmouseout="this.style.transform='none';">
+                                    <div style="font-size:24px;margin-bottom:4px;">{{ badge.icon }}</div>
+                                    <div style="font-size:10px;font-weight:{% if is_primary %}700{% else %}500{% endif %};
+                                                color:{% if is_primary %}#DC2626{% else %}#4B5563{% endif %};
+                                                white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                        {{ badge.name|truncate(6, True, '') }}
+                                    </div>
+                                    {% if is_primary %}
+                                    <div style="font-size:9px;color:#fff;background:#DC2626;border-radius:4px;padding:2px;margin-top:4px;font-weight:700;">장착중</div>
+                                    {% endif %}
+                                </button>
+                            </form>
+                        {% else %}
+                            <div title="{{ badge.name }} - {{ badge.description }}" 
+                                 style="background:#F3F4F6;border:1px dashed #D1D5DB;border-radius:12px;
+                                        padding:12px 8px;text-align:center;opacity:0.6;filter:grayscale(100%);">
+                                <div style="font-size:24px;margin-bottom:4px;">{{ badge.icon }}</div>
+                                <div style="font-size:10px;font-weight:500;color:#6B7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                    ???
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                    {% endif %}
+                </div>
+                <p style="font-size:11px;color:#9CA3AF;margin:12px 0 0;text-align:center;line-height:1.4;">
+                    조만간 뱃지를 획득해보세요!<br>획득한 뱃지를 클릭하면 게시글/댓글 등 모든 닉네임 옆에 해당 이모지가 부여됩니다.
+                </p>
+            </div>
+
             <!-- ═══ NP 포인트 섹션 ═══ -->
             <div style="background:linear-gradient(135deg,#FEF3C7,#FDE68A);border:1px solid #F59E0B;border-radius:12px;padding:20px;margin-bottom:20px;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">

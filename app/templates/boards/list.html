@@ -206,7 +206,7 @@ body.board-{{ board_type }} > * {
                             {% if is_lounge %}
                             <span class="font-medium text-[#6b7280]">[{{ lounge_badge }}]</span>
                             {% else %}
-                            <span class="font-medium text-[#6b7280]">{{ post.author.np_grade_icon }} {{ post.author.nickname }}</span>
+                            <span class="font-medium text-[#6b7280]">{{ post.author.primary_badge.icon if post.author and post.author.primary_badge else (post.author.np_grade_icon if post.author else '') }} {{ post.author.nickname if post.author else '익명' }}</span>
                             {% endif %}
                             <span>{{ post.created_at|kst_short }}</span>
                             <span class="flex items-center gap-0.5">

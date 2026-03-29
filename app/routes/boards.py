@@ -402,6 +402,9 @@ def write(board_type):
         np_earned = award_np(current_user, 'post_write')
         db.session.commit()
 
+        from app.utils.badge_service import check_and_award_badges
+        check_and_award_badges(current_user)
+
         if np_earned:
             flash(f'게시글이 작성되었습니다. +{np_earned} NP 적립!', 'success')
         else:
@@ -625,6 +628,9 @@ def add_comment(board_type, post_id):
         first_comment_bonus = 100
 
     db.session.commit()
+
+    from app.utils.badge_service import check_and_award_badges
+    check_and_award_badges(current_user)
 
     if first_comment_bonus:
         flash(f'🎉 첫 댓글 보너스! NP 100점이 적립됐습니다', 'success')

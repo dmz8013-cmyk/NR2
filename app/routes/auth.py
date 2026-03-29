@@ -181,8 +181,11 @@ def login():
                 award_np(user, 'weekly_streak')
             elif user.login_streak == 30:
                 award_np(user, 'monthly_streak')
-                user.login_streak = 0  # 리셋
+                
             db.session.commit()
+
+            from app.utils.badge_service import check_and_award_badges
+            check_and_award_badges(user)
 
         flash(f'{user.nickname}님, 환영합니다!', 'success')
 
@@ -237,6 +240,8 @@ def profile():
             .paginate(page=page, per_page=per_page, error_out=False)
     else:
         from app.models.np_point import PointHistory
+        from app.models.badge import Badge
+        all_badges = Badge.query.order_by(Badge.id.asc()).all()
         point_history = PointHistory.query.filter_by(user_id=current_user.id) \
             .order_by(PointHistory.created_at.desc()).limit(20).all()
 
@@ -245,7 +250,24 @@ def profile():
                            my_posts=my_posts,
                            my_comments=my_comments,
                            board_names=BOARD_NAMES,
-                           point_history=point_history)
+                           point_history=point_history,
+                           all_badges=all_badges if tab == 'info' else None)
+
+
+@bp.route('/profile/badge/<int:badge_id>', methods=['POST'])
+@login_required
+def set_primary_badge(badge_id):
+    """대표 뱃지 설정"""
+    from app.models.badge import UserBadge
+    ub = UserBadge.query.filter_by(user_id=current_user.id, badge_id=badge_id).first()
+    if ub:
+        UserBadge.query.filter_by(user_id=current_user.id, is_primary=True).update({'is_primary': False})
+        ub.is_primary = True
+        db.session.commit()
+        flash('대표 뱃지가 성공적으로 장착되었습니다.', 'success')
+    else:
+        flash('유효하지 않은 뱃지입니다.', 'error')
+    return redirect(url_for('auth.profile'))
 
 
 @bp.route('/profile/upload', methods=['POST'])

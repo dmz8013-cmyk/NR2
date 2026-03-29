@@ -394,7 +394,7 @@
 
               <div class="flex-1 min-w-0">
                 <p class="font-serif-kr font-medium text-[16px] text-white truncate group-hover:text-[#C1121F] transition">{{ post.title }}</p>
-                <p class="text-[11px] text-[rgba(255,255,255,0.7)] mt-0.5">{{ post.author.nickname if post.author else '익명' }} · {{ post.created_at|kst_short }} · 조회 {{ post.views or 0 }}</p>
+                <p class="text-[11px] text-[rgba(255,255,255,0.7)] mt-0.5">{{ post.author.primary_badge.icon if post.author and post.author.primary_badge else (post.author.np_grade_icon if post.author else '') }} {{ post.author.nickname if post.author else '익명' }} · {{ post.created_at|kst_short }} · 조회 {{ post.views or 0 }}</p>
               </div>
             </a>
             {% endfor %}
@@ -558,7 +558,7 @@
           <a href="{{ url_for('boards.view', board_type='aesa', post_id=post.id) }}" class="block bg-[rgba(10,10,25,0.6)] p-5 group hover:shadow-sm transition">
             <span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-sm mb-3 text-white" style="background:#60a5fa;">AESA</span>
             <p class="font-serif-kr font-medium text-[16px] text-white line-clamp-2 group-hover:text-[#C1121F] transition mb-2">{{ post.title }}</p>
-            <p class="text-[12px] text-[rgba(255,255,255,0.7)] mb-2">{{ post.author.nickname if post.author else '익명' }}</p>
+            <p class="text-[12px] text-[rgba(255,255,255,0.7)] mb-2">{{ post.author.primary_badge.icon if post.author and post.author.primary_badge else (post.author.np_grade_icon if post.author else '') }} {{ post.author.nickname if post.author else '익명' }}</p>
             <span class="text-[10px] text-[#bbb]">{{ post.created_at|kst_short }}</span>
           </a>
           {% endfor %}
