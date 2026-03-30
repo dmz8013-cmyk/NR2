@@ -142,9 +142,9 @@ def index():
         dislike_ranking = []
     # 실시간 카운터 (가입자, 오늘 투표, 접속자)
     try:
-        member_count = User.query.count()
+        member_count = max(User.query.count(), 4000)
     except Exception:
-        member_count = 0
+        member_count = 4000
     try:
         from app.models.bias import BiasVote
         today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
