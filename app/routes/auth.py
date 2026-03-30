@@ -196,7 +196,12 @@ def login():
 
         # 이메일 미인증 시 인증 대기 페이지로
         if not user.email_verified:
-            return redirect(url_for('auth.email_pending'))
+            # 기존(Legacy) 가입자의 경우 email_verify_token이 None이므로 자동 인증 처리
+            if user.email_verify_token is None:
+                user.email_verified = True
+                db.session.commit()
+            else:
+                return redirect(url_for('auth.email_pending'))
 
         # 신규 가입자 온보딩
         if not user.onboarding_completed:
