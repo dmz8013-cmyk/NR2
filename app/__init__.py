@@ -10,6 +10,7 @@ from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
 from flask_mail import Mail
+from authlib.integrations.flask_client import OAuth
 from config import config
 
 # Initialize extensions
@@ -18,6 +19,7 @@ login_manager = LoginManager()
 migrate = Migrate()
 csrf = CSRFProtect()
 mail = Mail()
+oauth = OAuth()
 
 
 def create_app(config_name='default'):
@@ -33,6 +35,16 @@ def create_app(config_name='default'):
     migrate.init_app(app, db)
     csrf.init_app(app)
     mail.init_app(app)
+    oauth.init_app(app)
+
+    # Google OAuth 등록
+    oauth.register(
+        name='google',
+        client_id=app.config.get('GOOGLE_CLIENT_ID'),
+        client_secret=app.config.get('GOOGLE_CLIENT_SECRET'),
+        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+        client_kwargs={'scope': 'openid email profile'},
+    )
 
     # Configure Flask-Login
     login_manager.login_view = 'auth.login'
@@ -208,6 +220,15 @@ def create_app(config_name='default'):
                 db.session.commit()
             except Exception:
                 db.session.rollback()
+
+        # Google 소셜 로그인 컬럼 추가
+        try:
+            db.session.execute(db.text(
+                "ALTER TABLE users ADD COLUMN google_id VARCHAR(100) UNIQUE"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
         # 이메일 인증 컬럼 추가 (기존 유저는 TRUE)
         for col_sql in [

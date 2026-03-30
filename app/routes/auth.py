@@ -1,12 +1,12 @@
 import secrets
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, session
 from flask_login import login_user, logout_user, login_required, current_user
 from email_validator import validate_email, EmailNotValidError
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash
 import os
-from app import db
+from app import db, oauth
 from app.models import User, LoginAttempt
 from app.models.post import Post
 from app.models.comment import Comment
@@ -84,7 +84,8 @@ def register():
         # Create new user
         user = User(email=email, nickname=nickname, job_category=job_category)
         user.set_password(password)
-        user.email_verified = True
+        user.email_verified = False
+        user.email_verify_token = secrets.token_urlsafe(32)
 
         db.session.add(user)
         db.session.flush()
@@ -94,15 +95,19 @@ def register():
         award_np(user, 'signup_bonus')
         db.session.commit()
 
+        # 인증 이메일 발송
+        try:
+            from app.utils.email import send_verification_email
+            send_verification_email(user)
+            flash('인증 이메일이 발송되었습니다. 이메일을 확인해주세요.', 'success')
+        except Exception as e:
+            current_app.logger.error(f'인증 메일 발송 실패: {e}')
+            # 발송 실패 시에도 가입은 완료 — 재발송 가능
+            flash('가입은 완료되었으나 인증 메일 발송에 실패했습니다. 로그인 후 재발송해주세요.', 'warning')
+
         login_user(user)
 
-        flash(f'{user.nickname}님, 환영합니다!', 'success')
-
-        # 신규 가입자 온보딩
-        if not user.onboarding_completed:
-            return redirect(url_for('auth.onboarding'))
-
-        return redirect(url_for('main.index'))
+        return redirect(url_for('auth.email_pending'))
 
     return render_template('auth/register.html')
 
@@ -189,6 +194,10 @@ def login():
 
         flash(f'{user.nickname}님, 환영합니다!', 'success')
 
+        # 이메일 미인증 시 인증 대기 페이지로
+        if not user.email_verified:
+            return redirect(url_for('auth.email_pending'))
+
         # 신규 가입자 온보딩
         if not user.onboarding_completed:
             return redirect(url_for('auth.onboarding'))
@@ -208,6 +217,121 @@ def logout():
     """로그아웃"""
     logout_user()
     flash('로그아웃되었습니다.', 'info')
+    return redirect(url_for('main.index'))
+
+
+# ── Google OAuth ──────────────────────────────────────────
+
+@bp.route('/google/login')
+def google_login():
+    """Google 소셜 로그인 시작"""
+    redirect_uri = url_for('auth.google_callback', _external=True)
+    return oauth.google.authorize_redirect(redirect_uri)
+
+
+@bp.route('/google/callback')
+def google_callback():
+    """Google OAuth 콜백 — 로그인/회원가입 통합 처리"""
+    try:
+        token = oauth.google.authorize_access_token()
+        user_info = token.get('userinfo')
+        if not user_info:
+            user_info = oauth.google.userinfo()
+    except Exception as e:
+        current_app.logger.error(f'Google OAuth 오류: {e}')
+        flash('Google 로그인에 실패했습니다. 다시 시도해주세요.', 'error')
+        return redirect(url_for('auth.login'))
+
+    google_id = user_info.get('sub')
+    email = user_info.get('email')
+    name = user_info.get('name', '')
+    picture = user_info.get('picture', '')
+
+    if not google_id or not email:
+        flash('Google 계정 정보를 가져올 수 없습니다.', 'error')
+        return redirect(url_for('auth.login'))
+
+    # 1) google_id로 기존 사용자 검색
+    user = User.query.filter_by(google_id=google_id).first()
+
+    # 2) google_id 없으면 이메일로 검색 (기존 이메일 가입자 연동)
+    if not user:
+        user = User.query.filter_by(email=email).first()
+        if user:
+            user.google_id = google_id
+            db.session.commit()
+
+    # 3) 완전히 새로운 사용자 — 자동 회원가입
+    if not user:
+        # 닉네임 생성: Google 이름 사용, 중복 시 랜덤 접미사
+        base_nickname = name[:20] if name else email.split('@')[0][:20]
+        nickname = base_nickname
+        suffix = 1
+        while User.query.filter_by(nickname=nickname).first():
+            nickname = f'{base_nickname}_{suffix}'
+            suffix += 1
+
+        user = User(
+            email=email,
+            nickname=nickname,
+            google_id=google_id,
+            email_verified=True,  # Google 인증된 이메일
+            profile_image=picture or 'default_profile.jpeg',
+        )
+        # 소셜 로그인은 비밀번호 불필요 — 랜덤 해시 설정
+        user.password_hash = generate_password_hash(secrets.token_urlsafe(32))
+
+        db.session.add(user)
+        db.session.flush()
+
+        # NP 가입 보너스
+        from app.models.np_point import award_np
+        award_np(user, 'signup_bonus')
+        db.session.commit()
+
+        flash(f'{user.nickname}님, 환영합니다!', 'success')
+        login_user(user)
+        return redirect(url_for('auth.onboarding'))
+
+    # 기존 사용자 로그인
+    if user.suspended_until and user.suspended_until > datetime.now():
+        remaining = user.suspended_until - datetime.now()
+        flash(f'계정이 정지 중입니다. {remaining.days}일 후 해제됩니다.', 'error')
+        return redirect(url_for('auth.login'))
+
+    login_user(user)
+
+    # 연속 접속 체크 + NP 보상
+    from datetime import date as date_cls
+    from app.models.np_point import award_np
+    today = date_cls.today()
+    if user.last_login_date != today:
+        if user.last_login_date and (today - user.last_login_date).days == 1:
+            user.login_streak = (user.login_streak or 0) + 1
+        elif user.last_login_date and (today - user.last_login_date).days > 1:
+            user.login_streak = 1
+        else:
+            user.login_streak = (user.login_streak or 0) + 1
+        user.last_login_date = today
+
+        if user.login_streak == 7:
+            award_np(user, 'weekly_streak')
+        elif user.login_streak == 30:
+            award_np(user, 'monthly_streak')
+
+        db.session.commit()
+
+        from app.utils.badge_service import check_and_award_badges
+        check_and_award_badges(user)
+
+    flash(f'{user.nickname}님, 환영합니다!', 'success')
+
+    if not user.email_verified:
+        return redirect(url_for('auth.email_pending'))
+
+    if not user.onboarding_completed:
+        return redirect(url_for('auth.onboarding'))
+
     return redirect(url_for('main.index'))
 
 
@@ -374,21 +498,58 @@ def request_verify():
     return redirect(url_for('auth.profile'))
 
 
+@bp.route('/email-pending')
+@login_required
+def email_pending():
+    """이메일 인증 대기 안내 페이지"""
+    if current_user.email_verified:
+        return redirect(url_for('main.index'))
+    return render_template('auth/email_pending.html')
+
+
 @bp.route('/verify-email/<token>')
 def verify_email(token):
-    """이메일 인증 (레거시 링크 호환용)"""
-    flash('이메일 인증이 더 이상 필요하지 않습니다.', 'info')
+    """이메일 인증 처리"""
+    user = User.query.filter_by(email_verify_token=token).first()
+
+    if not user:
+        flash('유효하지 않은 인증 링크입니다.', 'error')
+        return redirect(url_for('auth.login'))
+
+    user.email_verified = True
+    user.email_verify_token = None
+    db.session.commit()
+
+    flash('이메일 인증이 완료되었습니다!', 'success')
+
     if current_user.is_authenticated:
-        return redirect(url_for('auth.profile'))
+        if not current_user.onboarding_completed:
+            return redirect(url_for('auth.onboarding'))
+        return redirect(url_for('main.index'))
     return redirect(url_for('auth.login'))
 
 
 @bp.route('/resend-verification')
 @login_required
 def resend_verification():
-    """인증 메일 재발송 (비활성화)"""
-    flash('이메일 인증이 더 이상 필요하지 않습니다.', 'info')
-    return redirect(url_for('auth.profile'))
+    """인증 메일 재발송"""
+    if current_user.email_verified:
+        flash('이미 인증된 이메일입니다.', 'info')
+        return redirect(url_for('auth.profile'))
+
+    # 토큰 갱신
+    current_user.email_verify_token = secrets.token_urlsafe(32)
+    db.session.commit()
+
+    try:
+        from app.utils.email import send_verification_email
+        send_verification_email(current_user)
+        flash('인증 이메일이 재발송되었습니다.', 'success')
+    except Exception as e:
+        current_app.logger.error(f'인증 메일 재발송 실패: {e}')
+        flash('메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.', 'error')
+
+    return redirect(url_for('auth.email_pending'))
 
 
 @bp.route('/forgot-password', methods=['GET', 'POST'])
@@ -413,12 +574,15 @@ def forgot_password():
             user.reset_token_expires = datetime.now() + timedelta(hours=1)
             db.session.commit()
 
-            # Show reset link via flash message (no SMTP)
-            reset_url = url_for('auth.reset_password', token=token, _external=True)
-            flash(f'비밀번호 재설정 링크: {reset_url}', 'info')
-        else:
-            # Don't reveal whether user exists
-            flash('해당 이메일로 가입된 계정이 있다면 재설정 링크가 표시됩니다.', 'info')
+            # 이메일로 재설정 링크 발송
+            try:
+                from app.utils.email import send_password_reset_email
+                send_password_reset_email(user, token)
+            except Exception as e:
+                current_app.logger.error(f'비밀번호 재설정 메일 발송 실패: {e}')
+
+        # 사용자 존재 여부를 노출하지 않는 안전한 메시지
+        flash('가입된 이메일이라면 비밀번호 재설정 링크가 발송되었습니다. 이메일을 확인해주세요.', 'info')
 
         return render_template('auth/forgot_password.html')
 

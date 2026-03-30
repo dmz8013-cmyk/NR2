@@ -17,6 +17,9 @@ class User(UserMixin, db.Model):
     suspended_until = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
+    # === 소셜 로그인 ===
+    google_id = db.Column(db.String(100), unique=True, nullable=True, index=True)
+
     # === 이메일 인증 ===
     email_verified = db.Column(db.Boolean, default=False)
     email_verify_token = db.Column(db.String(100), nullable=True)
