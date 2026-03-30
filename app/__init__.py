@@ -444,6 +444,7 @@ def create_app(config_name='default'):
     with app.app_context():
         try:
             from app.models.post import Post
+            from app.models import User
             musk_title = '"돈의 시대가 끝난다?" 일론 머스크가 말하는 \'폭발적 풍요\'의 미래와 5가지 충격적 통찰'
             if not Post.query.filter_by(title=musk_title, board_type='pick').first():
                 bot_user = User.query.filter_by(nickname='누렁이봇').first()
@@ -479,6 +480,7 @@ def create_app(config_name='default'):
     with app.app_context():
         try:
             from app.models.post import Post
+            from app.models import User
             aesa_title = '2026 경제·산업 전망 및 글로벌 AI 기술 혁신 브리핑'
             if not Post.query.filter_by(title=aesa_title, board_type='aesa').first():
                 bot_user = User.query.filter_by(nickname='누렁이봇').first()
