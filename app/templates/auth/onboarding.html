@@ -42,7 +42,7 @@
         <h2 class="text-lg font-bold mb-3" style="color: #1A1A2E;">추천 게시판</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <!-- 누렁이 픽 -->
-            <a href="{{ url_for('boards.board', board_type='free') }}"
+            <a href="{{ url_for('boards.board', board_type='pick') }}"
                class="block rounded-xl p-5 bg-white border-2 transition-all duration-200 hover:shadow-lg hover:-translate-y-1"
                style="border-color: #C87941;">
                 <div class="text-3xl mb-2">🗞️</div>
@@ -60,7 +60,7 @@
             </a>
 
             <!-- 대나무숲 -->
-            <a href="{{ url_for('boards.board', board_type='free') }}"
+            <a href="{{ url_for('boards.board', board_type='lounge_bamboo') }}"
                class="block rounded-xl p-5 bg-white border-2 transition-all duration-200 hover:shadow-lg hover:-translate-y-1"
                style="border-color: #C87941;">
                 <div class="text-3xl mb-2">🎋</div>
