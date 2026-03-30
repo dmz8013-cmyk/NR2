@@ -323,9 +323,24 @@
                     </svg>
                 </div>
             </div>
-            <h3 class="text-lg font-bold mb-2">📊 투표 작성</h3>
-            <p class="text-sm opacity-90">새 투표 만들기</p>
         </a>
+
+        <!-- YouCheck 초기화 -->
+        <form action="{{ url_for('admin.cleanup_youcheck') }}" method="POST" onsubmit="return confirm('YouCheck 관련 뉴스, 클러스터, 투표 및 지급내역을 모두 삭제합니다.\n서버에서 즉시 실행되며, 복구할 수 없습니다.\n정말 초기화하시겠습니까?');"
+              class="bg-gradient-to-br from-gray-700 to-gray-900 rounded-lg shadow-md p-6 hover:shadow-xl transition-shadow text-white block cursor-pointer"
+              onclick="if(event.target.tagName !== 'BUTTON') this.querySelector('button').click();">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="flex items-center mb-4">
+                <div class="bg-white bg-opacity-20 rounded-full p-3">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </div>
+            </div>
+            <h3 class="text-lg font-bold mb-2">🧹 YouCheck 초기화</h3>
+            <p class="text-sm opacity-90">테스트 데이터 전체 삭제</p>
+            <button type="submit" class="hidden"></button>
+        </form>
     </div>
 </div>
 {% endblock %}

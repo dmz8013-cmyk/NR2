@@ -552,3 +552,48 @@ def cleanup_aesa_lee():
         'deleted': len(deleted_ids),
         'posts': deleted_ids
     })
+
+
+@bp.route('/cleanup-youcheck', methods=['POST'])
+@admin_required
+def cleanup_youcheck():
+    """YouCheck 관련 테스트 데이터 전체 삭제 (스키마 유지)"""
+    from app.models.bias import BiasVote, NewsArticle, ArticleCluster, BoneTransaction
+    import traceback
+    
+    try:
+        # 삭제 전 현황 파악
+        vote_count = BiasVote.query.count()
+        article_count = NewsArticle.query.count()
+        cluster_count = ArticleCluster.query.count()
+        
+        # 1. BiasVote 삭제
+        db.session.query(BiasVote).delete()
+        
+        # 2. NewsArticle 삭제 (클러스터 및 User 외래키 존재)
+        db.session.query(NewsArticle).delete()
+        
+        # 3. ArticleCluster 삭제
+        db.session.query(ArticleCluster).delete()
+        
+        # 4. BoneTransaction에서 bias 관련 지급 내역 삭제 (선택적: 테스트용 지급분 회수)
+        db.session.query(BoneTransaction).filter(
+            BoneTransaction.reason.in_(['article_submit', 'bias_vote'])
+        ).delete()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'YouCheck 테스트 데이터 초기화 완료',
+            'deleted_votes': vote_count,
+            'deleted_articles': article_count,
+            'deleted_clusters': cluster_count
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
