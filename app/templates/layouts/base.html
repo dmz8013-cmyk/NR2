@@ -84,7 +84,8 @@
     <div style="height:4px; background:#C1121F; width:100%;"></div>
 
     <!-- Navigation -->
-    <nav x-data="{ mobileOpen: false }" class="nr2-nav sticky top-0" style="position:sticky!important;z-index:999999!important;">
+    <header x-data="{ mobileOpen: false }" class="nr2-header sticky top-0 w-full" style="position:sticky!important;top:0;z-index:999999!important;">
+    <nav class="nr2-nav w-full" style="position:relative!important;z-index:10!important;">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-14">
                 <div class="flex items-center">
@@ -171,12 +172,14 @@
             </div>
         </div>
 
+    </nav>
+
         <!-- Mobile dropdown menu -->
         <div x-show="mobileOpen"
              @click.away="mobileOpen = false"
              x-transition
              id="mobile-nav-menu"
-             class="lg:hidden w-full shadow-lg" style="z-index:999999!important;position:fixed!important;left:0;top:58px;background:#ffffff!important;">
+             class="lg:hidden w-full shadow-lg" style="z-index:20!important;position:absolute!important;left:0;top:56px;background:#ffffff!important;">
             <div class="px-4 py-3 space-y-0.5" style="background:#ffffff!important;">
                 <a href="{{ url_for('news.breaking') }}" @click="mobileOpen=false" class="mobile-nav-link text-[#C1121F] font-semibold">공지</a>
                 <a href="{{ url_for('boards.lounge_hub') }}" @click="mobileOpen=false" class="mobile-nav-link">라운지</a>
@@ -189,7 +192,7 @@
                 <a href="{{ url_for('boards.board', board_type='aesa') }}" @click="mobileOpen=false" class="mobile-nav-link">AESA</a>
             </div>
         </div>
-    </nav>
+    </header>
 
 
     <!-- 첫 댓글 이벤트 배너 -->

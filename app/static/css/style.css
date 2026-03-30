@@ -364,10 +364,11 @@ body[class*="board-"] .nr2-nav .nav-link-accent {
 /* z-index는 ::before를 -1로 내려서 해결 — > * 에 z-index 부여하지 않음 */
 
 /* ── 모바일 메뉴 z-index (배경 오버레이 위로) ─ */
-.nr2-nav { z-index: 999999 !important; position: sticky !important; }
+header.nr2-header { z-index: 999999 !important; position: sticky !important; top: 0; }
+.nr2-nav { z-index: 10 !important; position: relative !important; }
 #mobile-nav-menu {
-    z-index: 999999 !important;
-    position: fixed !important;
+    z-index: 20 !important;
+    position: absolute !important;
     background: #ffffff !important;
 }
 #mobile-nav-menu * {
@@ -647,12 +648,13 @@ body.page-main::before {
     pointer-events: none !important;
 }
 nav.nr2-nav {
-    position: sticky !important;
-    z-index: 999999 !important;
+    position: relative !important;
+    z-index: 10 !important;
 }
 #mobile-nav-menu {
-    z-index: 999999 !important;
-    position: fixed !important;
+    z-index: 20 !important;
+    position: absolute !important;
+    top: 56px !important;
     background: #ffffff !important;
 }
 #mobile-nav-menu a.mobile-nav-link {
