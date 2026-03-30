@@ -29,6 +29,10 @@ def create_app(config_name='default'):
     # Load configuration
     app.config.from_object(config[config_name])
 
+    # Railway 등 리버스 프록시 뒤에서 X-Forwarded-Proto 헤더를 신뢰
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
     # Initialize extensions with app
     db.init_app(app)
     login_manager.init_app(app)
