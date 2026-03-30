@@ -46,3 +46,5 @@ WTForms==3.2.1
 anthropic
 bleach
 lxml
+feedparser==6.0.11
+anthropic>=0.40.0
