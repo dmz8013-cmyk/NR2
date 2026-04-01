@@ -155,6 +155,11 @@ def run_briefing(app_context):
         today_str = datetime.now(pytz.timezone('Asia/Seoul')).strftime("%Y-%m-%d")
         title = f"🌅 AESA 모닝 브리핑 — {today_str}"
         
+        # 중복 방지 로직: 이미 오늘자 브리핑이 존재하는경우 재생성 및 텔레그램 중복발송 방지
+        existing_post = Post.query.filter_by(title=title, board_type='aesa').first()
+        if existing_post:
+            return False, "이미 오늘자 브리핑이 생성되었습니다."
+        
         # 1. Post 모델로 저장
         post = Post(
             title=title,

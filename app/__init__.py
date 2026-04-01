@@ -668,15 +668,27 @@ def create_app(config_name='default'):
             scoop_job(app.app_context())
 
     if not app.debug:
-        scheduler = BackgroundScheduler(timezone=pytz.utc)
-        scheduler.add_job(
-            scheduled_briefing,
-            CronTrigger(hour=22, minute=0, timezone=pytz.utc)
-        )
-        scheduler.add_job(
-            scheduled_scoop,
-            IntervalTrigger(minutes=30, timezone=pytz.utc)
-        )
-        scheduler.start()
+        import fcntl
+        lock_file_path = os.path.join(app.root_path, '..', 'scheduler.lock')
+        app._scheduler_lock_file = open(lock_file_path, 'w')
+        try:
+            fcntl.lockf(app._scheduler_lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            scheduler = BackgroundScheduler(timezone=pytz.utc)
+            scheduler.add_job(
+                scheduled_briefing,
+                CronTrigger(hour=22, minute=0, timezone=pytz.utc),
+                id='scheduled_briefing',
+                replace_existing=True
+            )
+            scheduler.add_job(
+                scheduled_scoop,
+                IntervalTrigger(minutes=30, timezone=pytz.utc),
+                id='scheduled_scoop',
+                replace_existing=True
+            )
+            scheduler.start()
+            app.logger.info("APScheduler 시작됨 (락 획득 성공)")
+        except (BlockingIOError, IOError):
+            app.logger.info("APScheduler 시작 건너뜀 (다른 워커에서 실행 중)")
 
     return app
