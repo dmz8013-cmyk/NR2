@@ -651,18 +651,28 @@ def create_app(config_name='default'):
 
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
+    from apscheduler.triggers.interval import IntervalTrigger
     import pytz
 
     def scheduled_briefing():
         from app.utils.rss_briefing import run_briefing
         with app.app_context():
             run_briefing(app.app_context())
+            
+    def scheduled_scoop():
+        from app.utils.scoop_watcher import scoop_job
+        with app.app_context():
+            scoop_job(app.app_context())
 
     if not app.debug:
         scheduler = BackgroundScheduler(timezone=pytz.utc)
         scheduler.add_job(
             scheduled_briefing,
             CronTrigger(hour=22, minute=0, timezone=pytz.utc)
+        )
+        scheduler.add_job(
+            scheduled_scoop,
+            IntervalTrigger(minutes=30, timezone=pytz.utc)
         )
         scheduler.start()
 
