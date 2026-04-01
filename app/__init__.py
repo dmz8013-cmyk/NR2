@@ -119,6 +119,9 @@ def create_app(config_name='default'):
     from app.routes import briefings
     app.register_blueprint(briefings.bp)
 
+    from app.routes import kakao
+    app.register_blueprint(kakao.kakao_bp)
+
     # KST 시간대 Jinja2 필터
     KST = timezone(timedelta(hours=9))
     def format_kst(dt, fmt='%Y-%m-%d %H:%M'):
