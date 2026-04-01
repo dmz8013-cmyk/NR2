@@ -305,6 +305,21 @@ def send_briefing():
         start, end, period = get_time_window()
         logger.info(f"브리핑 유형: {period}")
         logger.info(f"수집 범위 : {start.strftime('%m/%d %H:%M')} ~ {end.strftime('%m/%d %H:%M')} KST")
+        
+        # 1.5) 중복 브리핑 방지 로직 적용
+        from app import create_app, db
+        from app.models.briefing import Briefing
+        _app = create_app()
+        with _app.app_context():
+            btype = 'ai_morning' if '아침' in period else 'ai_evening'
+            today_start = datetime.now(KST).replace(hour=0, minute=0, second=0, microsecond=0)
+            if btype == 'ai_evening':
+                today_start = today_start.replace(hour=12) # 저녁 브리핑은 12시 이후
+            
+            existing = Briefing.query.filter(Briefing.briefing_type == btype, Briefing.created_at >= today_start).first()
+            if existing:
+                logger.warning(f"이미 오늘자 {period} 브리핑이 생성되어 재생성 및 중복발송을 방지합니다.")
+                return
 
         # 2) RSS 수집
         categorized = fetch_news_by_category(start, end)
@@ -385,11 +400,13 @@ def send_briefing():
                 db.session.commit()
                 logger.info(f"AI 브리핑 DB 저장 완료 (id={record.id})")
                 # 채널 알림
-                try:
-                    from app.utils.telegram_notify import notify_new_briefing
-                    notify_new_briefing(record)
-                except Exception as ne:
-                    logger.error(f"AI 브리핑 채널 알림 실패: {ne}")
+                # send_to_telegram에서 전문을 발송했으므로 notify_new_briefing은 비활성화하여 
+                # 두 번째 단축된(truncated) 메시지가 중복 발송되는 버그를 방지합니다.
+                # try:
+                #     from app.utils.telegram_notify import notify_new_briefing
+                #     notify_new_briefing(record)
+                # except Exception as ne:
+                #     logger.error(f"AI 브리핑 채널 알림 실패: {ne}")
         except Exception as e:
             logger.error(f"AI 브리핑 DB 저장 실패: {e}")
 

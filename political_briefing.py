@@ -293,6 +293,24 @@ def send_political_briefing(is_afternoon=True):
     if not NAVER_CLIENT_ID or not NAVER_CLIENT_SECRET:
         logger.error("네이버 API 키 없음")
         return
+        
+    # 중복 체크 로직 추가
+    try:
+        from app import create_app
+        from app.models.briefing import Briefing as BriefingModel
+        _app = create_app()
+        with _app.app_context():
+            btype = 'political_afternoon' if is_afternoon else 'political_evening'
+            today_start = datetime.now(KST).replace(hour=0, minute=0, second=0, microsecond=0)
+            if not is_afternoon:
+                today_start = today_start.replace(hour=12) # 저녁 브리핑은 12시 이후
+                
+            existing = BriefingModel.query.filter(BriefingModel.briefing_type == btype, BriefingModel.created_at >= today_start).first()
+            if existing:
+                logger.warning(f"이미 오늘 {period} 브리핑이 존재합니다. 중복 생성 방지.")
+                return
+    except Exception as e:
+        logger.error(f"중복 체크 실패: {e}")
 
     articles = collect_political_news(is_afternoon=is_afternoon)
 
@@ -355,11 +373,13 @@ def send_political_briefing(is_afternoon=True):
             db.session.commit()
             logger.info(f"정치 브리핑 DB 저장 완료 (id={record.id})")
             # 채널 알림
-            try:
-                from app.utils.telegram_notify import notify_new_briefing
-                notify_new_briefing(record)
-            except Exception as ne:
-                logger.error(f"정치 브리핑 채널 알림 실패: {ne}")
+            # send_telegram_message 에서 이미 전문 발송이 완료되었으므로 주석 처리
+            # (중복 및 짤린 메시지 발송 방지)
+            # try:
+            #     from app.utils.telegram_notify import notify_new_briefing
+            #     notify_new_briefing(record)
+            # except Exception as ne:
+            #     logger.error(f"정치 브리핑 채널 알림 실패: {ne}")
     except Exception as e:
         logger.error(f"정치 브리핑 DB 저장 실패: {e}")
     if success:
