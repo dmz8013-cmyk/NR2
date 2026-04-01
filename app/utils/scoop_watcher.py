@@ -24,7 +24,7 @@ def send_telegram_alert(source, title, link):
     if not token or not chat_id:
         return
         
-    text = f"🚨 [단독] 포착\n\n📰 {source}\n{title}\n\n🔗 {link}"
+    text = f"🚨 ⚡️ [단독]\n🏷️ 언론사: {source}\n📝 제목: {title}\n🔗 {link}"
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     
     try:
