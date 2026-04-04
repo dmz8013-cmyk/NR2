@@ -26,6 +26,34 @@
     <meta name="twitter:description" content="{% block tw_desc %}4,000+ 고관여 전문가 커뮤니티{% endblock %}">
     <meta name="twitter:image" content="{% block tw_image %}https://nr2.kr/static/images/nureongi.jpg{% endblock %}">
 
+    <!-- JSON-LD Structured Data -->
+    {% block jsonld %}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "NR2 Network",
+      "url": "https://nr2.kr",
+      "description": "4,000+ 고관여 전문가 커뮤니티",
+      "inLanguage": "ko",
+      "publisher": {
+        "@type": "Organization",
+        "name": "NR2 Network",
+        "url": "https://nr2.kr",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://nr2.kr/static/images/og-image.jpg"
+        }
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://nr2.kr/boards/free?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    {% endblock %}
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

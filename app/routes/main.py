@@ -197,8 +197,37 @@ def robots():
 Allow: /
 Allow: /briefings
 Allow: /boards/
+Allow: /bias
+Allow: /policy
+Allow: /methodology
 Disallow: /admin/
 Disallow: /api/
+Disallow: /auth/
+
+# AI Crawlers
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: CCBot
+Allow: /
 
 Sitemap: https://nr2.kr/sitemap.xml
 """
@@ -213,13 +242,18 @@ def sitemap():
     # 고정 페이지
     pages.append({'loc': 'https://nr2.kr/', 'priority': '1.0', 'changefreq': 'daily'})
     pages.append({'loc': 'https://nr2.kr/briefings', 'priority': '0.9', 'changefreq': 'daily'})
-    pages.append({'loc': 'https://nr2.kr/boards/free', 'priority': '0.7', 'changefreq': 'daily'})
-    pages.append({'loc': 'https://nr2.kr/boards/news', 'priority': '0.7', 'changefreq': 'daily'})
-    pages.append({'loc': 'https://nr2.kr/boards/bias', 'priority': '0.8', 'changefreq': 'daily'})
+    pages.append({'loc': 'https://nr2.kr/bias', 'priority': '0.8', 'changefreq': 'daily'})
+    pages.append({'loc': 'https://nr2.kr/policy', 'priority': '0.3', 'changefreq': 'monthly'})
+    pages.append({'loc': 'https://nr2.kr/methodology', 'priority': '0.4', 'changefreq': 'monthly'})
+
+    # 게시판 목록 페이지
+    board_types = ['free', 'left', 'right', 'lounge_public', 'morpheus', 'aesa']
+    for bt in board_types:
+        pages.append({'loc': f'https://nr2.kr/boards/{bt}', 'priority': '0.7', 'changefreq': 'daily'})
 
     # 브리핑 개별 페이지
     try:
-        briefings = Briefing.query.order_by(Briefing.created_at.desc()).limit(100).all()
+        briefings = Briefing.query.order_by(Briefing.created_at.desc()).limit(200).all()
         for b in briefings:
             pages.append({
                 'loc': f'https://nr2.kr/briefings/{b.id}',
@@ -227,7 +261,33 @@ def sitemap():
                 'changefreq': 'weekly',
                 'lastmod': b.created_at.strftime('%Y-%m-%d')
             })
-    except:
+    except Exception:
+        pass
+
+    # 게시글 (최근 500개)
+    try:
+        posts = Post.query.filter(Post.board_type != 'notice').order_by(Post.created_at.desc()).limit(500).all()
+        for p in posts:
+            pages.append({
+                'loc': f'https://nr2.kr/boards/{p.board_type}/{p.id}',
+                'priority': '0.6',
+                'changefreq': 'weekly',
+                'lastmod': p.created_at.strftime('%Y-%m-%d')
+            })
+    except Exception:
+        pass
+
+    # YouCheck 기사
+    try:
+        articles = NewsArticle.query.order_by(NewsArticle.created_at.desc()).limit(300).all()
+        for a in articles:
+            pages.append({
+                'loc': f'https://nr2.kr/bias/{a.id}',
+                'priority': '0.7',
+                'changefreq': 'weekly',
+                'lastmod': a.created_at.strftime('%Y-%m-%d')
+            })
+    except Exception:
         pass
 
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
