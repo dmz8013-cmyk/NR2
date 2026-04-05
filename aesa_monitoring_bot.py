@@ -11,9 +11,10 @@ from app.models.aesa_article import AesaArticle
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# RSS Feeds List
-# Nikkei/Reuters/Bloomberg: 자체 RSS 폐쇄 → Google News RSS 프록시 사용 (2026-04-06 교체)
+# RSS Feeds List (23개 소스)
+# 자체 RSS 없는 소스 → Google News RSS 프록시 사용
 RSS_FEEDS = {
+    # ── 기존 8개 ──
     'MIT Tech Review': 'https://www.technologyreview.com/feed/',
     'Foreign Policy': 'https://foreignpolicy.com/feed/',
     'The Economist': 'https://www.economist.com/the-world-this-week/rss.xml',
@@ -21,11 +22,27 @@ RSS_FEEDS = {
     'Nikkei Asia': 'https://news.google.com/rss/search?q=site:asia.nikkei.com+when:1d&hl=en&gl=US&ceid=US:en',
     'Axios': 'https://api.axios.com/feed/',
     'Reuters': 'https://news.google.com/rss/search?q=site:reuters.com+when:1d&hl=en&gl=US&ceid=US:en',
-    'Bloomberg': 'https://feeds.bloomberg.com/markets/news.rss'
+    'Bloomberg': 'https://feeds.bloomberg.com/markets/news.rss',
+    # ── 신규 15개 (2026-04-06 추가) ──
+    'Foreign Affairs': 'https://www.foreignaffairs.com/rss.xml',
+    'The Atlantic': 'https://www.theatlantic.com/feed/all/',
+    'Wired': 'https://www.wired.com/feed/rss',
+    'Politico': 'https://rss.politico.com/politics-news.xml',
+    'Financial Times': 'https://www.ft.com/?format=rss',
+    'The Diplomat': 'https://thediplomat.com/feed/',
+    'Asia Times': 'https://asiatimes.com/feed/',
+    'Caixin Global': 'https://news.google.com/rss/search?q=site:caixinglobal.com+when:2d&hl=en&gl=US&ceid=US:en',
+    'Al Jazeera': 'https://www.aljazeera.com/xml/rss/all.xml',
+    'Brookings': 'https://news.google.com/rss/search?q=site:brookings.edu+when:3d&hl=en&gl=US&ceid=US:en',
+    'CFR': 'https://news.google.com/rss/search?q=site:cfr.org+when:3d&hl=en&gl=US&ceid=US:en',
+    'Der Spiegel Intl': 'https://www.spiegel.de/international/index.rss',
+    'Le Monde Diplo': 'https://mondediplo.com/backend',
+    'Arab News': 'https://news.google.com/rss/search?q=site:arabnews.com+when:1d&hl=en&gl=US&ceid=US:en',
+    'RAND': 'https://www.rand.org/blog.xml',
 }
 
 # Google News RSS 프록시를 사용하는 소스: entry.link가 Google 리다이렉트 URL일 수 있음
-GOOGLE_NEWS_SOURCES = {'Nikkei Asia', 'Reuters'}
+GOOGLE_NEWS_SOURCES = {'Nikkei Asia', 'Reuters', 'Caixin Global', 'Brookings', 'CFR', 'Arab News'}
 
 PROMPT_TEMPLATE = """
 다음 뉴스 기사를 분석하여 AESA 3개 렌즈 기준으로 0점부터 10점 사이의 점수를 매겨주세요.
@@ -69,7 +86,10 @@ def _clean_title(title):
     """Google News RSS 제목에서 ' - 소스명' 접미사 제거"""
     # 패턴: "Article Title - Reuters" → "Article Title"
     for suffix in [' - Reuters', ' - Bloomberg', ' - Nikkei Asia',
-                   ' - The Japan Times', ' - South China Morning Post']:
+                   ' - The Japan Times', ' - South China Morning Post',
+                   ' - Caixin Global', ' - Brookings Institution',
+                   ' - Council on Foreign Relations', ' - Arab News',
+                   ' - Brookings', ' - CFR']:
         if title.endswith(suffix):
             return title[:-len(suffix)]
     return title
