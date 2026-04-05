@@ -74,6 +74,55 @@ PROMPT_TEMPLATE = """
 출처: {source}
 """
 
+THREADS_PROMPT_TEMPLATE = """당신은 누렁이(AESA) 브랜드의 Threads 작성자입니다.
+아래 기사를 바탕으로 Threads 포스트 초안을 작성하세요.
+
+[AESA 글쓰기 규칙]
+- 소제목에 이모지 없음
+- 짧고 끊기는 문장, 여운 있게
+- "나는 이걸 이렇게 읽는다."로 시작
+- 독자에게 불편한 질문 직접 던지기
+- 결론 깔끔하게 닫지 않음 (미완 구조)
+- 뉴스 요약 아닌 구조 분석·관점
+- 마지막 줄: "이상한 나라의 누렁이 🐕"
+- 전체 200자 이내
+
+기사 정보:
+제목: {title}
+요약: {korean_summary}
+렌즈: {lenses}
+URL: {url}
+
+Threads 초안만 출력하세요. 다른 설명 없이 본문만 작성하세요."""
+
+
+def generate_threads_draft(title, korean_summary, lenses, url):
+    """Claude API로 AESA 스타일 Threads 초안 생성"""
+    try:
+        client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
+        lens_str = ', '.join(f'[{l}]' for l in lenses) if lenses else '[?]'
+
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=300,
+            messages=[{
+                "role": "user",
+                "content": THREADS_PROMPT_TEMPLATE.format(
+                    title=title,
+                    korean_summary=korean_summary,
+                    lenses=lens_str,
+                    url=url
+                )
+            }]
+        )
+        draft = response.content[0].text.strip()
+        logger.info(f"[AESA Threads] 초안 생성 완료 ({len(draft)}자)")
+        return draft
+    except Exception as e:
+        logger.error(f"[AESA Threads] 초안 생성 실패: {e}")
+        return None
+
+
 def _resolve_google_news_url(entry):
     """Google News RSS entry에서 실제 기사 URL을 추출"""
     link = entry.get('link', '')
@@ -191,7 +240,7 @@ def process_rss_feeds():
                     now = datetime.now()
                     is_night = dtime(2, 0) <= now.time() < dtime(6, 0)
 
-                    # 9점 이상: 즉시 발송 (긴급 속보)
+                    # 9점 이상: 즉시 발송 (긴급 속보) + Threads 초안 동시 발송
                     # 7~8점: 배치 대기열에 적재
                     # 6점 이하: 일간 요약 대기
                     if score >= 9:
@@ -200,6 +249,13 @@ def process_rss_feeds():
                         else:
                             send_telegram_alert(source_name, title, url, score, summary,
                                                 lenses=lenses, korea_link=korea_link, is_urgent=True)
+                            # Threads 초안 생성 및 발송
+                            threads_draft = generate_threads_draft(title, summary, lenses, url)
+                            if threads_draft:
+                                threads_msg = f"✍️ *Threads 초안 (복사용)*\n"
+                                threads_msg += "━" * 20 + "\n\n"
+                                threads_msg += threads_draft
+                                _send_telegram_raw(threads_msg)
                             status = 'sent_urgent'
                             source_stats['urgent_sent'] += 1
                     elif score >= 7:
