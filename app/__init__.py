@@ -515,6 +515,27 @@ def create_app(config_name='default'):
             db.session.rollback()
             app.logger.error(f'[AESA 시딩] 실패: {e}')
 
+    # === AESA articles 테이블 컬럼 추가 (db.create_all은 기존 테이블에 컬럼 추가 불가) ===
+    with app.app_context():
+        for col_sql in [
+            "ALTER TABLE aesa_articles ADD COLUMN lenses VARCHAR(50)",
+            "ALTER TABLE aesa_articles ADD COLUMN korea_investment_link BOOLEAN DEFAULT FALSE",
+        ]:
+            try:
+                db.session.execute(db.text(col_sql))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+        # status 컬럼 길이 확장 (기존 VARCHAR(20) → VARCHAR(30))
+        try:
+            db.session.execute(db.text(
+                "ALTER TABLE aesa_articles ALTER COLUMN status TYPE VARCHAR(30)"
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
     # === 자유게시판 정리: None 글 + 잘못 배치된 크로스포스팅 글 삭제 ===
     with app.app_context():
         try:

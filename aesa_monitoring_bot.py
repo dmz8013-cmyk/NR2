@@ -265,18 +265,40 @@ def process_rss_feeds():
                         status = 'queued_for_summary'
                         source_stats['low_score'] += 1
 
-                    article = AesaArticle(
+                    article_kwargs = dict(
                         url=url,
                         title=title,
                         source=source_name,
                         score=score,
                         summary=summary,
-                        lenses=','.join(lenses) if lenses else '',
-                        korea_investment_link=korea_link,
                         status=status
                     )
-                    db.session.add(article)
-                    db.session.commit()
+                    # lenses/korea_investment_link 컬럼이 아직 없을 수 있음 (마이그레이션 미적용)
+                    try:
+                        article_kwargs['lenses'] = ','.join(lenses) if lenses else ''
+                        article_kwargs['korea_investment_link'] = korea_link
+                    except Exception:
+                        pass
+
+                    article = AesaArticle(**article_kwargs)
+                    try:
+                        db.session.add(article)
+                        db.session.commit()
+                    except Exception as db_err:
+                        db.session.rollback()
+                        # lenses/korea_investment_link 없이 재시도
+                        logger.warning(f"[AESA] DB 저장 실패, 기본 컬럼만 재시���: {db_err}")
+                        article = AesaArticle(
+                            url=url, title=title, source=source_name,
+                            score=score, summary=summary, status=status
+                        )
+                        try:
+                            db.session.add(article)
+                            db.session.commit()
+                        except Exception as retry_err:
+                            db.session.rollback()
+                            logger.error(f"[AESA] DB 저장 최종 실패: {retry_err}")
+                            source_stats['errors'] += 1
 
             except Exception as e:
                 logger.error(f"[AESA] {source_name}: 폴링 중 에러 발생: {e}", exc_info=True)
