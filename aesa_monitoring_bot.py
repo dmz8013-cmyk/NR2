@@ -130,7 +130,7 @@ def process_rss_feeds():
 
 def send_telegram_alert(source, title, url, score, summary, is_urgent=False):
     bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
-    chat_id = os.environ.get('AESA_TELEGRAM_CHANNEL_ID', os.environ.get('TELEGRAM_CHANNEL_ID'))
+    chat_id = os.environ.get('AESA_TELEGRAM_CHANNEL_ID', os.environ.get('TELEGRAM_CHAT_ID'))
     
     if not bot_token or not chat_id:
         logger.warning("Telegram config missing.")
@@ -150,7 +150,9 @@ def send_telegram_alert(source, title, url, score, summary, is_urgent=False):
             'parse_mode': 'Markdown',
             'disable_web_page_preview': False
         }
-        requests.post(api_url, json=payload)
+        response = requests.post(api_url, json=payload)
+        if not response.ok:
+            logger.error(f"Telegram API Error: {response.text}")
     except Exception as e:
         logger.error(f"Telegram send error: {e}")
 

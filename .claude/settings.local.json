@@ -46,5 +46,9 @@
       "Bash(find app/models -name \"*.py\" -exec sed -i '' 's/datetime\\\\.utcnow/datetime.now/g' {} +)",
       "Bash(pip3 install:*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "computer-use"
+  ],
+  "enableAllProjectMcpServers": true
 }
