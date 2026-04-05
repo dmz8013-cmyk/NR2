@@ -12,16 +12,20 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # RSS Feeds List
+# Nikkei/Reuters/Bloomberg: 자체 RSS 폐쇄 → Google News RSS 프록시 사용 (2026-04-06 교체)
 RSS_FEEDS = {
     'MIT Tech Review': 'https://www.technologyreview.com/feed/',
     'Foreign Policy': 'https://foreignpolicy.com/feed/',
     'The Economist': 'https://www.economist.com/the-world-this-week/rss.xml',
     'SCMP': 'https://www.scmp.com/rss/4/feed',
-    'Nikkei Asia': 'https://asia.nikkei.com/rss/feed/free',
+    'Nikkei Asia': 'https://news.google.com/rss/search?q=site:asia.nikkei.com+when:1d&hl=en&gl=US&ceid=US:en',
     'Axios': 'https://api.axios.com/feed/',
-    'Reuters': 'https://www.reutersagency.com/feed/',
-    'Bloomberg': 'https://www.bloomberg.com/authors/AP1v-wzxyZg/bloomberg-news.rss'
+    'Reuters': 'https://news.google.com/rss/search?q=site:reuters.com+when:1d&hl=en&gl=US&ceid=US:en',
+    'Bloomberg': 'https://feeds.bloomberg.com/markets/news.rss'
 }
+
+# Google News RSS 프록시를 사용하는 소스: entry.link가 Google 리다이렉트 URL일 수 있음
+GOOGLE_NEWS_SOURCES = {'Nikkei Asia', 'Reuters'}
 
 PROMPT_TEMPLATE = """
 다음 뉴스 기사를 분석하여 AESA 3개 렌즈 기준으로 0점부터 10점 사이의 점수를 매겨주세요.
@@ -45,40 +49,95 @@ PROMPT_TEMPLATE = """
 출처: {source}
 """
 
+def _resolve_google_news_url(entry):
+    """Google News RSS entry에서 실제 기사 URL을 추출"""
+    link = entry.get('link', '')
+    # Google News 링크는 보통 리다이렉트 URL
+    # source 태그에서 원본 URL을 가져오거나, link 그대로 사용
+    if 'news.google.com' in link:
+        # source 속성에 원본 도메인이 있을 수 있음
+        source_obj = entry.get('source', {})
+        # feedparser는 source를 dict로 파싱
+        if hasattr(source_obj, 'get'):
+            href = source_obj.get('href', '')
+            if href:
+                return href
+    return link
+
+
+def _clean_title(title):
+    """Google News RSS 제목에서 ' - 소스명' 접미사 제거"""
+    # 패턴: "Article Title - Reuters" → "Article Title"
+    for suffix in [' - Reuters', ' - Bloomberg', ' - Nikkei Asia',
+                   ' - The Japan Times', ' - South China Morning Post']:
+        if title.endswith(suffix):
+            return title[:-len(suffix)]
+    return title
+
+
 def process_rss_feeds():
+    import json
     app = create_app()
     with app.app_context():
         client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
-        
+
+        stats = {}  # 소스별 통계 수집
+
         for source_name, feed_url in RSS_FEEDS.items():
-            logger.info(f"Polling RSS: {source_name}")
+            logger.info(f"[AESA] Polling RSS: {source_name}")
+            source_stats = {'fetched': 0, 'skipped_dup': 0, 'scored': 0, 'sent': 0, 'low_score': 0, 'errors': 0}
+
             try:
-                feed = feedparser.parse(feed_url)
-                for entry in feed.entries[:5]: # top 5 recent
-                    url = entry.link
-                    
+                # HTTP 요청에 User-Agent 설정 (일부 피드가 봇 차단)
+                resp = requests.get(feed_url, timeout=20, headers={
+                    'User-Agent': 'Mozilla/5.0 (compatible; AESA-Monitor/1.0)'
+                })
+                if resp.status_code != 200:
+                    logger.error(f"[AESA] {source_name}: HTTP {resp.status_code} — RSS 피드 접근 실패")
+                    source_stats['errors'] = 1
+                    stats[source_name] = source_stats
+                    continue
+
+                feed = feedparser.parse(resp.content)
+                entries = feed.entries[:10]  # 최대 10개 확인
+                source_stats['fetched'] = len(entries)
+
+                if not entries:
+                    logger.warning(f"[AESA] {source_name}: RSS 파싱 성공하나 entries 0개 (bozo={feed.bozo})")
+                    stats[source_name] = source_stats
+                    continue
+
+                for entry in entries:
+                    # URL 추출 (Google News 프록시 소스는 별도 처리)
+                    if source_name in GOOGLE_NEWS_SOURCES:
+                        url = _resolve_google_news_url(entry)
+                    else:
+                        url = entry.get('link', '')
+
+                    if not url:
+                        continue
+
                     # 중복 확인
                     existing = AesaArticle.query.filter_by(url=url).first()
                     if existing:
+                        source_stats['skipped_dup'] += 1
                         continue
-                        
-                    title = entry.get('title', 'No title')
+
+                    title = _clean_title(entry.get('title', 'No title'))
                     summary_text = entry.get('summary', '') or entry.get('description', '')
-                    
+
                     # Claude 점수 책정
                     prompt = PROMPT_TEMPLATE.format(title=title, summary=summary_text[:1500], source=source_name)
-                    
-                    response = client.messages.create(
-                        model="claude-3-haiku-20240307",
-                        max_tokens=300,
-                        system="당신은 최고 수준의 국제정치 및 기술 트렌드 분석가입니다.",
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    
-                    response_text = response.content[0].text
-                    import json
+
                     try:
-                        # Find json block if surrounded by markdown
+                        response = client.messages.create(
+                            model="claude-sonnet-4-20250514",
+                            max_tokens=300,
+                            system="당신은 최고 수준의 국제정치 및 기술 트렌드 분석가입니다.",
+                            messages=[{"role": "user", "content": prompt}]
+                        )
+
+                        response_text = response.content[0].text
                         if "{" in response_text and "}" in response_text:
                             start = response_text.find("{")
                             end = response_text.rfind("}") + 1
@@ -90,15 +149,19 @@ def process_rss_feeds():
                             score = 0
                             summary = ""
                     except Exception as e:
-                        logger.error(f"Failed to parse Claude output: {e}")
+                        logger.error(f"[AESA] {source_name}: Claude API 또는 JSON 파싱 에러: {e}")
                         score = 0
                         summary = "분석 실패"
-                    
+                        source_stats['errors'] += 1
+
+                    source_stats['scored'] += 1
+                    logger.info(f"[AESA] {source_name}: score={score} | {title[:50]}")
+
                     # 9점 이상은 즉시 알림, 7~8점은 별도, 6점 이하는 요약 대기
                     # 야간 시간(02:00 ~ 06:00)에는 발송 보류
                     now = datetime.now()
                     is_night = dtime(2, 0) <= now.time() < dtime(6, 0)
-                    
+
                     status = 'pending'
                     if score >= 9:
                         if is_night:
@@ -106,15 +169,18 @@ def process_rss_feeds():
                         else:
                             send_telegram_alert(source_name, title, url, score, summary, is_urgent=True)
                             status = 'sent'
+                            source_stats['sent'] += 1
                     elif 7 <= score <= 8:
                         if is_night:
                             status = 'queued_for_morning'
                         else:
                             send_telegram_alert(source_name, title, url, score, summary)
                             status = 'sent'
+                            source_stats['sent'] += 1
                     else:
                         status = 'queued_for_summary'
-                        
+                        source_stats['low_score'] += 1
+
                     article = AesaArticle(
                         url=url,
                         title=title,
@@ -125,8 +191,17 @@ def process_rss_feeds():
                     )
                     db.session.add(article)
                     db.session.commit()
+
             except Exception as e:
-                logger.error(f"Error polling {source_name}: {e}")
+                logger.error(f"[AESA] {source_name}: 폴링 중 에러 발생: {e}", exc_info=True)
+                source_stats['errors'] += 1
+
+            stats[source_name] = source_stats
+
+        # 전체 소스 통계 요약 로그
+        logger.info("[AESA] ========== 폴링 사이클 완료 ==========")
+        for src, s in stats.items():
+            logger.info(f"[AESA] {src}: fetched={s['fetched']} dup={s['skipped_dup']} scored={s['scored']} sent={s['sent']} low={s['low_score']} err={s['errors']}")
 
 def send_telegram_alert(source, title, url, score, summary, is_urgent=False):
     bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
