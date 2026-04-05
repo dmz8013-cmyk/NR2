@@ -45,21 +45,29 @@ RSS_FEEDS = {
 GOOGLE_NEWS_SOURCES = {'Nikkei Asia', 'Reuters', 'Caixin Global', 'Brookings', 'CFR', 'Arab News'}
 
 PROMPT_TEMPLATE = """
-다음 뉴스 기사를 분석하여 AESA 3개 렌즈 기준으로 0점부터 10점 사이의 점수를 매겨주세요.
+다음 뉴스 기사를 분석하여 AESA 4개 렌즈 기준으로 0점부터 10점 사이의 점수를 매겨주세요.
 
-[AESA 3개 렌즈]
+[AESA 4개 렌즈]
+[A] AI·기술권력 — AI, 반도체, 빅테크 플랫폼 권력, 기술 패권 경쟁
+[B] 국제정치·지정학 — 전쟁, 외교, 동맹 재편, 제재, 영토 분쟁, 패권 경쟁
+[C] 문화트렌드 — 세대 변화, 소비 패턴, 미디어·콘텐츠, 사회 운동
+[D] 투자·금융·경제권력 — 글로벌 금리·환율·원자재, 중앙은행 정책(Fed/ECB/BOJ/PBOC), 빅테크·방산·에너지 실적·M&A, 헤지펀드·국부펀드 포지션, 무역전쟁·관세·공급망 재편, AI·반도체 투자 흐름, 암호화폐 기관 자금
+
 결과물은 오직 다음 JSON 포맷으로만 반환하세요:
 {{
   "score": 0~10의 정수,
+  "lenses": ["A", "B", "C", "D"] 중 해당하는 렌즈 배열 (복수 가능),
+  "korea_investment_link": true 또는 false (한국 투자시장과 연결고리 존재 여부),
   "korean_summary": "한국 언론 관점에서의 해당 기사 한 줄 요약",
   "reason": "점수 부여 이유 (짧게)"
 }}
 
 [채점 기준]
 - 0~5점: 평범한 뉴스
-- 6~8점: [A] AI·기술권력, [B] 지정학·패권, [C] 문화트렌드 중 하나 이상 관련성이 깊은 경우
-- 9~10점: 위 3개 렌즈에 부합하고 파급력이 매우 큰 특종/비공개 분석.
-* 만약 한국 언론에서 아직 널리 보도되지 않은 각도(Angle)나 신선한 관점(Blind spot)이 존재한다고 판단되면 +2점 보너스를 주세요.
+- 6~8점: [A] [B] [C] [D] 중 하나 이상 관련성이 깊은 경우
+- 9~10점: 위 4개 렌즈에 부합하고 파급력이 매우 큰 특종/비공개 분석
+* 한국 언론에서 아직 널리 보도되지 않은 각도(Angle)나 신선한 관점(Blind spot)이 존재하면 +2점 보너스
+* [D] 렌즈 해당 기사 중 한국 투자시장과 직접 연결고리가 있으면(예: Fed 금리→원달러→코스피, 원자재→한국 수출기업) +1점 보너스
 
 기사 제목: {title}
 기사 요약: {summary}
@@ -149,11 +157,14 @@ def process_rss_feeds():
                     # Claude 점수 책정
                     prompt = PROMPT_TEMPLATE.format(title=title, summary=summary_text[:1500], source=source_name)
 
+                    lenses = []
+                    korea_link = False
+
                     try:
                         response = client.messages.create(
                             model="claude-sonnet-4-20250514",
-                            max_tokens=300,
-                            system="당신은 최고 수준의 국제정치 및 기술 트렌드 분석가입니다.",
+                            max_tokens=400,
+                            system="당신은 최고 수준의 국제정치, 기술 트렌드, 글로벌 금융 분석가입니다.",
                             messages=[{"role": "user", "content": prompt}]
                         )
 
@@ -165,6 +176,8 @@ def process_rss_feeds():
                             result = json.loads(json_str)
                             score = min(int(result.get("score", 0)), 10)
                             summary = result.get("korean_summary", "")
+                            lenses = result.get("lenses", [])
+                            korea_link = bool(result.get("korea_investment_link", False))
                         else:
                             score = 0
                             summary = ""
@@ -174,8 +187,11 @@ def process_rss_feeds():
                         summary = "분석 실패"
                         source_stats['errors'] += 1
 
+                    # 렌즈 태그 문자열 생성
+                    lens_tag = ''.join(f'[{l}]' for l in lenses) if lenses else '[?]'
+
                     source_stats['scored'] += 1
-                    logger.info(f"[AESA] {source_name}: score={score} | {title[:50]}")
+                    logger.info(f"[AESA] {source_name}: score={score} lens={lens_tag} kr_link={korea_link} | {title[:50]}")
 
                     # 9점 이상은 즉시 알림, 7~8점은 별도, 6점 이하는 요약 대기
                     # 야간 시간(02:00 ~ 06:00)에는 발송 보류
@@ -187,14 +203,16 @@ def process_rss_feeds():
                         if is_night:
                             status = 'queued_for_morning'
                         else:
-                            send_telegram_alert(source_name, title, url, score, summary, is_urgent=True)
+                            send_telegram_alert(source_name, title, url, score, summary,
+                                                lenses=lenses, korea_link=korea_link, is_urgent=True)
                             status = 'sent'
                             source_stats['sent'] += 1
                     elif 7 <= score <= 8:
                         if is_night:
                             status = 'queued_for_morning'
                         else:
-                            send_telegram_alert(source_name, title, url, score, summary)
+                            send_telegram_alert(source_name, title, url, score, summary,
+                                                lenses=lenses, korea_link=korea_link)
                             status = 'sent'
                             source_stats['sent'] += 1
                     else:
@@ -223,19 +241,25 @@ def process_rss_feeds():
         for src, s in stats.items():
             logger.info(f"[AESA] {src}: fetched={s['fetched']} dup={s['skipped_dup']} scored={s['scored']} sent={s['sent']} low={s['low_score']} err={s['errors']}")
 
-def send_telegram_alert(source, title, url, score, summary, is_urgent=False):
+def send_telegram_alert(source, title, url, score, summary,
+                        lenses=None, korea_link=False, is_urgent=False):
     bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
     chat_id = os.environ.get('AESA_TELEGRAM_CHANNEL_ID', os.environ.get('TELEGRAM_CHAT_ID'))
-    
+
     if not bot_token or not chat_id:
         logger.warning("Telegram config missing.")
         return
-        
+
+    # 렌즈 태그
+    lens_tag = ''.join(f'[{l}]' for l in (lenses or [])) or '[?]'
+    kr_flag = " 🇰🇷" if korea_link else ""
+
     icon = "🚨 [긴급/특종 AESA 알림]" if is_urgent else "🔔 [AESA 주요 알림]"
     text = f"{icon}\n\n"
     text += f"*{source}* (점수: {score}/10)\n"
     text += f"[{title}]({url})\n\n"
-    text += f"💡 1줄 요약:\n{summary}"
+    text += f"💡 1줄 요약:\n{summary}\n\n"
+    text += f"🔍 렌즈: {lens_tag}{kr_flag}"
     
     try:
         api_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
