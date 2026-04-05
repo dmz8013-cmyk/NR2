@@ -59,16 +59,7 @@ def process_rss_feeds():
                     
                     # 중복 확인
                     existing = AesaArticle.query.filter_by(url=url).first()
-                    now = datetime.now()
-                    is_night = dtime(2, 0) <= now.time() < dtime(6, 0)
                     if existing:
-                        # [테스트용] 이미 5점 이상인데 요약 대기열(queued_for_summary) 처리된 건들을 강제 발송
-                        if existing.score >= 5 and existing.status == 'queued_for_summary':
-                            if not is_night:
-                                logger.info(f"테스트용 강제 발송: {existing.title} (점수: {existing.score})")
-                                send_telegram_alert(existing.source, existing.title, existing.url, existing.score, existing.summary)
-                                existing.status = 'sent'
-                                db.session.commit()
                         continue
                         
                     title = entry.get('title', 'No title')
@@ -103,8 +94,10 @@ def process_rss_feeds():
                         score = 0
                         summary = "분석 실패"
                     
-                    # 9점 이상은 즉시 알림, 5~8점은 별도, 4점 이하는 요약 대기
+                    # 9점 이상은 즉시 알림, 7~8점은 별도, 6점 이하는 요약 대기
                     # 야간 시간(02:00 ~ 06:00)에는 발송 보류
+                    now = datetime.now()
+                    is_night = dtime(2, 0) <= now.time() < dtime(6, 0)
                     
                     status = 'pending'
                     if score >= 9:
@@ -113,7 +106,7 @@ def process_rss_feeds():
                         else:
                             send_telegram_alert(source_name, title, url, score, summary, is_urgent=True)
                             status = 'sent'
-                    elif 5 <= score <= 8:
+                    elif 7 <= score <= 8:
                         if is_night:
                             status = 'queued_for_morning'
                         else:
