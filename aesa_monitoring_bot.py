@@ -440,5 +440,125 @@ def send_daily_summary_email():
         except Exception as e:
             logger.error(f"Failed to send daily summary: {e}")
 
+def send_daily_content_report():
+    """매일 오전 7시 실행: 전날 수집 기사 중 영상 콘텐츠 후보 TOP3 텔레그램 발송."""
+    import json
+    app = create_app()
+    with app.app_context():
+        from datetime import timedelta
+
+        # 전날 00:00 ~ 23:59 KST
+        now = datetime.now()
+        yesterday_start = (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        yesterday_end = yesterday_start.replace(hour=23, minute=59, second=59)
+
+        candidates = AesaArticle.query.filter(
+            AesaArticle.created_at >= yesterday_start,
+            AesaArticle.created_at <= yesterday_end,
+            AesaArticle.score >= 7
+        ).order_by(AesaArticle.score.desc()).limit(20).all()
+
+        if not candidates:
+            logger.info("[AESA 콘텐츠] 전날 7점+ 기사 없음 — 스킵")
+            return
+
+        # Claude에 전달할 기사 목록 구성
+        articles_for_prompt = []
+        for a in candidates:
+            articles_for_prompt.append({
+                "title": a.title,
+                "source": a.source,
+                "score": a.score,
+                "summary": a.summary or "",
+                "lenses": a.lenses.split(',') if a.lenses else [],
+                "url": a.url
+            })
+
+        articles_json = json.dumps(articles_for_prompt, ensure_ascii=False, indent=2)
+
+        prompt = f"""당신은 누렁이 AESA 유튜브 채널의 콘텐츠 디렉터입니다.
+아래 기사 목록에서 유튜브 영상으로 만들기 가장 좋은 TOP3를 선정하세요.
+
+[AESA 콘텐츠 3가지 조건 — 동시 충족 필수]
+① 첨예성: 통념을 뒤집는 도발
+② 철학적 깊이: 권력·문명·전략의 인사이트
+③ 10만 훅: 선언적·도발적 제목 프레이밍
+
+[4개 렌즈]
+[A] AI·기술권력
+[B] 국제정치·지정학
+[C] 문화트렌드
+[D] 투자·금융·경제권력
+
+각 후보마다 아래 JSON 형식으로 출력:
+{{
+  "rank": 1,
+  "title_candidates": ["제목1 (훅 포함)", "제목2 (훅 포함)"],
+  "core_angle": "핵심 앵글 1~2줄",
+  "lenses": ["B", "D"],
+  "reason": "선정 이유 1줄",
+  "source": "출처 언론사",
+  "original_title": "원문 제목"
+}}
+
+JSON 배열로만 응답. 다른 텍스트 없음.
+
+기사 목록:
+{articles_json}"""
+
+        try:
+            client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
+            response = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=1500,
+                messages=[{"role": "user", "content": prompt}]
+            )
+
+            response_text = response.content[0].text.strip()
+            # JSON 배열 추출
+            if "[" in response_text and "]" in response_text:
+                start = response_text.find("[")
+                end = response_text.rfind("]") + 1
+                top3 = json.loads(response_text[start:end])
+            else:
+                logger.error("[AESA 콘텐츠] Claude 응답에서 JSON 배열 파싱 실패")
+                return
+
+        except Exception as e:
+            logger.error(f"[AESA 콘텐츠] Claude API 에러: {e}")
+            return
+
+        # 텔레그램 메시지 구성
+        date_str = yesterday_start.strftime('%Y.%m.%d')
+        msg = f"🎬 *AESA 영상 콘텐츠 후보 TOP3*\n"
+        msg += f"📅 {date_str} 수집 기사 기준\n"
+        msg += "━" * 20 + "\n"
+
+        for item in top3[:3]:
+            rank = item.get("rank", "?")
+            titles = item.get("title_candidates", [])
+            angle = item.get("core_angle", "")
+            lenses_list = item.get("lenses", [])
+            reason = item.get("reason", "")
+            source = item.get("source", "")
+            original = item.get("original_title", "")
+
+            lens_tag = ''.join(f'[{l}]' for l in lenses_list)
+            title_lines = '\n'.join(f'   • {t}' for t in titles)
+
+            msg += f"\n*#{rank}* {lens_tag}\n"
+            msg += f"📰 원문: {original}\n"
+            msg += f"   출처: {source}\n"
+            msg += f"🎯 앵글: {angle}\n"
+            msg += f"✏️ 제목 후보:\n{title_lines}\n"
+            msg += f"💬 선정 이유: {reason}\n"
+            msg += "─" * 18 + "\n"
+
+        msg += "\n_※ 제목은 초안입니다. 최종 선택은 PD 판단._"
+
+        _send_telegram_raw(msg)
+        logger.info(f"[AESA 콘텐츠] TOP3 발송 완료 (대상 기사 {len(candidates)}건)")
+
+
 if __name__ == "__main__":
     process_rss_feeds()

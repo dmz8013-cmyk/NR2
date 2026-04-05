@@ -27,7 +27,7 @@ from app.utils.bias_report import generate_weekly_report, send_weekly_report_to_
 from scripts.daily_scrap import run as daily_scrap_run
 from nr2_web_bot import poll_commands, send_youcheck_daily
 from weekly_briefing import send_weekly_briefing
-from aesa_monitoring_bot import process_rss_feeds, send_batch_alerts, flush_nighttime_queue, send_daily_summary_email
+from aesa_monitoring_bot import process_rss_feeds, send_batch_alerts, flush_nighttime_queue, send_daily_summary_email, send_daily_content_report
 
 scheduler = BlockingScheduler(timezone='Asia/Seoul')
 INTERVAL_MINUTES = int(os.environ.get('YOUTUBE_CHECK_INTERVAL', 10))
@@ -142,6 +142,12 @@ def aesa_nighttime_flush_job():
 def aesa_daily_summary_job():
     logger.info('[Scheduler] AESA 일간 요약본 발송 중...')
     send_daily_summary_email()
+
+@scheduler.scheduled_job('cron', hour=7, minute=0, id='aesa_content_report', timezone='Asia/Seoul')
+def aesa_content_report_job():
+    """매일 오전 7시 — 전날 기사 기반 영상 콘텐츠 후보 TOP3"""
+    logger.info('[Scheduler] AESA 영상 콘텐츠 후보 TOP3 발송 중...')
+    send_daily_content_report()
 
 
 # [4월말 활성화 예정] YouTube Data API v3 — 1시간마다 새 영상 체크
