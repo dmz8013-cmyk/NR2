@@ -27,6 +27,7 @@ from app.utils.bias_report import generate_weekly_report, send_weekly_report_to_
 from scripts.daily_scrap import run as daily_scrap_run
 from nr2_web_bot import poll_commands, send_youcheck_daily
 from weekly_briefing import send_weekly_briefing
+from aesa_monitoring_bot import process_rss_feeds, flush_nighttime_queue, send_daily_summary_email
 
 scheduler = BlockingScheduler(timezone='Asia/Seoul')
 INTERVAL_MINUTES = int(os.environ.get('YOUTUBE_CHECK_INTERVAL', 10))
@@ -119,6 +120,21 @@ def weekly_briefing_job():
     """매주 일요일 20:00 KST — 주간 TOP5 브리핑"""
     logger.info('[Scheduler] 주간 TOP5 브리핑 생성 중...')
     send_weekly_briefing(app)
+
+@scheduler.scheduled_job('interval', minutes=5, id='aesa_rss_polling', coalesce=True, max_instances=1)
+def aesa_rss_polling_job():
+    logger.info('[Scheduler] AESA 해외언론 모니터링 폴링 중...')
+    process_rss_feeds()
+
+@scheduler.scheduled_job('cron', hour=6, minute=0, id='aesa_nighttime_flush', timezone='Asia/Seoul')
+def aesa_nighttime_flush_job():
+    logger.info('[Scheduler] AESA 야간 대기열 발송 중...')
+    flush_nighttime_queue()
+
+@scheduler.scheduled_job('cron', hour=7, minute=0, id='aesa_daily_summary', timezone='Asia/Seoul')
+def aesa_daily_summary_job():
+    logger.info('[Scheduler] AESA 일간 요약본 발송 중...')
+    send_daily_summary_email()
 
 
 # [4월말 활성화 예정] YouTube Data API v3 — 1시간마다 새 영상 체크

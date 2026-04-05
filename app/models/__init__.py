@@ -15,6 +15,7 @@ from app.models.user_bias_log import UserBiasLog
 from app.models.np_point import PointHistory
 from app.models.badge import Badge, UserBadge
 from app.models.scoop_alert import ScoopAlert
+from app.models.aesa_article import AesaArticle
 
 __all__ = [
     'User',
@@ -38,4 +39,5 @@ __all__ = [
     'Badge',
     'UserBadge',
     'ScoopAlert',
+    'AesaArticle',
 ]
