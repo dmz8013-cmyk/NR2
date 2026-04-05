@@ -9,8 +9,11 @@ class AesaArticle(db.Model):
     title = db.Column(db.String(500), nullable=False)
     source = db.Column(db.String(100), nullable=False)
     score = db.Column(db.Integer, nullable=False, default=0)
-    summary = db.Column(db.Text, nullable=True) # 1-line Korean angle summary
-    status = db.Column(db.String(20), default='pending') # 'pending', 'sent', 'queued_for_morning', 'queued_for_summary'
+    summary = db.Column(db.Text, nullable=True)
+    lenses = db.Column(db.String(50), nullable=True)  # e.g. "A,B,D"
+    korea_investment_link = db.Column(db.Boolean, default=False)
+    status = db.Column(db.String(30), default='pending')
+    # status: pending, sent_urgent, queued_batch, sent_batch, queued_for_morning, queued_for_summary, sent_summary
     created_at = db.Column(db.DateTime, default=datetime.now)
 
     def __repr__(self):

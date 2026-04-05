@@ -104,19 +104,21 @@ def _clean_title(title):
 
 
 def process_rss_feeds():
+    """5분마다 실행: RSS 수집 → Claude 채점 → DB 저장.
+    9점 이상은 즉시 텔레그램 발송, 7~8점은 queued_batch로 대기.
+    """
     import json
     app = create_app()
     with app.app_context():
         client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
 
-        stats = {}  # 소스별 통계 수집
+        stats = {}
 
         for source_name, feed_url in RSS_FEEDS.items():
             logger.info(f"[AESA] Polling RSS: {source_name}")
-            source_stats = {'fetched': 0, 'skipped_dup': 0, 'scored': 0, 'sent': 0, 'low_score': 0, 'errors': 0}
+            source_stats = {'fetched': 0, 'skipped_dup': 0, 'scored': 0, 'urgent_sent': 0, 'queued': 0, 'low_score': 0, 'errors': 0}
 
             try:
-                # HTTP 요청에 User-Agent 설정 (일부 피드가 봇 차단)
                 resp = requests.get(feed_url, timeout=20, headers={
                     'User-Agent': 'Mozilla/5.0 (compatible; AESA-Monitor/1.0)'
                 })
@@ -127,7 +129,7 @@ def process_rss_feeds():
                     continue
 
                 feed = feedparser.parse(resp.content)
-                entries = feed.entries[:10]  # 최대 10개 확인
+                entries = feed.entries[:10]
                 source_stats['fetched'] = len(entries)
 
                 if not entries:
@@ -136,7 +138,6 @@ def process_rss_feeds():
                     continue
 
                 for entry in entries:
-                    # URL 추출 (Google News 프록시 소스는 별도 처리)
                     if source_name in GOOGLE_NEWS_SOURCES:
                         url = _resolve_google_news_url(entry)
                     else:
@@ -145,7 +146,6 @@ def process_rss_feeds():
                     if not url:
                         continue
 
-                    # 중복 확인
                     existing = AesaArticle.query.filter_by(url=url).first()
                     if existing:
                         source_stats['skipped_dup'] += 1
@@ -154,11 +154,12 @@ def process_rss_feeds():
                     title = _clean_title(entry.get('title', 'No title'))
                     summary_text = entry.get('summary', '') or entry.get('description', '')
 
-                    # Claude 점수 책정
                     prompt = PROMPT_TEMPLATE.format(title=title, summary=summary_text[:1500], source=source_name)
 
                     lenses = []
                     korea_link = False
+                    score = 0
+                    summary = ""
 
                     try:
                         response = client.messages.create(
@@ -178,43 +179,32 @@ def process_rss_feeds():
                             summary = result.get("korean_summary", "")
                             lenses = result.get("lenses", [])
                             korea_link = bool(result.get("korea_investment_link", False))
-                        else:
-                            score = 0
-                            summary = ""
                     except Exception as e:
                         logger.error(f"[AESA] {source_name}: Claude API 또는 JSON 파싱 에러: {e}")
-                        score = 0
                         summary = "분석 실패"
                         source_stats['errors'] += 1
 
-                    # 렌즈 태그 문자열 생성
                     lens_tag = ''.join(f'[{l}]' for l in lenses) if lenses else '[?]'
-
                     source_stats['scored'] += 1
                     logger.info(f"[AESA] {source_name}: score={score} lens={lens_tag} kr_link={korea_link} | {title[:50]}")
 
-                    # 9점 이상은 즉시 알림, 7~8점은 별도, 6점 이하는 요약 대기
-                    # 야간 시간(02:00 ~ 06:00)에는 발송 보류
                     now = datetime.now()
                     is_night = dtime(2, 0) <= now.time() < dtime(6, 0)
 
-                    status = 'pending'
+                    # 9점 이상: 즉시 발송 (긴급 속보)
+                    # 7~8점: 배치 대기열에 적재
+                    # 6점 이하: 일간 요약 대기
                     if score >= 9:
                         if is_night:
                             status = 'queued_for_morning'
                         else:
                             send_telegram_alert(source_name, title, url, score, summary,
                                                 lenses=lenses, korea_link=korea_link, is_urgent=True)
-                            status = 'sent'
-                            source_stats['sent'] += 1
-                    elif 7 <= score <= 8:
-                        if is_night:
-                            status = 'queued_for_morning'
-                        else:
-                            send_telegram_alert(source_name, title, url, score, summary,
-                                                lenses=lenses, korea_link=korea_link)
-                            status = 'sent'
-                            source_stats['sent'] += 1
+                            status = 'sent_urgent'
+                            source_stats['urgent_sent'] += 1
+                    elif score >= 7:
+                        status = 'queued_batch' if not is_night else 'queued_for_morning'
+                        source_stats['queued'] += 1
                     else:
                         status = 'queued_for_summary'
                         source_stats['low_score'] += 1
@@ -225,6 +215,8 @@ def process_rss_feeds():
                         source=source_name,
                         score=score,
                         summary=summary,
+                        lenses=','.join(lenses) if lenses else '',
+                        korea_investment_link=korea_link,
                         status=status
                     )
                     db.session.add(article)
@@ -236,10 +228,74 @@ def process_rss_feeds():
 
             stats[source_name] = source_stats
 
-        # 전체 소스 통계 요약 로그
         logger.info("[AESA] ========== 폴링 사이클 완료 ==========")
         for src, s in stats.items():
-            logger.info(f"[AESA] {src}: fetched={s['fetched']} dup={s['skipped_dup']} scored={s['scored']} sent={s['sent']} low={s['low_score']} err={s['errors']}")
+            logger.info(f"[AESA] {src}: fetched={s['fetched']} dup={s['skipped_dup']} scored={s['scored']} urgent={s['urgent_sent']} queued={s['queued']} low={s['low_score']} err={s['errors']}")
+
+
+def send_batch_alerts():
+    """30분마다 실행: queued_batch 상태 기사를 점수순 정렬 → 상위 10개 일괄 발송."""
+    app = create_app()
+    with app.app_context():
+        now = datetime.now()
+        is_night = dtime(2, 0) <= now.time() < dtime(6, 0)
+        if is_night:
+            logger.info("[AESA 배치] 야간 시간대 — 발송 보류")
+            return
+
+        # queued_batch 상태 기사 추출
+        candidates = AesaArticle.query.filter_by(status='queued_batch').all()
+
+        if not candidates:
+            logger.info("[AESA 배치] 발송 대기 기사 없음")
+            return
+
+        # 정렬: 점수 내림차순, 동점 시 [D]렌즈+korea_link 우선, 그 다음 최신순
+        def sort_key(a):
+            has_d_kr = 1 if ('D' in (a.lenses or '') and a.korea_investment_link) else 0
+            return (-a.score, -has_d_kr, -a.id)
+
+        candidates.sort(key=sort_key)
+        to_send = candidates[:10]
+
+        logger.info(f"[AESA 배치] {len(candidates)}건 대기 중 → 상위 {len(to_send)}건 발송")
+
+        # 배치 헤더 메시지 발송
+        header = f"📡 *AESA 30분 브리핑*\n"
+        header += f"⏰ {now.strftime('%H:%M')} KST | {len(to_send)}건 주요 기사\n"
+        header += "━" * 20
+        _send_telegram_raw(header)
+
+        # 개별 기사 발송
+        for item in to_send:
+            lenses = item.lenses.split(',') if item.lenses else []
+            send_telegram_alert(
+                item.source, item.title, item.url, item.score, item.summary,
+                lenses=lenses, korea_link=item.korea_investment_link
+            )
+            item.status = 'sent_batch'
+
+        # 나머지 (10개 초과분)는 일간 요약으로 강등
+        for item in candidates[10:]:
+            item.status = 'queued_for_summary'
+
+        db.session.commit()
+        logger.info(f"[AESA 배치] 발송 완료 {len(to_send)}건, 요약 강등 {len(candidates) - len(to_send)}건")
+
+def _send_telegram_raw(text):
+    """텔레그램에 raw 텍스트 메시지 발송 (배치 헤더용)"""
+    bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
+    chat_id = os.environ.get('AESA_TELEGRAM_CHANNEL_ID', os.environ.get('TELEGRAM_CHAT_ID'))
+    if not bot_token or not chat_id:
+        return
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{bot_token}/sendMessage",
+            json={'chat_id': chat_id, 'text': text, 'parse_mode': 'Markdown'}
+        )
+    except Exception as e:
+        logger.error(f"Telegram raw send error: {e}")
+
 
 def send_telegram_alert(source, title, url, score, summary,
                         lenses=None, korea_link=False, is_urgent=False):
