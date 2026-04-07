@@ -154,21 +154,22 @@ def _build_index_data():
 
 @bp.route('/')
 def index():
-    """메인 페이지 (60초 캐시)"""
+    """메인 페이지 (60초 풀 HTML 캐시)"""
     global _index_cache
     now = time.time()
 
     if _index_cache['data'] is None or now > _index_cache['expires']:
         t0 = time.time()
         data = _build_index_data()
+        html = render_template('main/index.html', **data)
         elapsed = time.time() - t0
-        print(f'[PERF] 메인 페이지 DB 쿼리: {elapsed:.2f}초')
-        _index_cache = {'data': data, 'expires': now + INDEX_CACHE_TTL}
+        print(f'[PERF] 메인 페이지 빌드: {elapsed:.2f}초 (DB+렌더링)')
+        _index_cache = {'data': html, 'expires': now + INDEX_CACHE_TTL}
     else:
-        data = _index_cache['data']
+        html = _index_cache['data']
         print('[PERF] 메인 페이지 캐시 HIT')
 
-    return render_template('main/index.html', **data)
+    return html
 
 
 @bp.route('/methodology')
