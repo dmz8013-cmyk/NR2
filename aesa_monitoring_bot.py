@@ -39,6 +39,7 @@ RSS_FEEDS = {
     'Le Monde Diplo': 'https://mondediplo.com/backend',
     'Arab News': 'https://news.google.com/rss/search?q=site:arabnews.com+when:1d&hl=en&gl=US&ceid=US:en',
     'RAND': 'https://www.rand.org/blog.xml',
+    '한국경제': 'https://www.hankyung.com/feed/all-news',
 }
 
 # Google News RSS 프록시를 사용하는 소스: entry.link가 Google 리다이렉트 URL일 수 있음
