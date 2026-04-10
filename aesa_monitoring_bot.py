@@ -139,16 +139,9 @@ def generate_threads_draft(title, korean_summary, lenses, url):
 def _resolve_google_news_url(entry):
     """Google News RSS entry에서 실제 기사 URL을 추출"""
     link = entry.get('link', '')
-    # Google News 링크는 보통 리다이렉트 URL
-    # source 태그에서 원본 URL을 가져오거나, link 그대로 사용
-    if 'news.google.com' in link:
-        # source 속성에 원본 도메인이 있을 수 있음
-        source_obj = entry.get('source', {})
-        # feedparser는 source를 dict로 파싱
-        if hasattr(source_obj, 'get'):
-            href = source_obj.get('href', '')
-            if href:
-                return href
+    # 기존 코드의 source.get('href')는 개별 기사가 아닌 언론사 '메인 홈페이지' 주소를 반환하여 
+    # 모든 새 기사를 중복(dup) 처리하게 만든 원인이었습니다.
+    # Google News proxy URL 자체가 기사별 고유값이므로 그대로 반환합니다.
     return link
 
 
