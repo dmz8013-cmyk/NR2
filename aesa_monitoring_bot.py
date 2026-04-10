@@ -13,6 +13,9 @@ from app.models.aesa_article import AesaArticle
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Anthropic 크레딧 고갈 알림 중복 방지용 모듈 상태 (1시간에 1회만 발송)
+_credit_alert_state = {'last_sent_at': None}
+
 # RSS Feeds List (30개 소스)
 # 자체 RSS 없는 소스 → Google News RSS 프록시 사용
 RSS_FEEDS = {
@@ -146,6 +149,34 @@ def _resolve_google_news_url(entry):
     return link
 
 
+def _is_credit_exhausted_error(exc):
+    """Anthropic BadRequestError가 '크레딧 부족' 메시지인지 판별."""
+    if not isinstance(exc, anthropic.BadRequestError):
+        return False
+    msg = str(exc).lower()
+    return 'credit balance' in msg or 'too low' in msg
+
+
+def _send_credit_exhausted_alert():
+    """Anthropic 크레딧 고갈을 텔레그램으로 알림. 1시간 내 중복 발송 방지."""
+    now = datetime.now(KST)
+    last = _credit_alert_state['last_sent_at']
+    if last is not None and (now - last) < timedelta(hours=1):
+        logger.warning("[AESA] 크레딧 알림 1시간 내 중복 — 발송 스킵")
+        return
+    text = "🚨 *AESA 긴급: Anthropic API 크레딧 부족*\n\n"
+    text += f"⏰ {now.strftime('%Y-%m-%d %H:%M')} KST\n"
+    text += "Claude 채점이 중단되어 해외언론 기사가 발송되지 않습니다.\n"
+    text += "폴링 사이클을 즉시 중단합니다.\n\n"
+    text += "👉 https://console.anthropic.com/settings/billing"
+    try:
+        _send_telegram_raw(text)
+        _credit_alert_state['last_sent_at'] = now
+        logger.error("[AESA] 크레딧 부족 알림 텔레그램 발송 완료")
+    except Exception as e:
+        logger.error(f"[AESA] 크레딧 알림 발송 실패: {e}")
+
+
 def _clean_title(title):
     """Google News RSS 제목에서 ' - 소스명' 접미사 제거"""
     # 패턴: "Article Title - Reuters" → "Article Title"
@@ -238,6 +269,18 @@ def process_rss_feeds():
                             korea_link = bool(result.get("korea_investment_link", False))
                             korea_insight = result.get("korea_insight")
                             logger.info(f"[AESA] korea_insight 추출 완료: {korea_insight}")
+                    except anthropic.BadRequestError as e:
+                        # 크레딧 고갈이면 score=0 쓰레기 행을 더 쌓지 않도록 사이클 즉시 중단
+                        if _is_credit_exhausted_error(e):
+                            logger.error(f"[AESA] {source_name}: Anthropic 크레딧 고갈 감지 — 폴링 사이클 중단")
+                            _send_credit_exhausted_alert()
+                            db.session.rollback()
+                            stats[source_name] = source_stats
+                            logger.info("[AESA] ========== 크레딧 고갈로 사이클 조기 종료 ==========")
+                            return
+                        logger.error(f"[AESA] {source_name}: BadRequestError: {e}")
+                        summary = "분석 실패"
+                        source_stats['errors'] += 1
                     except Exception as e:
                         logger.error(f"[AESA] {source_name}: Claude API 또는 JSON 파싱 에러: {e}")
                         summary = "분석 실패"
