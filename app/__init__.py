@@ -125,6 +125,9 @@ def create_app(config_name='default'):
     from app.routes.aesa_test import bp as aesa_test_bp
     app.register_blueprint(aesa_test_bp)
 
+    from app.routes.dashboard_routes import dashboard_bp
+    app.register_blueprint(dashboard_bp)
+
     # KST 시간대 Jinja2 필터
     KST = timezone(timedelta(hours=9))
     def format_kst(dt, fmt='%Y-%m-%d %H:%M'):
