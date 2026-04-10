@@ -11,35 +11,45 @@ from app.models.aesa_article import AesaArticle
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# RSS Feeds List (23개 소스)
+# RSS Feeds List (30개 소스)
 # 자체 RSS 없는 소스 → Google News RSS 프록시 사용
 RSS_FEEDS = {
-    # ── 기존 8개 ──
-    'MIT Tech Review': 'https://www.technologyreview.com/feed/',
+    # ── 정치·지정학 ──
     'Foreign Policy': 'https://foreignpolicy.com/feed/',
-    'The Economist': 'https://www.economist.com/the-world-this-week/rss.xml',
-    'SCMP': 'https://www.scmp.com/rss/4/feed',
-    'Nikkei Asia': 'https://news.google.com/rss/search?q=site:asia.nikkei.com+when:1d&hl=en&gl=US&ceid=US:en',
-    'Axios': 'https://api.axios.com/feed/',
-    'Reuters': 'https://news.google.com/rss/search?q=site:reuters.com+when:1d&hl=en&gl=US&ceid=US:en',
-    'Bloomberg': 'https://feeds.bloomberg.com/markets/news.rss',
-    # ── 신규 15개 (2026-04-06 추가) ──
     'Foreign Affairs': 'https://www.foreignaffairs.com/rss.xml',
-    'The Atlantic': 'https://www.theatlantic.com/feed/all/',
-    'Wired': 'https://www.wired.com/feed/rss',
-    'Politico': 'https://rss.politico.com/politics-news.xml',
-    'Financial Times': 'https://www.ft.com/?format=rss',
     'The Diplomat': 'https://thediplomat.com/feed/',
-    'Asia Times': 'https://asiatimes.com/feed/',
-    'Caixin Global': 'https://news.google.com/rss/search?q=site:caixinglobal.com+when:2d&hl=en&gl=US&ceid=US:en',
-    'Al Jazeera': 'https://www.aljazeera.com/xml/rss/all.xml',
+    'Politico': 'https://rss.politico.com/politics-news.xml',
+    'Axios': 'https://api.axios.com/feed/',
     'Brookings': 'https://news.google.com/rss/search?q=site:brookings.edu+when:3d&hl=en&gl=US&ceid=US:en',
     'CFR': 'https://news.google.com/rss/search?q=site:cfr.org+when:3d&hl=en&gl=US&ceid=US:en',
-    'Der Spiegel Intl': 'https://www.spiegel.de/international/index.rss',
-    'Le Monde Diplo': 'https://mondediplo.com/backend',
-    'Arab News': 'https://news.google.com/rss/search?q=site:arabnews.com+when:1d&hl=en&gl=US&ceid=US:en',
     'RAND': 'https://www.rand.org/blog.xml',
-    '한국경제': 'https://www.hankyung.com/feed/all-news',
+    # ── 경제·금융 ──
+    'Wall Street Journal': 'https://feeds.a.dj.com/rss/RSSWorldNews.xml',
+    'Financial Times': 'https://www.ft.com/rss/home',
+    'The Economist': 'https://www.economist.com/the-world-this-week/rss.xml',
+    'Bloomberg': 'https://feeds.bloomberg.com/markets/news.rss',
+    'Reuters': 'https://news.google.com/rss/search?q=site:reuters.com+when:1d&hl=en&gl=US&ceid=US:en',
+    # ── 기술·AI ──
+    'MIT Tech Review': 'https://www.technologyreview.com/feed/',
+    'Wired': 'https://www.wired.com/feed/rss',
+    'Ars Technica': 'https://feeds.arstechnica.com/arstechnica/index',
+    # ── 아시아 ──
+    'SCMP': 'https://www.scmp.com/rss/91/feed',
+    'Nikkei Asia': 'https://news.google.com/rss/search?q=site:asia.nikkei.com+when:1d&hl=en&gl=US&ceid=US:en',
+    'Asia Times': 'https://asiatimes.com/feed/',
+    'Caixin Global': 'https://news.google.com/rss/search?q=site:caixinglobal.com+when:2d&hl=en&gl=US&ceid=US:en',
+    # ── 유럽·중동 ──
+    'The Atlantic': 'https://www.theatlantic.com/feed/all/',
+    'Al Jazeera': 'https://www.aljazeera.com/xml/rss/all.xml',
+    'Der Spiegel Intl': 'https://www.spiegel.de/international/index.rss',
+    'Le Monde Diplo': 'https://mondediplo.com/spip.php?page=backend',
+    'Arab News': 'https://news.google.com/rss/search?q=site:arabnews.com+when:1d&hl=en&gl=US&ceid=US:en',
+    # ── 추가 유력지 ──
+    'New York Times': 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml',
+    'The Guardian': 'https://www.theguardian.com/world/rss',
+    'Corriere della Sera': 'https://www.corriere.it/rss/homepage.xml',
+    'La Repubblica': 'https://www.repubblica.it/rss/homepage/rss2.0.xml',
+    'ANSA': 'https://www.ansa.it/sito/notizie/mondo/mondo_rss.xml',
 }
 
 # Google News RSS 프록시를 사용하는 소스: entry.link가 Google 리다이렉트 URL일 수 있음
