@@ -237,6 +237,7 @@ def process_rss_feeds():
                             lenses = result.get("lenses", [])
                             korea_link = bool(result.get("korea_investment_link", False))
                             korea_insight = result.get("korea_insight")
+                            logger.info(f"[AESA] korea_insight 추출 완료: {korea_insight}")
                     except Exception as e:
                         logger.error(f"[AESA] {source_name}: Claude API 또는 JSON 파싱 에러: {e}")
                         summary = "분석 실패"
