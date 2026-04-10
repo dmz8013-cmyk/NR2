@@ -4,7 +4,9 @@ import logging
 import feedparser
 import anthropic
 import requests
-from datetime import datetime, time as dtime
+from datetime import datetime, time as dtime, timezone, timedelta
+
+KST = timezone(timedelta(hours=9))
 from app import create_app, db
 from app.models.aesa_article import AesaArticle
 
@@ -248,8 +250,8 @@ def process_rss_feeds():
                     source_stats['scored'] += 1
                     logger.info(f"[AESA] {source_name}: score={score} lens={lens_tag} kr_link={korea_link} | {title[:50]}")
 
-                    now = datetime.now()
-                    is_night = dtime(2, 0) <= now.time() < dtime(6, 0)
+                    now_kst = datetime.now(KST)
+                    is_night = dtime(2, 0) <= now_kst.time() < dtime(6, 0)
 
                     # 9점 이상: 즉시 발송 (긴급 속보) + Threads 초안 동시 발송
                     # 7~8점: 배치 대기열에 적재
@@ -326,10 +328,10 @@ def send_batch_alerts():
     """15분마다 실행: queued_batch 상태 기사를 점수순 정렬 → 상위 5개 일괄 발송."""
     app = create_app()
     with app.app_context():
-        now = datetime.now()
-        is_night = dtime(2, 0) <= now.time() < dtime(6, 0)
+        now_kst = datetime.now(KST)
+        is_night = dtime(2, 0) <= now_kst.time() < dtime(6, 0)
         if is_night:
-            logger.info("[AESA 배치] 야간 시간대 — 발송 보류")
+            logger.info("[AESA 배치] 야간 시간대 (KST) — 발송 보류")
             return
 
         # queued_batch 상태 기사 추출
@@ -347,7 +349,7 @@ def send_batch_alerts():
 
         # 배치 헤더 메시지 발송
         header = f"📡 *AESA 15분 브리핑*\n"
-        header += f"⏰ {now.strftime('%H:%M')} KST | {len(to_send)}건 주요 기사\n"
+        header += f"⏰ {now_kst.strftime('%H:%M')} KST | {len(to_send)}건 주요 기사\n"
         header += "━" * 20
         _send_telegram_raw(header)
 
