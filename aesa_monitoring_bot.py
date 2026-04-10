@@ -286,6 +286,7 @@ def process_rss_feeds():
                     try:
                         article_kwargs['lenses'] = ','.join(lenses) if lenses else ''
                         article_kwargs['korea_investment_link'] = korea_link
+                        article_kwargs['korea_insight'] = korea_insight
                     except Exception:
                         pass
 
@@ -352,9 +353,11 @@ def send_batch_alerts():
         # 개별 기사 발송
         for item in to_send:
             lenses = item.lenses.split(',') if item.lenses else []
+            korea_insight = getattr(item, 'korea_insight', None)
             send_telegram_alert(
                 item.source, item.title, item.url, item.score, item.summary,
-                lenses=lenses, korea_link=item.korea_investment_link
+                lenses=lenses, korea_link=item.korea_investment_link,
+                korea_insight=korea_insight
             )
             item.status = 'sent_batch'
 
@@ -428,7 +431,14 @@ def flush_nighttime_queue():
             
         logger.info(f"야간 발송 대기열 {len(queued)}건 발송 시작.")
         for item in queued:
-            send_telegram_alert(item.source, item.title, item.url, item.score, item.summary, is_urgent=(item.score >= 9))
+            lenses = item.lenses.split(',') if getattr(item, 'lenses', None) else []
+            korea_insight = getattr(item, 'korea_insight', None)
+            korea_link = getattr(item, 'korea_investment_link', False)
+            send_telegram_alert(
+                item.source, item.title, item.url, item.score, item.summary,
+                lenses=lenses, korea_link=korea_link, is_urgent=(item.score >= 9),
+                korea_insight=korea_insight
+            )
             item.status = 'sent'
         db.session.commit()
 
