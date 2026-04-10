@@ -244,7 +244,7 @@ def process_rss_feeds():
 
                     lens_tag = ''.join(f'[{l}]' for l in lenses) if lenses else '[?]'
                     source_stats['scored'] += 1
-                    logger.info(f"[AESA] {source_name}: score={score} lens={lens_tag} kr_link={korea_link} | {title[:50]}")
+                    logger.info(f"[AESA] {source_name}: score={score} lens={lens_tag} kr_link={korea_link} kr_insight={bool(korea_insight)} | {title[:50]}")
 
                     now_kst = datetime.now(KST)
                     is_night = dtime(2, 0) <= now_kst.time() < dtime(6, 0)
