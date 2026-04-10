@@ -72,6 +72,7 @@ PROMPT_TEMPLATE = """
   "lenses": ["A", "B", "C", "D"] 중 해당하는 렌즈 배열 (복수 가능),
   "korea_investment_link": true 또는 false (한국 투자시장과 연결고리 존재 여부),
   "korean_summary": "한국 언론 관점에서의 해당 기사 한 줄 요약",
+  "korea_insight": "한국 정치·경제·시장 관점 시사점 1~2줄. 이 기사가 한국에 미치는 영향을 코스피·원화·금리·정책·외교·산업 중 해당되는 관점으로 분석. 한국과 직접 관련 없으면 null로 반환.",
   "reason": "점수 부여 이유 (짧게)"
 }}
 
@@ -215,6 +216,7 @@ def process_rss_feeds():
                     korea_link = False
                     score = 0
                     summary = ""
+                    korea_insight = None
 
                     try:
                         response = client.messages.create(
@@ -234,6 +236,7 @@ def process_rss_feeds():
                             summary = result.get("korean_summary", "")
                             lenses = result.get("lenses", [])
                             korea_link = bool(result.get("korea_investment_link", False))
+                            korea_insight = result.get("korea_insight")
                     except Exception as e:
                         logger.error(f"[AESA] {source_name}: Claude API 또는 JSON 파싱 에러: {e}")
                         summary = "분석 실패"
@@ -254,7 +257,7 @@ def process_rss_feeds():
                             status = 'queued_for_morning'
                         else:
                             send_telegram_alert(source_name, title, url, score, summary,
-                                                lenses=lenses, korea_link=korea_link, is_urgent=True)
+                                                lenses=lenses, korea_link=korea_link, is_urgent=True, korea_insight=korea_insight)
                             # Threads 초안 생성 및 발송
                             threads_draft = generate_threads_draft(title, summary, lenses, url)
                             if threads_draft:
@@ -378,7 +381,7 @@ def _send_telegram_raw(text):
 
 
 def send_telegram_alert(source, title, url, score, summary,
-                        lenses=None, korea_link=False, is_urgent=False):
+                        lenses=None, korea_link=False, is_urgent=False, korea_insight=None):
     bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
     chat_id = os.environ.get('AESA_TELEGRAM_CHANNEL_ID', os.environ.get('TELEGRAM_CHAT_ID'))
 
@@ -395,6 +398,10 @@ def send_telegram_alert(source, title, url, score, summary,
     text += f"*{source}* (점수: {score}/10)\n"
     text += f"[{title}]({url})\n\n"
     text += f"💡 1줄 요약:\n{summary}\n\n"
+    
+    if korea_insight:
+        text += f"🇰🇷 한국 시사점:\n{korea_insight}\n\n"
+        
     text += f"🔍 렌즈: {lens_tag}{kr_flag}"
     
     try:
