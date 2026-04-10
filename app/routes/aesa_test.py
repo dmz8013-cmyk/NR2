@@ -84,6 +84,24 @@ def aesa_batch_now():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@bp.route('/api/aesa/cleanup-source')
+def aesa_cleanup_source():
+    """특정 소스의 기사를 DB에서 삭제"""
+    secret = request.args.get('key', '')
+    expected = os.environ.get('AESA_ADMIN_KEY', 'aesa-batch-2026')
+    source = request.args.get('source', '')
+    if secret != expected or not source:
+        return jsonify({"error": "unauthorized or missing source"}), 403
+    try:
+        count = AesaArticle.query.filter_by(source=source).count()
+        AesaArticle.query.filter_by(source=source).delete()
+        db.session.commit()
+        remain = AesaArticle.query.filter_by(source=source).count()
+        return jsonify({"success": True, "deleted": count, "remaining": remain, "source": source})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
 @bp.route('/api/aesa/diagnose')
 def aesa_diagnose():
     """전체 진단: DB 상태 + 컬럼 체크 + 최근 기사 목록"""
