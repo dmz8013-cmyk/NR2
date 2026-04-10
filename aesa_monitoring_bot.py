@@ -323,7 +323,7 @@ def process_rss_feeds():
 
 
 def send_batch_alerts():
-    """30분마다 실행: queued_batch 상태 기사를 점수순 정렬 → 상위 10개 일괄 발송."""
+    """15분마다 실행: queued_batch 상태 기사를 점수순 정렬 → 상위 5개 일괄 발송."""
     app = create_app()
     with app.app_context():
         now = datetime.now()
@@ -339,18 +339,14 @@ def send_batch_alerts():
             logger.info("[AESA 배치] 발송 대기 기사 없음")
             return
 
-        # 정렬: 점수 내림차순, 동점 시 [D]렌즈+korea_link 우선, 그 다음 최신순
-        def sort_key(a):
-            has_d_kr = 1 if ('D' in (a.lenses or '') and a.korea_investment_link) else 0
-            return (-a.score, -has_d_kr, -a.id)
-
-        candidates.sort(key=sort_key)
-        to_send = candidates[:10]
+        # 정렬: 점수 내림차순, 동점이면 최신순
+        candidates.sort(key=lambda a: (-a.score, -a.id))
+        to_send = candidates[:5]
 
         logger.info(f"[AESA 배치] {len(candidates)}건 대기 중 → 상위 {len(to_send)}건 발송")
 
         # 배치 헤더 메시지 발송
-        header = f"📡 *AESA 30분 브리핑*\n"
+        header = f"📡 *AESA 15분 브리핑*\n"
         header += f"⏰ {now.strftime('%H:%M')} KST | {len(to_send)}건 주요 기사\n"
         header += "━" * 20
         _send_telegram_raw(header)
@@ -364,8 +360,8 @@ def send_batch_alerts():
             )
             item.status = 'sent_batch'
 
-        # 나머지 (10개 초과분)는 일간 요약으로 강등
-        for item in candidates[10:]:
+        # 나머지 (5개 초과분)는 일간 요약으로 강등
+        for item in candidates[5:]:
             item.status = 'queued_for_summary'
 
         db.session.commit()

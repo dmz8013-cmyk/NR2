@@ -126,11 +126,11 @@ def aesa_rss_polling_job():
     logger.info('[Scheduler] AESA 해외언론 모니터링 폴링 중...')
     process_rss_feeds()
 
-@scheduler.scheduled_job('cron', minute='0,30', id='aesa_batch_send', timezone='Asia/Seoul',
+@scheduler.scheduled_job('cron', minute='0,15,30,45', id='aesa_batch_send', timezone='Asia/Seoul',
                           coalesce=True, max_instances=1)
 def aesa_batch_send_job():
-    """매 정각·30분에 대기열 일괄 발송 (상위 10건)"""
-    logger.info('[Scheduler] AESA 30분 배치 발송 중...')
+    """매 15분마다 대기열 일괄 발송 (상위 5건)"""
+    logger.info('[Scheduler] AESA 15분 배치 발송 중...')
     send_batch_alerts()
 
 @scheduler.scheduled_job('cron', hour=6, minute=0, id='aesa_nighttime_flush', timezone='Asia/Seoul')
