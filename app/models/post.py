@@ -68,7 +68,7 @@ class Post(db.Model):
 
     def increment_views(self):
         """조회수 증가"""
-        self.views += 1
+        self.views = (self.views or 0) + 1
         db.session.commit()
 
     def __repr__(self):
