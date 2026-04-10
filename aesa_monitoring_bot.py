@@ -113,7 +113,7 @@ Threads 초안만 출력하세요. 다른 설명 없이 본문만 작성하세�
 def generate_threads_draft(title, korean_summary, lenses, url):
     """Claude API로 AESA 스타일 Threads 초안 생성"""
     try:
-        client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
+        client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'), timeout=25.0)
         lens_str = ', '.join(f'[{l}]' for l in lenses) if lenses else '[?]'
 
         response = client.messages.create(
@@ -166,7 +166,7 @@ def process_rss_feeds():
     import json
     app = create_app()
     with app.app_context():
-        client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
+        client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'), timeout=25.0)
 
         stats = {}
 
@@ -378,7 +378,8 @@ def _send_telegram_raw(text):
     try:
         requests.post(
             f"https://api.telegram.org/bot{bot_token}/sendMessage",
-            json={'chat_id': chat_id, 'text': text, 'parse_mode': 'Markdown'}
+            json={'chat_id': chat_id, 'text': text, 'parse_mode': 'Markdown'},
+            timeout=10
         )
     except Exception as e:
         logger.error(f"Telegram raw send error: {e}")
@@ -416,7 +417,7 @@ def send_telegram_alert(source, title, url, score, summary,
             'parse_mode': 'Markdown',
             'disable_web_page_preview': False
         }
-        response = requests.post(api_url, json=payload)
+        response = requests.post(api_url, json=payload, timeout=10)
         if not response.ok:
             logger.error(f"Telegram API Error: {response.text}")
     except Exception as e:
