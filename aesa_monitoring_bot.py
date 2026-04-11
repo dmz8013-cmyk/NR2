@@ -233,6 +233,7 @@ def process_rss_feeds():
                     if not url:
                         continue
 
+                    # 1차: URL 동일성 체크
                     existing = AesaArticle.query.filter_by(url=url).first()
                     if existing:
                         source_stats['skipped_dup'] += 1
@@ -240,6 +241,24 @@ def process_rss_feeds():
 
                     title = _clean_title(entry.get('title', 'No title'))
                     summary_text = entry.get('summary', '') or entry.get('description', '')
+
+                    # 2차: (title, source) 동일성 체크 — URL은 달라도 같은 기사인 경우 차단
+                    # Google News RSS가 같은 기사에 다른 CBMi 인코딩을 주거나,
+                    # 발행사가 같은 기사를 여러 URL 경로(예: /europa/ vs /mediooriente/)로 재게시할 때
+                    # 중복 발송이 발생. 짧은 카테고리성 제목("Opinion", "Offbeat" 등)은
+                    # 다른 기사끼리 공유되므로 길이 30자 초과 제목에만 적용.
+                    if len(title) > 30:
+                        existing_by_title = AesaArticle.query.filter_by(
+                            title=title, source=source_name
+                        ).first()
+                        if existing_by_title:
+                            source_stats['skipped_dup'] += 1
+                            logger.info(
+                                f"[AESA] {source_name}: 제목 중복 스킵 "
+                                f"(기존 id={existing_by_title.id} status={existing_by_title.status}): "
+                                f"{title[:60]}"
+                            )
+                            continue
 
                     prompt = PROMPT_TEMPLATE.format(title=title, summary=summary_text[:1500], source=source_name)
 
@@ -296,21 +315,10 @@ def process_rss_feeds():
                     # 9점 이상: 즉시 발송 (긴급 속보) + Threads 초안 동시 발송
                     # 7~8점: 배치 대기열에 적재
                     # 6점 이하: 일간 요약 대기
+                    # 중복 방지: status는 DB 저장 전에 먼저 결정하고,
+                    # 긴급 발송(score>=9) 케이스는 DB insert/commit이 성공한 "다음"에만 텔레그램을 쏜다.
                     if score >= 9:
-                        if is_night:
-                            status = 'queued_for_morning'
-                        else:
-                            send_telegram_alert(source_name, title, url, score, summary,
-                                                lenses=lenses, korea_link=korea_link, is_urgent=True, korea_insight=korea_insight)
-                            # Threads 초안 생성 및 발송
-                            threads_draft = generate_threads_draft(title, summary, lenses, url)
-                            if threads_draft:
-                                threads_msg = f"✍️ *Threads 초안 (복사용)*\n"
-                                threads_msg += "━" * 20 + "\n\n"
-                                threads_msg += threads_draft
-                                _send_telegram_raw(threads_msg)
-                            status = 'sent_urgent'
-                            source_stats['urgent_sent'] += 1
+                        status = 'queued_for_morning' if is_night else 'sent_urgent'
                     elif score >= 7:
                         status = 'queued_batch' if not is_night else 'queued_for_morning'
                         source_stats['queued'] += 1
@@ -335,13 +343,15 @@ def process_rss_feeds():
                         pass
 
                     article = AesaArticle(**article_kwargs)
+                    persisted = False
                     try:
                         db.session.add(article)
                         db.session.commit()
+                        persisted = True
                     except Exception as db_err:
                         db.session.rollback()
                         # lenses/korea_investment_link 없이 재시도
-                        logger.warning(f"[AESA] DB 저장 실패, 기본 컬럼만 재시���: {db_err}")
+                        logger.warning(f"[AESA] DB 저장 실패, 기본 컬럼만 재시도: {db_err}")
                         article = AesaArticle(
                             url=url, title=title, source=source_name,
                             score=score, summary=summary, status=status
@@ -349,10 +359,32 @@ def process_rss_feeds():
                         try:
                             db.session.add(article)
                             db.session.commit()
+                            persisted = True
                         except Exception as retry_err:
                             db.session.rollback()
-                            logger.error(f"[AESA] DB 저장 최종 실패: {retry_err}")
+                            logger.error(f"[AESA] DB 저장 최종 실패 — 텔레그램 발송도 건너뜀(중복방지): {retry_err}")
                             source_stats['errors'] += 1
+
+                    # 긴급 발송은 DB persist 성공 이후에만 실행.
+                    # DB 실패 시 텔레그램 발송도 건너뛰어, 다음 폴링 사이클에서 재시도 가능한 대신
+                    # "같은 URL이 DB에 없어 또 발송되는 중복" 시나리오를 막는다.
+                    if persisted and score >= 9 and not is_night:
+                        try:
+                            send_telegram_alert(
+                                source_name, title, url, score, summary,
+                                lenses=lenses, korea_link=korea_link,
+                                is_urgent=True, korea_insight=korea_insight
+                            )
+                            # Threads 초안 생성 및 발송
+                            threads_draft = generate_threads_draft(title, summary, lenses, url)
+                            if threads_draft:
+                                threads_msg = f"✍️ *Threads 초안 (복사용)*\n"
+                                threads_msg += "━" * 20 + "\n\n"
+                                threads_msg += threads_draft
+                                _send_telegram_raw(threads_msg)
+                            source_stats['urgent_sent'] += 1
+                        except Exception as tg_err:
+                            logger.error(f"[AESA] 긴급 텔레그램 발송 실패 (id={article.id}): {tg_err}")
 
             except Exception as e:
                 logger.error(f"[AESA] {source_name}: 폴링 중 에러 발생: {e}", exc_info=True)
@@ -366,7 +398,12 @@ def process_rss_feeds():
 
 
 def send_batch_alerts():
-    """15분마다 실행: queued_batch 상태 기사를 점수순 정렬 → 상위 5개 일괄 발송."""
+    """15분마다 실행: queued_batch 상태 기사를 점수순 정렬 → 상위 5개 일괄 발송.
+
+    중복 방지: 텔레그램 발송 "전에" status를 sent_batch로 바꾸고 commit한다.
+    워커가 중간에 죽어도 이미 commit된 행은 다시 queued_batch로 돌아오지 않으므로
+    다음 배치 주기에 재발송되지 않는다 (발송 실패 시 사용자 누락 < 중복 발송 방지 우선).
+    """
     app = create_app()
     with app.app_context():
         now_kst = datetime.now(KST)
@@ -385,32 +422,50 @@ def send_batch_alerts():
         # 정렬: 점수 내림차순, 동점이면 최신순
         candidates.sort(key=lambda a: (-a.score, -a.id))
         to_send = candidates[:5]
+        to_demote = candidates[5:]
 
-        logger.info(f"[AESA 배치] {len(candidates)}건 대기 중 → 상위 {len(to_send)}건 발송")
+        logger.info(f"[AESA 배치] {len(candidates)}건 대기 중 → 상위 {len(to_send)}건 발송 예정")
 
-        # 배치 헤더 메시지 발송
+        # === STEP 1: 상태를 DB에 먼저 커밋 (발송 전) ===
+        # 이 시점 이후로는 어떤 실패가 일어나도 해당 row들은 queued_batch로 돌아오지 않는다.
+        for item in to_send:
+            item.status = 'sent_batch'
+        for item in to_demote:
+            item.status = 'queued_for_summary'
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"[AESA 배치] 상태 커밋 실패 — 발송 건너뜀(중복방지): {e}")
+            return
+
+        # === STEP 2: 실제 텔레그램 발송 (상태는 이미 sent_batch로 확정) ===
         header = f"📡 *AESA 15분 브리핑*\n"
         header += f"⏰ {now_kst.strftime('%H:%M')} KST | {len(to_send)}건 주요 기사\n"
         header += "━" * 20
-        _send_telegram_raw(header)
+        try:
+            _send_telegram_raw(header)
+        except Exception as e:
+            logger.error(f"[AESA 배치] 헤더 발송 실패: {e}")
 
-        # 개별 기사 발송
+        sent_count = 0
         for item in to_send:
-            lenses = item.lenses.split(',') if item.lenses else []
-            korea_insight = getattr(item, 'korea_insight', None)
-            send_telegram_alert(
-                item.source, item.title, item.url, item.score, item.summary,
-                lenses=lenses, korea_link=item.korea_investment_link,
-                korea_insight=korea_insight
-            )
-            item.status = 'sent_batch'
+            try:
+                lenses = item.lenses.split(',') if item.lenses else []
+                korea_insight = getattr(item, 'korea_insight', None)
+                send_telegram_alert(
+                    item.source, item.title, item.url, item.score, item.summary,
+                    lenses=lenses, korea_link=item.korea_investment_link,
+                    korea_insight=korea_insight
+                )
+                sent_count += 1
+            except Exception as e:
+                logger.error(f"[AESA 배치] 개별 발송 실패 (id={item.id}): {e}")
 
-        # 나머지 (5개 초과분)는 일간 요약으로 강등
-        for item in candidates[5:]:
-            item.status = 'queued_for_summary'
-
-        db.session.commit()
-        logger.info(f"[AESA 배치] 발송 완료 {len(to_send)}건, 요약 강등 {len(candidates) - len(to_send)}건")
+        logger.info(
+            f"[AESA 배치] 발송 완료 {sent_count}/{len(to_send)}건, "
+            f"요약 강등 {len(to_demote)}건"
+        )
 
 def _send_telegram_raw(text):
     """텔레그램에 raw 텍스트 메시지 발송 (배치 헤더용)"""
@@ -467,25 +522,46 @@ def send_telegram_alert(source, title, url, score, summary,
         logger.error(f"Telegram send error: {e}")
 
 def flush_nighttime_queue():
+    """야간(02~06 KST)에 대기시킨 queued_for_morning 기사를 아침 06시에 일괄 발송.
+
+    중복 방지: send_batch_alerts와 동일하게 상태를 먼저 commit한 뒤 텔레그램을 쏜다.
+    """
     app = create_app()
     with app.app_context():
         queued = AesaArticle.query.filter_by(status='queued_for_morning').all()
         if not queued:
             logger.info("야간 발송 대기열 비어있음.")
             return
-            
-        logger.info(f"야간 발송 대기열 {len(queued)}건 발송 시작.")
+
+        logger.info(f"야간 발송 대기열 {len(queued)}건 — 상태 커밋 후 발송 시작.")
+
+        # STEP 1: 상태 선 커밋
         for item in queued:
-            lenses = item.lenses.split(',') if getattr(item, 'lenses', None) else []
-            korea_insight = getattr(item, 'korea_insight', None)
-            korea_link = getattr(item, 'korea_investment_link', False)
-            send_telegram_alert(
-                item.source, item.title, item.url, item.score, item.summary,
-                lenses=lenses, korea_link=korea_link, is_urgent=(item.score >= 9),
-                korea_insight=korea_insight
-            )
-            item.status = 'sent'
-        db.session.commit()
+            item.status = 'sent_night'
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"야간 대기열 상태 커밋 실패 — 발송 건너뜀(중복방지): {e}")
+            return
+
+        # STEP 2: 실제 발송
+        sent_count = 0
+        for item in queued:
+            try:
+                lenses = item.lenses.split(',') if getattr(item, 'lenses', None) else []
+                korea_insight = getattr(item, 'korea_insight', None)
+                korea_link = getattr(item, 'korea_investment_link', False)
+                send_telegram_alert(
+                    item.source, item.title, item.url, item.score, item.summary,
+                    lenses=lenses, korea_link=korea_link, is_urgent=(item.score >= 9),
+                    korea_insight=korea_insight
+                )
+                sent_count += 1
+            except Exception as e:
+                logger.error(f"야간 발송 실패 (id={item.id}): {e}")
+
+        logger.info(f"야간 발송 완료 {sent_count}/{len(queued)}건.")
 
 def send_daily_summary_email():
     app = create_app()

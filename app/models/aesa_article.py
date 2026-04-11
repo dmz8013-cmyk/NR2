@@ -14,7 +14,8 @@ class AesaArticle(db.Model):
     korea_investment_link = db.Column(db.Boolean, default=False)
     korea_insight = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(30), default='pending')
-    # status: pending, sent_urgent, queued_batch, sent_batch, queued_for_morning, queued_for_summary, sent_summary
+    # status: pending, sent_urgent, queued_batch, sent_batch,
+    #         queued_for_morning, sent_night (구: 'sent'), queued_for_summary, sent_summary
     created_at = db.Column(db.DateTime, default=datetime.now)
 
     def __repr__(self):
