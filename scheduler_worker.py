@@ -20,7 +20,7 @@ from app.jobs.youtube_feed import check_and_post_new_videos
 from nureongi_news_bot import run_news_bot
 from ai_briefing import send_briefing
 from political_briefing import afternoon_political_briefing, evening_political_briefing
-from editorial_bot import send_editorial
+from editorial_bot import send_editorial, send_editorial_nureongi
 from schedule_bot import send_schedule
 from vip_alert_bot import run_vip_alert
 from app.utils.bias_report import generate_weekly_report, send_weekly_report_to_telegram
@@ -69,6 +69,11 @@ def evening_political():
 def editorial_job():
     logger.info('[Scheduler] 사설봇 실행 중...')
     send_editorial()
+
+@scheduler.scheduled_job('cron', hour=7, minute=0, id='editorial_nureongi_brief', timezone='Asia/Seoul')
+def editorial_nureongi_job():
+    logger.info('[Scheduler] 누렁이 정보방 사설봇 실행 중 (07:00)...')
+    send_editorial_nureongi()
 
 @scheduler.scheduled_job('cron', hour=6, minute=30, id='schedule_bot', timezone='Asia/Seoul')
 def schedule_job():

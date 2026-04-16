@@ -330,6 +330,88 @@ def send_editorial():
     print('사설봇 완료 ✅')
 
 
+def send_editorial_nureongi():
+    """누렁이 정보방용 사설 브리핑 - 오전 7시 발송"""
+    
+    NUREONGI_TOKEN = os.environ.get('NUREONGI_NEWS_BOT_TOKEN')
+    NUREONGI_CHAT = '@gazzzza2025'
+    
+    if not NUREONGI_TOKEN:
+        print('NUREONGI_NEWS_BOT_TOKEN 없음')
+        return
+    
+    # 수집 로직은 send_editorial()과 동일
+    # (기존 수집 코드 그대로 재사용)
+    editorials = {}
+    total = 0
+    papers_to_fallback = []
+    rss_success_papers = ['경향신문', '동아일보', '서울신문', 
+                          '조선일보', '한겨레', '한국경제']
+
+    for category, papers in PAPERS.items():
+        rows = []
+        for p in papers:
+            name = p['name']
+            try:
+                titles = fetch_titles(p)
+            except Exception as e:
+                titles, note = [], f'수집 실패'
+            else:
+                note = None
+                if titles is None or len(titles) == 0:
+                    titles, note = [], '수집 미지원'
+            rows.append((name, titles, note))
+            total += len(titles or [])
+            if not titles and name not in rss_success_papers:
+                papers_to_fallback.append((category, name, p))
+        editorials[category] = rows
+
+    if papers_to_fallback:
+        target_names = [name for _, name, _ in papers_to_fallback]
+        fallback_res = asyncio.run(fetch_naver_editorials(target_names))
+        for category, name, p in papers_to_fallback:
+            added_titles = fallback_res.get(name, [])
+            rows = editorials[category]
+            for idx, r in enumerate(rows):
+                if r[0] == name:
+                    if added_titles:
+                        rows[idx] = (name, added_titles, None)
+                        total += len(added_titles)
+                    else:
+                        rows[idx] = (name, [], '크롤링 실패')
+                    break
+
+    message = format_message(editorials)
+    
+    # 분할 발송
+    if len(message) > 4000:
+        parts = []
+        current = ''
+        for line in message.split('\n'):
+            if len(current) + len(line) + 1 > 4000:
+                parts.append(current)
+                current = line
+            else:
+                current += '\n' + line if current else line
+        if current:
+            parts.append(current)
+    else:
+        parts = [message]
+
+    url = f'https://api.telegram.org/bot{NUREONGI_TOKEN}/sendMessage'
+    for part in parts:
+        resp = requests.post(url, json={
+            'chat_id': NUREONGI_CHAT,
+            'text': part,
+            'parse_mode': 'HTML',
+            'disable_web_page_preview': True,
+        }, timeout=10)
+        if resp.status_code == 200:
+            print(f'누렁이 정보방 전송 완료 ({len(part)}자)')
+        else:
+            print(f'누렁이 정보방 전송 실패: {resp.text}')
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     send_editorial()
