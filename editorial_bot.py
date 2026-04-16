@@ -1,24 +1,58 @@
-"""누렁이 사설봇 - 매일 아침 15개 신문 사설 (네이버 검색 API)"""
+"""누렁이 사설봇 - 매일 아침 주요 신문 사설 (언론사 RSS/HTML 직접 크롤링)
+
+데이터 소스
+- RSS 지원 언론사: 경향·동아·조선·한겨레·한국경제
+- HTML 크롤링: 서울신문 (공식 사설 섹션에 [사설] 태그 직접 노출)
+- 기타 언론사는 공개 RSS가 없어 현재 수집 미지원
+"""
 import os
+import re
 import requests
 import logging
 import urllib.parse
 from datetime import datetime
+from html import unescape
+from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.environ.get('SCRAP_BOT_TOKEN')
 CHAT_ID = os.environ.get('SCRAP_CHAT_ID', '5132309076')
-NAVER_CLIENT_ID = os.environ.get('NAVER_CLIENT_ID', '')
-NAVER_CLIENT_SECRET = os.environ.get('NAVER_CLIENT_SECRET', '')
 
-PAPERS = {
-    '종합지': ['경향신문', '국민일보', '동아일보', '서울신문', '세계일보', '조선일보', '중앙일보', '한겨레', '한국일보'],
-    '경제지': ['디지털타임스', '매일경제', '머니투데이', '서울경제', '이데일리', '파이낸셜뉴스', '한국경제'],
+REQ_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+                  'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.8',
 }
 
-# 네이버 검색에서 '[사설]' 태그가 잘 잡히지 않는 언론사 — 쿼리/필터 보완 대상
-SPECIAL_PAPERS = ('머니투데이', '이데일리')
+# 수집 방식별 언론사 정의
+# 'rss'  — 공식 RSS 피드에서 [사설] 태그 제목 추출
+# 'html' — 공식 사설 섹션 HTML에서 [사설] 태그 제목 추출
+# 'none' — 공개 수집 경로를 찾지 못함 (추후 보완 필요)
+PAPERS = {
+    '종합지': [
+        {'name': '경향신문', 'kind': 'rss', 'url': 'https://www.khan.co.kr/rss/rssdata/opinion_news.xml'},
+        {'name': '국민일보', 'kind': 'none'},
+        {'name': '동아일보', 'kind': 'rss', 'url': 'https://rss.donga.com/editorials.xml'},
+        {'name': '서울신문', 'kind': 'html',
+         'url': 'https://www.seoul.co.kr/news/newsList.php?section=editorial'},
+        {'name': '세계일보', 'kind': 'none'},
+        {'name': '조선일보', 'kind': 'rss',
+         'url': 'https://www.chosun.com/arc/outboundfeeds/rss/category/opinion/?outputType=xml'},
+        {'name': '중앙일보', 'kind': 'none'},
+        {'name': '한겨레', 'kind': 'rss', 'url': 'https://www.hani.co.kr/rss/opinion/'},
+        {'name': '한국일보', 'kind': 'none'},
+    ],
+    '경제지': [
+        {'name': '디지털타임스', 'kind': 'none'},
+        {'name': '매일경제', 'kind': 'none'},
+        {'name': '머니투데이', 'kind': 'none'},
+        {'name': '서울경제', 'kind': 'none'},
+        {'name': '이데일리', 'kind': 'none'},
+        {'name': '파이낸셜뉴스', 'kind': 'none'},
+        {'name': '한국경제', 'kind': 'rss', 'url': 'https://www.hankyung.com/feed/opinion'},
+    ],
+}
 
 
 def escape_md(text):
@@ -29,61 +63,81 @@ def escape_md(text):
     return text
 
 
-def search_naver_editorial(paper_name, limit=4):
-    """네이버 뉴스 검색 API로 사설 찾기"""
-    try:
-        # 네이버 사설 태그 부재 언론사는 쿼리를 완화
-        if paper_name in SPECIAL_PAPERS:
-            query = f'{paper_name} 사설 오늘'
-        else:
-            query = f'"{paper_name}" 사설'
-        params = urllib.parse.urlencode({
-            'query': query,
-            'display': 20,
-            'sort': 'date'
-        })
-        url = f'https://openapi.naver.com/v1/search/news.json?{params}'
+# ---- 제목 정리 공통 유틸 ----
+EDITORIAL_TAG_PATTERNS = ('[사설]', '사설]', '【사설】', '<사설>')
 
-        headers = {
-            'X-Naver-Client-Id': NAVER_CLIENT_ID,
-            'X-Naver-Client-Secret': NAVER_CLIENT_SECRET,
-        }
-        r = requests.get(url, headers=headers, timeout=10)
-        data = r.json()
 
-        titles = []
-        for item in data.get('items', []):
-            title = item.get('title', '')
-            # HTML 태그 제거
-            title = title.replace('<b>', '').replace('</b>', '')
-            title = title.replace('&quot;', '"').replace('&amp;', '&')
-            title = title.replace('&lt;', '<').replace('&gt;', '>')
+def _clean_title(raw):
+    """HTML 엔티티 제거 + 사설 태그 정리"""
+    title = unescape(raw or '')
+    title = re.sub(r'<[^>]+>', '', title)  # 남아있는 HTML 태그 제거
+    # 사설 태그 패턴 제거
+    for p in EDITORIAL_TAG_PATTERNS:
+        title = title.replace(p, '')
+    return title.strip()
 
-            # 사설 태그가 포함된 기사 필터링
-            # 1) '[사설]' 포함
-            # 2) '사설]' 포함 (변형 대괄호 대응)
-            # 3) '사설'로 시작하는 경우
-            # 4) '사설' + 언론사명이 동시에 포함 (태그 부재 언론사 대응)
-            is_editorial = (
-                '[사설]' in title
-                or '사설]' in title
-                or title.lstrip().startswith('사설')
-                or ('사설' in title and paper_name in title)
-            )
 
-            if is_editorial:
-                clean = title
-                # 다양한 사설 태그 패턴 제거
-                for pattern in ('[사설]', '사설]', '【사설】', '<사설>'):
-                    clean = clean.replace(pattern, '')
-                clean = clean.strip()
-                if clean and len(clean) > 5:
-                    titles.append(clean)
+def _is_editorial(title):
+    """제목이 사설 포맷인지 판정"""
+    return (
+        '[사설]' in title
+        or '사설]' in title
+        or '【사설】' in title
+    )
 
-        return titles[:limit]
-    except Exception as e:
-        logger.error(f"{paper_name} 사설 검색 실패: {e}")
-        return []
+
+# ---- 소스별 fetcher ----
+def fetch_rss(url, limit=3):
+    """RSS 피드에서 [사설] 태그 제목 추출"""
+    r = requests.get(url, headers=REQ_HEADERS, timeout=10)
+    r.encoding = r.apparent_encoding or r.encoding
+    if r.status_code != 200:
+        raise RuntimeError(f'HTTP {r.status_code}')
+    soup = BeautifulSoup(r.text, 'xml')
+    items = soup.find_all('item') or soup.find_all('entry')
+    titles = []
+    for it in items:
+        t = it.find('title')
+        if not t:
+            continue
+        raw = t.get_text(strip=True)
+        if _is_editorial(raw):
+            clean = _clean_title(raw)
+            if clean and len(clean) > 5:
+                titles.append(clean)
+    return titles[:limit]
+
+
+def fetch_html(url, limit=3):
+    """HTML 인덱스 페이지에서 [사설] 앵커 제목 추출"""
+    r = requests.get(url, headers=REQ_HEADERS, timeout=10)
+    r.encoding = r.apparent_encoding or r.encoding
+    if r.status_code != 200:
+        raise RuntimeError(f'HTTP {r.status_code}')
+    soup = BeautifulSoup(r.text, 'lxml')
+    seen = set()
+    titles = []
+    for a in soup.find_all('a'):
+        text = a.get_text(strip=True)
+        if not text or not _is_editorial(text):
+            continue
+        clean = _clean_title(text)
+        if clean and len(clean) > 5 and clean not in seen:
+            seen.add(clean)
+            titles.append(clean)
+            if len(titles) >= limit:
+                break
+    return titles
+
+
+def fetch_titles(paper):
+    """언론사 정의를 보고 적절한 fetcher 호출"""
+    kind = paper.get('kind')
+    if kind == 'rss':
+        return fetch_rss(paper['url'])
+    if kind == 'html':
+        return fetch_html(paper['url'])
+    return None  # 미지원
 
 
 def format_message(editorials):
@@ -91,15 +145,15 @@ def format_message(editorials):
     today = datetime.now().strftime('%Y.%m.%d')
     lines = [f'🗞️주요 신문 사설\\({escape_md(today)}\\)🗞️\n']
 
-    for category, papers in editorials.items():
+    for category, rows in editorials.items():
         lines.append(f'\n*{escape_md(category)}*')
-        for name, titles in papers.items():
+        for name, titles, note in rows:
             lines.append(f'◇{escape_md(name)}')
             if titles:
                 for t in titles:
                     lines.append(f'\\-{escape_md(t)}')
             else:
-                lines.append('\\-사설을 찾지 못했습니다')
+                lines.append(f'\\-{escape_md(note or "사설을 찾지 못했습니다")}')
 
     lines.append(f'\n출처: {escape_md("https://t.me/gazzzza2025")}')
     lines.append(escape_md('(실시간 텔레그램 정보방)'))
@@ -112,29 +166,40 @@ def format_message(editorials):
 
 
 def send_editorial():
-    """사설 수집 후 텔레그램 전송"""
-    logger.info("=== 사설봇 시작 ===")
-    print("사설봇 시작...")
-
-    if not NAVER_CLIENT_ID:
-        logger.error("NAVER_CLIENT_ID 환경변수 없음")
-        print("NAVER_CLIENT_ID 없음 — 환경변수 확인 필요")
-        return
+    logger.info('=== 사설봇 시작 ===')
+    print('사설봇 시작...')
 
     editorials = {}
+    total = 0
     for category, papers in PAPERS.items():
-        editorials[category] = {}
-        for name in papers:
-            titles = search_naver_editorial(name)
-            editorials[category][name] = titles
-            print(f"  {name}: {len(titles)}개")
+        rows = []
+        for p in papers:
+            name = p['name']
+            try:
+                titles = fetch_titles(p)
+            except Exception as e:
+                logger.error(f'{name} 수집 실패: {e}')
+                titles, note = [], f'수집 실패 ({type(e).__name__})'
+            else:
+                note = None
+                if titles is None:
+                    titles, note = [], '수집 미지원 (RSS/공개 페이지 부재)'
+
+            rows.append((name, titles, note))
+            total += len(titles)
+            print(f'  {name}: {len(titles)}개' + (f' | {note}' if note else ''))
+            for t in titles:
+                print(f'    - {t}')
+        editorials[category] = rows
+
+    print(f'\n총 수집: {total}건')
 
     message = format_message(editorials)
 
-    # 4096자 분할
+    # 4096자 초과 시 분할
     if len(message) > 4000:
         parts = []
-        current = ""
+        current = ''
         for line in message.split('\n'):
             if len(current) + len(line) + 1 > 4000:
                 parts.append(current)
@@ -146,9 +211,13 @@ def send_editorial():
     else:
         parts = [message]
 
-    try:
-        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-        for part in parts:
+    if not BOT_TOKEN:
+        print('SCRAP_BOT_TOKEN 없음 — 전송 생략')
+        return
+
+    url = f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage'
+    for part in parts:
+        try:
             resp = requests.post(url, json={
                 'chat_id': CHAT_ID,
                 'text': part,
@@ -156,18 +225,17 @@ def send_editorial():
                 'disable_web_page_preview': True,
             }, timeout=10)
             if resp.status_code == 200:
-                print(f"전송 완료 ({len(part)}자)")
+                print(f'전송 완료 ({len(part)}자)')
             else:
-                print(f"전송 실패: {resp.text}")
+                print(f'전송 실패: {resp.text}')
+        except Exception as e:
+            logger.error(f'전송 오류: {e}')
+            print(f'오류: {e}')
 
-        logger.info("=== 사설봇 완료 ===")
-        print("사설봇 완료 ✅")
-    except Exception as e:
-        logger.error(f"사설봇 오류: {e}")
-        print(f"오류: {e}")
+    logger.info('=== 사설봇 완료 ===')
+    print('사설봇 완료 ✅')
 
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     send_editorial()
