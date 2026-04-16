@@ -1,148 +1,194 @@
-"""누렁이 일정봇 - 매일 아침 주요 일정 전송 (개인 텔레그램)"""
 import os
+import asyncio
 import requests
+import urllib.parse
+from datetime import datetime
 import logging
 from bs4 import BeautifulSoup
-from datetime import datetime
+from playwright.async_api import async_playwright
 
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.environ.get('SCHEDULE_BOT_TOKEN', '8734510853:AAHsqC3fQfC0K02-xrWEZgnh9ZDGUIi2P44')
-CHAT_ID = '5132309076'
+# 수집할 섹션 목록 - 뉴스1
+NEWS1_TARGETS = [
+    '◇청와대', '◇대통령실', '◇국무총리실', '◇국회', 
+    '◇더불어민주당', '◇국민의힘', '◇조국혁신당', 
+    '◇진보당', '◇개혁신당', '◇기본소득당', '◇사회민주당'
+]
 
-HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'}
+# 수집할 섹션 목록 - 국회
+ASSEMBLY_TARGETS = [
+    '◇본회의 및 상임위원회', '◇의원실 세미나', '◇소통관 기자회견'
+]
 
+def fetch_news1_schedule_url():
+    """네이버 검색 API로 당일 뉴스1 정치 일정 기사 URL 획득"""
+    client_id = os.environ.get('NAVER_CLIENT_ID')
+    client_secret = os.environ.get('NAVER_CLIENT_SECRET')
+    if not client_id or not client_secret:
+        logger.error("NAVER API credentials missing")
+        return None
 
-def get_news1_schedule():
-    """뉴스1에서 오늘의 주요 일정 기사 크롤링"""
+    query = '주요일정 정치'
+    url = f'https://openapi.naver.com/v1/search/news.json?query={urllib.parse.quote(query)}&display=20&sort=date'
+    headers = {
+        'X-Naver-Client-Id': client_id,
+        'X-Naver-Client-Secret': client_secret
+    }
+    
     try:
-        today = datetime.now().strftime('%Y%m%d')
-        today_kr = datetime.now().strftime('%m월 %d일')
-        
-        # 뉴스1 검색
-        url = f"https://www.news1.kr/search?query=주요일정+{today_kr}"
-        res = requests.get(url, headers=HEADERS, timeout=10)
-        soup = BeautifulSoup(res.text, 'html.parser')
-        
-        # 기사 링크 찾기
-        links = soup.select('a')
-        schedule_url = None
-        for link in links:
-            text = link.get_text(strip=True)
-            href = link.get('href', '')
-            if '주요 일정' in text and href.startswith('http'):
-                schedule_url = href
-                break
-            if '일정' in text and today_kr.replace('0', '') in text and href.startswith('http'):
-                schedule_url = href
-                break
-        
-        if not schedule_url:
-            # 네이버 검색 대안
-            naver_url = f"https://search.naver.com/search.naver?query=뉴스1+오늘의+주요일정+{today_kr}"
-            res2 = requests.get(naver_url, headers=HEADERS, timeout=10)
-            soup2 = BeautifulSoup(res2.text, 'html.parser')
-            for a in soup2.select('a'):
-                href = a.get('href', '')
-                if 'news1.kr' in href and ('일정' in a.get_text(strip=True)):
-                    schedule_url = href
-                    break
-        
-        if schedule_url:
-            art_res = requests.get(schedule_url, headers=HEADERS, timeout=10)
-            art_soup = BeautifulSoup(art_res.text, 'html.parser')
-            
-            # 기사 본문 추출
-            body = art_soup.select_one('.article_body, .content, #articleBody, .news_body')
-            if body:
-                return body.get_text('\n', strip=True)
-            
-            # 대안: p 태그
-            paragraphs = art_soup.select('article p, .article p')
-            if paragraphs:
-                return '\n'.join(p.get_text(strip=True) for p in paragraphs)
-        
-        return None
+        resp = requests.get(url, headers=headers, timeout=10)
+        data = resp.json()
+        for item in data.get('items', []):
+            originallink = item.get('originallink', '')
+            if 'news1.kr' in originallink:
+                return originallink
     except Exception as e:
-        logger.error(f"뉴스1 일정 크롤링 실패: {e}")
-        return None
+        logger.error(f"Naver API error: {e}")
+    return None
 
+async def parse_schedule_text(url, locator_selector, targets):
+    """Playwright로 해당 URL의 특정 영역 텍스트를 추출해 타겟 섹션만 파싱"""
+    results = {t: [] for t in targets}
+    
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        try:
+            page = await browser.new_page(user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36')
+            await page.goto(url, wait_until='domcontentloaded', timeout=15000)
+            await page.wait_for_timeout(2000) # JS Render 대기
+            
+            html = await page.content()
+            soup = BeautifulSoup(html, 'html.parser')
+            target_el = soup.select_one(locator_selector)
+            
+            if target_el:
+                lines = target_el.get_text('\n', strip=True).split('\n')
+                current_section = None
+                
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    
+                    # 체크: 헤더 라인인가?
+                    if line.startswith('◇') or line.startswith('◆'):
+                        # 약간의 변형 방어 (예: ◇ 대통령실 -> ◇대통령실)
+                        normalized_line = line.replace(' ', '')
+                        current_section = None
+                        for t in targets:
+                            if t.replace(' ', '') == normalized_line or t == line:
+                                current_section = t
+                                break
+                    elif current_section:
+                        # 예외 정리 (※ 같은 특수기호나 불필요한 라인 제외)
+                        if line.startswith('※') or '상기 일정은' in line or '받아보실 수 있습니다' in line:
+                            continue
+                        results[current_section].append(line)
+        except Exception as e:
+            logger.error(f"Playwright error on {url}: {e}")
+        finally:
+            await browser.close()
+            
+    return results
 
-def get_assembly_schedule():
-    """국회 오늘 일정 크롤링"""
-    try:
-        today = datetime.now().strftime('%Y-%m-%d')
-        url = f"https://www.assembly.go.kr/portal/bbs/B0000052/contents.do"
-        res = requests.get(url, headers=HEADERS, timeout=10)
-        
-        if res.status_code == 200:
-            soup = BeautifulSoup(res.text, 'html.parser')
-            schedule_items = soup.select('.schedule_list li, .cal_schedule li, td.on .schedule')
-            if schedule_items:
-                items = [item.get_text(strip=True) for item in schedule_items[:20]]
-                return '\n'.join(items)
-        return None
-    except Exception as e:
-        logger.error(f"국회 일정 크롤링 실패: {e}")
-        return None
-
-
-def _trim_to_third(text: str, max_chars: int = 1200) -> str:
-    """전체 텍스트에서 의미 있는 라인의 1/3만 남겨 반환."""
-    lines = [l for l in text.splitlines() if l.strip()]  # 빈 줄 제거
-    keep = max(1, len(lines) // 3)                        # 1/3 라인 수
-    trimmed = '\n'.join(lines[:keep])
-    if len(trimmed) > max_chars:
-        trimmed = trimmed[:max_chars].rsplit('\n', 1)[0]  # 마지막 줄 잘림 방지
-    if len(lines) > keep:
-        trimmed += f'\n\n… (전체 {len(lines)}건 중 {keep}건 표시)'
-    return trimmed
-
+def format_schedule_message(news1_data, assembly_data):
+    today = datetime.now()
+    date_str = today.strftime('%Y.%m.%d')
+    lines = []
+    
+    # 헤더
+    lines.append(f'📌📌📌주요 일정({date_str})📌📌📌')
+    lines.append('')
+    lines.append('출처 : https://buly.kr/7mBN720')
+    lines.append('')
+    
+    # 1. 뉴스1 수집 결과
+    for category in NEWS1_TARGETS:
+        items = news1_data.get(category, [])
+        if items:
+            lines.append(f'<b>{category}</b>')
+            for item in items:
+                lines.append(item)
+            lines.append('')
+            
+    # 2. 국회 수집 결과
+    for category in ASSEMBLY_TARGETS:
+        items = assembly_data.get(category, [])
+        if items:
+            lines.append(f'<b>{category}</b>')
+            for item in items:
+                lines.append(item)
+            lines.append('')
+            
+    # 푸터
+    lines.append('출처: https://t.me/gazzzza2025')
+    lines.append('(실시간 텔레그램 정보방)')
+    
+    return '\n'.join(lines).strip()
 
 def send_schedule():
-    """일정 취합 후 텔레그램 전송"""
-    today_str = datetime.now().strftime('%Y년 %m월 %d일 (%a)')
-    day_names = {'Mon': '월', 'Tue': '화', 'Wed': '수', 'Thu': '목', 'Fri': '금', 'Sat': '토', 'Sun': '일'}
-    for eng, kor in day_names.items():
-        today_str = today_str.replace(eng, kor)
-
-    message_parts = [f"📌 <b>{today_str} 주요 일정</b> 📌\n"]
-
-    # 뉴스1 일정 (전체의 1/3만 전송)
-    news1 = get_news1_schedule()
-    if news1:
-        message_parts.append(_trim_to_third(news1))
-    else:
-        message_parts.append("⚠️ 뉴스1 일정 기사를 찾지 못했습니다.")
+    logger.info("=== 일정봇 시작 ===")
     
-    message_parts.append('')
-    message_parts.append('━━━━━━━━━━━━━━━━')
-    message_parts.append('📖 오늘 브리핑 전문 + 심층 토론')
-    message_parts.append('👉 https://nr2.kr')
-    message_parts.append('━━━━━━━━━━━━━━━━')
-
-    message = '\n'.join(message_parts)
-
-    try:
-        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-        resp = requests.post(url, json={
-            'chat_id': CHAT_ID,
-            'text': message,
-            'parse_mode': 'HTML',
-            'disable_web_page_preview': True,
-        }, timeout=10)
+    BOT_TOKEN = os.environ.get('SCRAP_BOT_TOKEN')
+    CHAT_ID = os.environ.get('SCRAP_CHAT_ID', '5132309076')
+    
+    if not BOT_TOKEN:
+        logger.error("SCRAP_BOT_TOKEN 없음")
+        return
         
-        if resp.status_code == 200:
-            logger.info("일정봇 전송 완료 ✅")
-            print("일정봇 전송 완료 ✅")
+    news1_url = fetch_news1_schedule_url()
+    
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    news1_data = {t: [] for t in NEWS1_TARGETS}
+    if news1_url:
+        logger.info(f"파싱 시작: News1 ({news1_url})")
+        news1_data = loop.run_until_complete(parse_schedule_text(news1_url, '.detail_body', NEWS1_TARGETS))
+    else:
+        logger.warning("뉴스1 일정 기사를 찾지 못했습니다.")
+        
+    logger.info("파싱 시작: 국회 (https://assembly.go.kr/portal/main/main.do)")
+    assembly_url = 'https://assembly.go.kr/portal/main/main.do'
+    assembly_data = loop.run_until_complete(parse_schedule_text(assembly_url, '#nowNa-text', ASSEMBLY_TARGETS))
+    
+    loop.close()
+    
+    message = format_schedule_message(news1_data, assembly_data)
+    
+    # 분할 전송 방어 로직
+    parts = []
+    current = ''
+    for line in message.split('\n'):
+        if len(current) + len(line) + 1 > 4000:
+            parts.append(current)
+            current = line
         else:
-            logger.error(f"일정봇 전송 실패: {resp.text}")
-            print(f"전송 실패: {resp.text}")
-    except Exception as e:
-        logger.error(f"일정봇 전송 오류: {e}")
-        print(f"전송 오류: {e}")
+            current += '\n' + line if current else line
+    if current:
+        parts.append(current)
+        
+    url = f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage'
+    for part in parts:
+        try:
+            resp = requests.post(url, json={
+                'chat_id': CHAT_ID,
+                'text': part,
+                'parse_mode': 'HTML',
+                'disable_web_page_preview': True,
+            }, timeout=10)
+            if resp.status_code == 200:
+                logger.info(f"일정 발송 완료 ({len(part)}자)")
+                print(f"일정 발송 완료 ({len(part)}자)")
+            else:
+                logger.error(f"발송 에러: {resp.text}")
+                print(f"발송 에러: {resp.text}")
+        except Exception as e:
+            logger.error(f"전송 예외: {e}")
+            
+    logger.info("=== 일정봇 종료 ===")
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     send_schedule()
