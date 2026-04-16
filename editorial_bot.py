@@ -194,8 +194,10 @@ def fetch_titles(paper):
 def format_message(editorials):
     """텔레그램 메시지 포맷 (MarkdownV2)"""
     today = datetime.now().strftime('%Y.%m.%d')
-    lines = [f'🗞️주요 신문 사설\\({escape_md(today)}\\)🗞️\n']
-    lines.append(f'출처 : {escape_md("https://buly.kr/7mBN720")}\n')
+    lines = [f'🗞️주요 신문 사설\\({escape_md(today)}\\)🗞️']
+    lines.append('')
+    lines.append(f'출처 : {escape_md("https://buly.kr/7mBN720")}')
+    lines.append('')
 
     for category, rows in editorials.items():
         # Check if there are any titles in this category
@@ -203,7 +205,7 @@ def format_message(editorials):
         if not has_any:
             continue
             
-        lines.append(f'\n*{escape_md(category)}*')
+        lines.append(f'*{escape_md(category)}*')
         
         is_first = True
         for name, titles, note in rows:
@@ -217,11 +219,12 @@ def format_message(editorials):
             lines.append(f'◇{escape_md(name)}')
             for t in titles:
                 lines.append(f'\\-{escape_md(t)}')
+                
+        lines.append('')
 
-    lines.append('')
     lines.append('━━━━━━━━━━━━━━━━')
-    lines.append('📖 오늘 브리핑 전문 \\+ 심층 토론')
-    lines.append(f'👉 {escape_md("https://nr2.kr")}')
+    lines.append(f'출처: {escape_md("https://t.me/gazzzza2025")}')
+    lines.append(escape_md('(실시간 텔레그램 정보방)'))
     lines.append('━━━━━━━━━━━━━━━━')
     return '\n'.join(lines)
 
