@@ -21,10 +21,10 @@ PAPERS = {
 def search_naver_editorial(paper_name, limit=4):
     """네이버 뉴스 검색 API로 사설 찾기"""
     try:
-        query = f'{paper_name} 사설'
+        query = f'"{paper_name}" 사설'
         params = urllib.parse.urlencode({
             'query': query,
-            'display': 10,
+            'display': 20,
             'sort': 'date'
         })
         url = f'https://openapi.naver.com/v1/search/news.json?{params}'
@@ -44,9 +44,22 @@ def search_naver_editorial(paper_name, limit=4):
             title = title.replace('&quot;', '"').replace('&amp;', '&')
             title = title.replace('&lt;', '<').replace('&gt;', '>')
 
-            # [사설] 포함된 것만
-            if '[사설]' in title:
-                clean = title.replace('[사설]', '').strip()
+            # 사설 태그가 포함된 기사 필터링
+            # 1) '[사설]' 포함
+            # 2) '사설]' 포함 (변형 대괄호 대응)
+            # 3) '사설'로 시작하는 경우
+            is_editorial = (
+                '[사설]' in title
+                or '사설]' in title
+                or title.lstrip().startswith('사설')
+            )
+
+            if is_editorial:
+                clean = title
+                # 다양한 사설 태그 패턴 제거
+                for pattern in ('[사설]', '사설]', '【사설】', '<사설>'):
+                    clean = clean.replace(pattern, '')
+                clean = clean.strip()
                 if clean and len(clean) > 5:
                     titles.append(clean)
 
