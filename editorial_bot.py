@@ -147,9 +147,8 @@ async def fetch_naver_editorials(target_papers):
             )
             await page.goto(url, wait_until="networkidle", timeout=30000)
             
-            # 네이버 사설 페이지는 무한 스크롤(Lazy Load) 방식이므로
             # 하단에 숨겨진 신문사(디지털타임스, 세계일보 등)를 로드하기 위해 스크롤을 내립니다.
-            for _ in range(8):
+            for _ in range(15):
                 await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
                 await page.wait_for_timeout(800)
                 
@@ -192,19 +191,29 @@ def format_message(editorials):
     """텔레그램 메시지 포맷 (MarkdownV2)"""
     today = datetime.now().strftime('%Y.%m.%d')
     lines = [f'🗞️주요 신문 사설\\({escape_md(today)}\\)🗞️\n']
+    lines.append(f'출처 : {escape_md("https://buly.kr/7mBN720")}\n')
 
     for category, rows in editorials.items():
+        # Check if there are any titles in this category
+        has_any = any(titles for _, titles, _ in rows)
+        if not has_any:
+            continue
+            
         lines.append(f'\n*{escape_md(category)}*')
+        
+        is_first = True
         for name, titles, note in rows:
+            if not titles:
+                continue
+                
+            if not is_first:
+                lines.append('')
+            is_first = False
+            
             lines.append(f'◇{escape_md(name)}')
-            if titles:
-                for t in titles:
-                    lines.append(f'\\-{escape_md(t)}')
-            else:
-                lines.append(f'\\-{escape_md(note or "사설을 찾지 못했습니다")}')
+            for t in titles:
+                lines.append(f'\\-{escape_md(t)}')
 
-    lines.append(f'\n출처: {escape_md("https://t.me/gazzzza2025")}')
-    lines.append(escape_md('(실시간 텔레그램 정보방)'))
     lines.append('')
     lines.append('━━━━━━━━━━━━━━━━')
     lines.append('📖 오늘 브리핑 전문 \\+ 심층 토론')
