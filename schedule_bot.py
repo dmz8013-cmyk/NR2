@@ -30,7 +30,7 @@ def fetch_news1_schedule_url():
         return None
 
     query = '주요일정 정치'
-    url = f'https://openapi.naver.com/v1/search/news.json?query={urllib.parse.quote(query)}&display=20&sort=date'
+    url = f'https://openapi.naver.com/v1/search/news.json?query={urllib.parse.quote(query)}&display=100&sort=date'
     headers = {
         'X-Naver-Client-Id': client_id,
         'X-Naver-Client-Secret': client_secret
