@@ -21,7 +21,7 @@ from nureongi_news_bot import run_news_bot
 from ai_briefing import send_briefing
 from political_briefing import afternoon_political_briefing, evening_political_briefing
 from editorial_bot import send_editorial, send_editorial_nureongi
-from schedule_bot import send_schedule
+from schedule_bot import send_schedule, send_schedule_nureongi
 from vip_alert_bot import run_vip_alert
 from app.utils.bias_report import generate_weekly_report, send_weekly_report_to_telegram
 from scripts.daily_scrap import run as daily_scrap_run
@@ -79,6 +79,12 @@ def editorial_nureongi_job():
 def schedule_job():
     logger.info('[Scheduler] 일정봇 실행 중...')
     send_schedule()
+
+@scheduler.scheduled_job('cron', hour=7, minute=30, id='schedule_nureongi_brief', timezone='Asia/Seoul')
+def schedule_nureongi_job():
+    logger.info('[Scheduler] 누렁이 정보방 일정봇 실행 중 (07:30)...')
+    send_schedule_nureongi()
+
 
 @scheduler.scheduled_job('interval', minutes=15, id='vip_alert', misfire_grace_time=300)
 def vip_alert_job():

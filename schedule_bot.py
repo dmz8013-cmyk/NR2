@@ -147,16 +147,9 @@ def format_schedule_message(news1_data, assembly_data):
     
     return '\n'.join(lines).strip()
 
-def send_schedule():
-    logger.info("=== 일정봇 시작 ===")
+def _run_schedule_job(bot_token, chat_id, job_name="일정봇"):
+    logger.info(f"=== {job_name} 시작 ===")
     
-    BOT_TOKEN = os.environ.get('SCRAP_BOT_TOKEN')
-    CHAT_ID = os.environ.get('SCRAP_CHAT_ID', '5132309076')
-    
-    if not BOT_TOKEN:
-        logger.error("SCRAP_BOT_TOKEN 없음")
-        return
-        
     news1_url = fetch_news1_schedule_url()
     
     loop = asyncio.new_event_loop()
@@ -189,25 +182,46 @@ def send_schedule():
     if current:
         parts.append(current)
         
-    url = f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage'
+    url = f'https://api.telegram.org/bot{bot_token}/sendMessage'
     for part in parts:
         try:
             resp = requests.post(url, json={
-                'chat_id': CHAT_ID,
+                'chat_id': chat_id,
                 'text': part,
                 'parse_mode': 'HTML',
                 'disable_web_page_preview': True,
             }, timeout=10)
             if resp.status_code == 200:
-                logger.info(f"일정 발송 완료 ({len(part)}자)")
-                print(f"일정 발송 완료 ({len(part)}자)")
+                logger.info(f"{job_name} 발송 완료 ({len(part)}자)")
+                print(f"{job_name} 발송 완료 ({len(part)}자)")
             else:
                 logger.error(f"발송 에러: {resp.text}")
                 print(f"발송 에러: {resp.text}")
         except Exception as e:
             logger.error(f"전송 예외: {e}")
             
-    logger.info("=== 일정봇 종료 ===")
+    logger.info(f"=== {job_name} 종료 ===")
+
+def send_schedule():
+    BOT_TOKEN = os.environ.get('SCRAP_BOT_TOKEN')
+    CHAT_ID = os.environ.get('SCRAP_CHAT_ID', '5132309076')
+    
+    if not BOT_TOKEN:
+        logger.error("SCRAP_BOT_TOKEN 없음")
+        return
+        
+    _run_schedule_job(BOT_TOKEN, CHAT_ID, "일정봇")
+
+def send_schedule_nureongi():
+    """누렁이 정보방용 주요 일정 - 오전 7:30 발송"""
+    NUREONGI_TOKEN = os.environ.get('NUREONGI_NEWS_BOT_TOKEN')
+    NUREONGI_CHAT = '@gazzzza2025'
+    
+    if not NUREONGI_TOKEN:
+        print('NUREONGI_NEWS_BOT_TOKEN 없음')
+        return
+        
+    _run_schedule_job(NUREONGI_TOKEN, NUREONGI_CHAT, "누렁이 일정봇")
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
