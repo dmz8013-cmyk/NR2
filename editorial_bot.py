@@ -17,11 +17,26 @@ PAPERS = {
     '경제지': ['디지털타임스', '매일경제', '머니투데이', '서울경제', '이데일리', '파이낸셜뉴스', '한국경제'],
 }
 
+# 네이버 검색에서 '[사설]' 태그가 잘 잡히지 않는 언론사 — 쿼리/필터 보완 대상
+SPECIAL_PAPERS = ('머니투데이', '이데일리')
+
+
+def escape_md(text):
+    """텔레그램 MarkdownV2 특수문자 escape"""
+    special = r'\_*[]()~`>#+-=|{}.!'
+    for ch in special:
+        text = text.replace(ch, f'\\{ch}')
+    return text
+
 
 def search_naver_editorial(paper_name, limit=4):
     """네이버 뉴스 검색 API로 사설 찾기"""
     try:
-        query = f'"{paper_name}" 사설'
+        # 네이버 사설 태그 부재 언론사는 쿼리를 완화
+        if paper_name in SPECIAL_PAPERS:
+            query = f'{paper_name} 사설 오늘'
+        else:
+            query = f'"{paper_name}" 사설'
         params = urllib.parse.urlencode({
             'query': query,
             'display': 20,
@@ -48,10 +63,12 @@ def search_naver_editorial(paper_name, limit=4):
             # 1) '[사설]' 포함
             # 2) '사설]' 포함 (변형 대괄호 대응)
             # 3) '사설'로 시작하는 경우
+            # 4) '사설' + 언론사명이 동시에 포함 (태그 부재 언론사 대응)
             is_editorial = (
                 '[사설]' in title
                 or '사설]' in title
                 or title.lstrip().startswith('사설')
+                or ('사설' in title and paper_name in title)
             )
 
             if is_editorial:
@@ -70,26 +87,26 @@ def search_naver_editorial(paper_name, limit=4):
 
 
 def format_message(editorials):
-    """텔레그램 메시지 포맷"""
+    """텔레그램 메시지 포맷 (MarkdownV2)"""
     today = datetime.now().strftime('%Y.%m.%d')
-    lines = [f'🗞️주요 신문 사설({today})🗞️\n']
+    lines = [f'🗞️주요 신문 사설\\({escape_md(today)}\\)🗞️\n']
 
     for category, papers in editorials.items():
-        lines.append(f'\n*{category}*')
+        lines.append(f'\n*{escape_md(category)}*')
         for name, titles in papers.items():
-            lines.append(f'◇{name}')
+            lines.append(f'◇{escape_md(name)}')
             if titles:
                 for t in titles:
-                    lines.append(f'-{t}')
+                    lines.append(f'\\-{escape_md(t)}')
             else:
-                lines.append('-사설을 찾지 못했습니다')
+                lines.append('\\-사설을 찾지 못했습니다')
 
-    lines.append(f'\n출처: https://t.me/gazzzza2025')
-    lines.append('(실시간 텔레그램 정보방)')
+    lines.append(f'\n출처: {escape_md("https://t.me/gazzzza2025")}')
+    lines.append(escape_md('(실시간 텔레그램 정보방)'))
     lines.append('')
     lines.append('━━━━━━━━━━━━━━━━')
-    lines.append('📖 오늘 브리핑 전문 + 심층 토론')
-    lines.append('👉 https://nr2.kr')
+    lines.append('📖 오늘 브리핑 전문 \\+ 심층 토론')
+    lines.append(f'👉 {escape_md("https://nr2.kr")}')
     lines.append('━━━━━━━━━━━━━━━━')
     return '\n'.join(lines)
 
@@ -135,7 +152,7 @@ def send_editorial():
             resp = requests.post(url, json={
                 'chat_id': CHAT_ID,
                 'text': part,
-                'parse_mode': 'Markdown',
+                'parse_mode': 'MarkdownV2',
                 'disable_web_page_preview': True,
             }, timeout=10)
             if resp.status_code == 200:
