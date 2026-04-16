@@ -7,14 +7,14 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.environ.get('SCHEDULE_BOT_TOKEN', '8734510853:AAHsqC3fQfC0K02-xrWEZgnh9ZDGUIi2P44')
-CHAT_ID = '5132309076'
+BOT_TOKEN = os.environ.get('SCRAP_BOT_TOKEN')
+CHAT_ID = os.environ.get('SCRAP_CHAT_ID', '5132309076')
 NAVER_CLIENT_ID = os.environ.get('NAVER_CLIENT_ID', '')
 NAVER_CLIENT_SECRET = os.environ.get('NAVER_CLIENT_SECRET', '')
 
 PAPERS = {
     '종합지': ['경향신문', '국민일보', '동아일보', '서울신문', '세계일보', '조선일보', '중앙일보', '한겨레', '한국일보'],
-    '경제지': ['디지털타임스', '매일경제', '서울경제', '이데일리', '파이낸셜뉴스', '한국경제'],
+    '경제지': ['디지털타임스', '매일경제', '머니투데이', '서울경제', '이데일리', '파이낸셜뉴스', '한국경제'],
 }
 
 
@@ -58,10 +58,11 @@ def search_naver_editorial(paper_name, limit=4):
 
 def format_message(editorials):
     """텔레그램 메시지 포맷"""
-    lines = ['🗞️ <b>주요 신문 사설</b> 🗞️\n']
+    today = datetime.now().strftime('%Y.%m.%d')
+    lines = [f'🗞️주요 신문 사설({today})🗞️\n']
 
     for category, papers in editorials.items():
-        lines.append(f'\n<b>*{category}*</b>')
+        lines.append(f'\n*{category}*')
         for name, titles in papers.items():
             lines.append(f'◇{name}')
             if titles:
@@ -121,7 +122,7 @@ def send_editorial():
             resp = requests.post(url, json={
                 'chat_id': CHAT_ID,
                 'text': part,
-                'parse_mode': 'HTML',
+                'parse_mode': 'Markdown',
                 'disable_web_page_preview': True,
             }, timeout=10)
             if resp.status_code == 200:

@@ -65,7 +65,7 @@ def evening_political():
     logger.info('[Scheduler] 저녁 정치 브리핑 생성 중...')
     evening_political_briefing()
 
-@scheduler.scheduled_job('cron', hour=6, minute=0, id='editorial_bot', timezone='Asia/Seoul')
+@scheduler.scheduled_job('cron', hour=6, minute=0, id='editorial_morning_brief', timezone='Asia/Seoul')
 def editorial_job():
     logger.info('[Scheduler] 사설봇 실행 중...')
     send_editorial()
