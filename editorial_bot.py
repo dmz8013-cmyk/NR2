@@ -205,7 +205,7 @@ def format_message(editorials):
         if not has_any:
             continue
             
-        lines.append(f'*{escape_md(category)}*')
+        lines.append(f'\n*{category}*')
         
         is_first = True
         for name, titles, note in rows:
@@ -223,8 +223,10 @@ def format_message(editorials):
         lines.append('')
 
     lines.append('━━━━━━━━━━━━━━━━')
+    lines.append('')
     lines.append(f'출처: {escape_md("https://t.me/gazzzza2025")}')
     lines.append(escape_md('(실시간 텔레그램 정보방)'))
+    lines.append('')
     lines.append('━━━━━━━━━━━━━━━━')
     return '\n'.join(lines)
 
