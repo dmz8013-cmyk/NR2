@@ -47,7 +47,7 @@ def fetch_news1_schedule_url():
         logger.error(f"Naver API error: {e}")
     return None
 
-async def parse_schedule_text(url, locator_selector, targets):
+async def parse_schedule_text(url, locator_selector_primary, targets):
     """Playwright로 해당 URL의 특정 영역 텍스트를 추출해 타겟 섹션만 파싱"""
     results = {t: [] for t in targets}
     
@@ -56,14 +56,35 @@ async def parse_schedule_text(url, locator_selector, targets):
         try:
             page = await browser.new_page(user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36')
             await page.goto(url, wait_until='domcontentloaded', timeout=15000)
-            await page.wait_for_timeout(2000) # JS Render 대기
+            await page.wait_for_timeout(3000) # JS Render 대기
             
-            html = await page.content()
-            soup = BeautifulSoup(html, 'html.parser')
-            target_el = soup.select_one(locator_selector)
+            selectors = [locator_selector_primary, '.detail_body', '#articleBody', '.article_body', '.news_body', '#nowNa-text', 'article']
             
-            if target_el:
-                lines = target_el.get_text('\n', strip=True).split('\n')
+            raw_text = ""
+            for sel in selectors:
+                try:
+                    target_el = page.locator(sel).first
+                    await target_el.wait_for(timeout=2000)
+                    text = await target_el.inner_text()
+                    if len(text) > 50:
+                        raw_text = text
+                        break
+                except:
+                    continue
+            
+            if not raw_text:
+                # Fallback to BeautifulSoup
+                html = await page.content()
+                soup = BeautifulSoup(html, 'html.parser')
+                for sel in selectors:
+                    target_el = soup.select_one(sel)
+                    if target_el:
+                        raw_text = target_el.get_text('\n', strip=True)
+                        if len(raw_text) > 50:
+                            break
+            
+            if raw_text:
+                lines = raw_text.split('\n')
                 current_section = None
                 
                 for line in lines:
@@ -72,8 +93,7 @@ async def parse_schedule_text(url, locator_selector, targets):
                         continue
                     
                     # 체크: 헤더 라인인가?
-                    if line.startswith('◇') or line.startswith('◆'):
-                        # 약간의 변형 방어 (예: ◇ 대통령실 -> ◇대통령실)
+                    if line.startswith('◇') or line.startswith('◆') or line.startswith('['):
                         normalized_line = line.replace(' ', '')
                         current_section = None
                         for t in targets:
@@ -81,8 +101,8 @@ async def parse_schedule_text(url, locator_selector, targets):
                                 current_section = t
                                 break
                     elif current_section:
-                        # 예외 정리 (※ 같은 특수기호나 불필요한 라인 제외)
-                        if line.startswith('※') or '상기 일정은' in line or '받아보실 수 있습니다' in line:
+                        # 예외 정리
+                        if line.startswith('※') or '상기 일정은' in line or '받아보실 수 있습니다' in line or '무단 전재' in line or '기사제보 및' in line:
                             continue
                         results[current_section].append(line)
         except Exception as e:
