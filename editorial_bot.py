@@ -146,6 +146,13 @@ async def fetch_naver_editorials(target_papers):
                 user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             )
             await page.goto(url, wait_until="networkidle", timeout=30000)
+            
+            # 네이버 사설 페이지는 무한 스크롤(Lazy Load) 방식이므로
+            # 하단에 숨겨진 신문사(디지털타임스, 세계일보 등)를 로드하기 위해 스크롤을 내립니다.
+            for _ in range(8):
+                await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                await page.wait_for_timeout(800)
+                
             html = await page.content()
             await browser.close()
     except Exception as e:
