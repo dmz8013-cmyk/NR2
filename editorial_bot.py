@@ -13,6 +13,7 @@ import urllib.parse
 from datetime import datetime
 from html import unescape
 from bs4 import BeautifulSoup
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +131,46 @@ def fetch_html(url, limit=3):
     return titles
 
 
+async def fetch_naver_editorials(target_papers):
+    """Playwright 기반 네이버 사설 페이지 크롤링 보완 (최대 3개)"""
+    from playwright.async_api import async_playwright
+    
+    today = datetime.now().strftime("%Y%m%d")
+    url = f"https://news.naver.com/opinion/editorial?date={today}"
+    results = {paper: [] for paper in target_papers}
+    
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page(
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            )
+            await page.goto(url, wait_until="networkidle", timeout=30000)
+            html = await page.content()
+            await browser.close()
+    except Exception as e:
+        logger.error(f"Playwright 에러: {e}")
+        return results
+
+    soup = BeautifulSoup(html, "html.parser")
+    for item in soup.find_all(class_='opinion_editorial_item'):
+        press_tag = item.find(class_='press_name')
+        if not press_tag:
+            continue
+        press_name = press_tag.get_text(strip=True)
+        
+        if press_name in target_papers:
+            desc_tag = item.find(class_='description')
+            if desc_tag:
+                title = desc_tag.get_text(strip=True)
+                title = _clean_title(title)
+                if title and len(results[press_name]) < 3:
+                    if title not in results[press_name]:
+                        results[press_name].append(title)
+                        
+    return results
+
+
 def fetch_titles(paper):
     """언론사 정의를 보고 적절한 fetcher 호출"""
     kind = paper.get('kind')
@@ -171,6 +212,11 @@ def send_editorial():
 
     editorials = {}
     total = 0
+    papers_to_fallback = []
+    
+    # RSS 성공하는 언론사 목록 (이들은 Playwright 보완에서 제외)
+    rss_success_papers = ['경향신문', '동아일보', '서울신문', '조선일보', '한겨레', '한국경제']
+
     for category, papers in PAPERS.items():
         rows = []
         for p in papers:
@@ -182,16 +228,46 @@ def send_editorial():
                 titles, note = [], f'수집 실패 ({type(e).__name__})'
             else:
                 note = None
-                if titles is None:
-                    titles, note = [], '수집 미지원 (RSS/공개 페이지 부재)'
-
+                if titles is None or len(titles) == 0:
+                    if p['kind'] in ('rss', 'html'):
+                        note = 'RSS/HTML 결과 0건'
+                    else:
+                        titles, note = [], '수집 미지원'
+            
             rows.append((name, titles, note))
-            total += len(titles)
-            print(f'  {name}: {len(titles)}개' + (f' | {note}' if note else ''))
-            for t in titles:
+            total += len(titles or [])
+            
+            # 수집된 기사가 없고, 제외 대상이 아닌 10개 언론사면 fallback 대상에 추가
+            if not titles and name not in rss_success_papers:
+                papers_to_fallback.append((category, name, p))
+                
+            print(f'  {name} (v1): {len(titles or [])}개' + (f' | {note}' if note else ''))
+            for t in (titles or []):
                 print(f'    - {t}')
+                
         editorials[category] = rows
 
+    # Playwright 보완 수집 실행
+    if papers_to_fallback:
+        target_names = [name for _, name, _ in papers_to_fallback]
+        print(f"\n[Playwright] 네이버 사설 페이지 보완 수집 시작: {target_names}")
+        fallback_res = asyncio.run(fetch_naver_editorials(target_names))
+        
+        for category, name, p in papers_to_fallback:
+            added_titles = fallback_res.get(name, [])
+            rows = editorials[category]
+            for idx, r in enumerate(rows):
+                if r[0] == name:
+                    if added_titles:
+                        rows[idx] = (name, added_titles, None)
+                        total += len(added_titles)
+                        print(f"  [Playwright] {name}: {len(added_titles)}개 보완 완료")
+                        for t in added_titles:
+                            print(f'    - {t}')
+                    else:
+                        rows[idx] = (name, [], '네이버 크롤링 실패')
+                    break
+                    
     print(f'\n총 수집: {total}건')
 
     message = format_message(editorials)
