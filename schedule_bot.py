@@ -1,4 +1,5 @@
 import os
+import re
 import asyncio
 import requests
 import urllib.parse
@@ -6,6 +7,9 @@ from datetime import datetime
 import logging
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
+
+# 이메일 주소 패턴 — 뉴스1 기사 본문에 기자 이메일이 섞여 나오는 문제 방지
+EMAIL_PATTERN = re.compile(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}')
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +107,11 @@ async def parse_schedule_text(url, locator_selector_primary, targets):
                     elif current_section:
                         # 예외 정리
                         if line.startswith('※') or '상기 일정은' in line or '받아보실 수 있습니다' in line or '무단 전재' in line or '기사제보 및' in line:
+                            continue
+                        # 이메일 주소 포함 라인 제거
+                        if EMAIL_PATTERN.search(line):
+                            continue
+                        if 'mailto:' in line:
                             continue
                         results[current_section].append(line)
         except Exception as e:
