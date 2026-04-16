@@ -195,7 +195,6 @@ def format_message(editorials):
     """텔레그램 메시지 포맷 (MarkdownV2)"""
     today = datetime.now().strftime('%Y.%m.%d')
     lines = [f'🗞️주요 신문 사설\\({escape_md(today)}\\)🗞️']
-    lines.append('')
     lines.append(f'출처 : {escape_md("https://buly.kr/7mBN720")}')
     lines.append('')
 
@@ -205,7 +204,7 @@ def format_message(editorials):
         if not has_any:
             continue
             
-        lines.append(f'\n*{category}*')
+        lines.append(f'*{category}*')
         
         is_first = True
         for name, titles, note in rows:
@@ -223,10 +222,8 @@ def format_message(editorials):
         lines.append('')
 
     lines.append('━━━━━━━━━━━━━━━━')
-    lines.append('')
     lines.append(f'출처: {escape_md("https://t.me/gazzzza2025")}')
     lines.append(escape_md('(실시간 텔레그램 정보방)'))
-    lines.append('')
     lines.append('━━━━━━━━━━━━━━━━')
     return '\n'.join(lines)
 
