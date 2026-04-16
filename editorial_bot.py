@@ -56,12 +56,7 @@ PAPERS = {
 }
 
 
-def escape_md(text):
-    """텔레그램 MarkdownV2 특수문자 escape"""
-    special = r'\_*[]()~`>#+-=|{}.!'
-    for ch in special:
-        text = text.replace(ch, f'\\{ch}')
-    return text
+
 
 
 # ---- 제목 정리 공통 유틸 ----
@@ -192,44 +187,37 @@ def fetch_titles(paper):
 
 
 def format_message(editorials):
-    today = datetime.now().strftime('%Y\\.%m\\.%d')
+    today = datetime.now().strftime('%Y.%m.%d')
     lines = []
     
-    # 헤더
-    lines.append(f'🗞️주요 신문 사설\\({today}\\)🗞️')
+    lines.append(f'🗞️주요 신문 사설({today})🗞️')
     lines.append('')
-    lines.append(f'출처 : https://buly\\.kr/7mBN720')
+    lines.append('출처 : https://buly.kr/7mBN720')
     lines.append('')
     
     first_category = True
     for category, rows in editorials.items():
-        # 카테고리 (종합지/경제지)
         if not first_category:
             lines.append('')
-        lines.append(f'*{category}*')
+        lines.append(f'<b>{category}</b>')
         first_category = False
         
         first_paper = True
         for name, titles, note in rows:
-            # 수집 실패 언론사 생략
             if not titles:
                 continue
-            
-            # 언론사 간 빈 줄 (첫 번째 제외)
             if not first_paper:
                 lines.append('')
             first_paper = False
-            
-            lines.append(f'◇{escape_md(name)}')
+            lines.append(f'◇{name}')
             for t in titles:
-                lines.append(f'\\-{escape_md(t)}')
+                lines.append(f'-{t}')
     
-    # 푸터
     lines.append('')
     lines.append('━━━━━━━━━━━━━━━━')
     lines.append('')
-    lines.append('출처: https://t\\.me/gazzzza2025')
-    lines.append('\\(실시간 텔레그램 정보방\\)')
+    lines.append('출처: https://t.me/gazzzza2025')
+    lines.append('(실시간 텔레그램 정보방)')
     lines.append('')
     lines.append('━━━━━━━━━━━━━━━━')
     
@@ -327,7 +315,7 @@ def send_editorial():
             resp = requests.post(url, json={
                 'chat_id': CHAT_ID,
                 'text': part,
-                'parse_mode': 'MarkdownV2',
+                'parse_mode': 'HTML',
                 'disable_web_page_preview': True,
             }, timeout=10)
             if resp.status_code == 200:
