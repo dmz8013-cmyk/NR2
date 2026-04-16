@@ -192,39 +192,47 @@ def fetch_titles(paper):
 
 
 def format_message(editorials):
-    """텔레그램 메시지 포맷 (MarkdownV2)"""
-    today = datetime.now().strftime('%Y.%m.%d')
-    lines = [f'🗞️주요 신문 사설\\({escape_md(today)}\\)🗞️']
-    lines.append(f'출처 : {escape_md("https://buly.kr/7mBN720")}')
+    today = datetime.now().strftime('%Y\\.%m\\.%d')
+    lines = []
+    
+    # 헤더
+    lines.append(f'🗞️주요 신문 사설\\({today}\\)🗞️')
     lines.append('')
-
+    lines.append(f'출처 : https://buly\\.kr/7mBN720')
+    lines.append('')
+    
+    first_category = True
     for category, rows in editorials.items():
-        # Check if there are any titles in this category
-        has_any = any(titles for _, titles, _ in rows)
-        if not has_any:
-            continue
-            
+        # 카테고리 (종합지/경제지)
+        if not first_category:
+            lines.append('')
         lines.append(f'*{category}*')
+        first_category = False
         
-        is_first = True
+        first_paper = True
         for name, titles, note in rows:
+            # 수집 실패 언론사 생략
             if not titles:
                 continue
-                
-            if not is_first:
+            
+            # 언론사 간 빈 줄 (첫 번째 제외)
+            if not first_paper:
                 lines.append('')
-            is_first = False
+            first_paper = False
             
             lines.append(f'◇{escape_md(name)}')
             for t in titles:
                 lines.append(f'\\-{escape_md(t)}')
-                
-        lines.append('')
-
+    
+    # 푸터
+    lines.append('')
     lines.append('━━━━━━━━━━━━━━━━')
-    lines.append(f'출처: {escape_md("https://t.me/gazzzza2025")}')
-    lines.append(escape_md('(실시간 텔레그램 정보방)'))
+    lines.append('')
+    lines.append('출처: https://t\\.me/gazzzza2025')
+    lines.append('\\(실시간 텔레그램 정보방\\)')
+    lines.append('')
     lines.append('━━━━━━━━━━━━━━━━')
+    
     return '\n'.join(lines)
 
 
