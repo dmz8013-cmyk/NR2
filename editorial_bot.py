@@ -132,48 +132,52 @@ def fetch_html(url, limit=3):
 
 
 async def fetch_naver_editorials(target_papers):
-    """Playwright 기반 네이버 사설 페이지 크롤링 보완 (최대 3개)"""
     from playwright.async_api import async_playwright
+    from datetime import datetime, timedelta
     
-    today = datetime.now().strftime("%Y%m%d")
-    url = f"https://news.naver.com/opinion/editorial?date={today}"
+    today = datetime.now()
+    dates = [
+        today.strftime("%Y%m%d"),
+        (today - timedelta(days=1)).strftime("%Y%m%d")
+    ]
+    
     results = {paper: [] for paper in target_papers}
     
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page(
-                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            )
-            await page.goto(url, wait_until="networkidle", timeout=30000)
             
-            # 하단에 숨겨진 신문사(디지털타임스, 세계일보 등)를 로드하기 위해 스크롤을 내립니다.
-            for _ in range(15):
-                await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                await page.wait_for_timeout(800)
+            for date_str in dates:
+                url = f"https://news.naver.com/opinion/editorial?date={date_str}"
+                page = await browser.new_page(
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36"
+                )
+                await page.goto(url, wait_until="networkidle", timeout=30000)
+                for _ in range(15):
+                    await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                    await page.wait_for_timeout(800)
+                html = await page.content()
+                await page.close()
                 
-            html = await page.content()
+                soup = BeautifulSoup(html, "html.parser")
+                for item in soup.find_all(class_='opinion_editorial_item'):
+                    press_tag = item.find(class_='press_name')
+                    if not press_tag:
+                        continue
+                    press_name = press_tag.get_text(strip=True)
+                    
+                    if press_name in target_papers:
+                        desc_tag = item.find(class_='description')
+                        if desc_tag:
+                            title = _clean_title(desc_tag.get_text(strip=True))
+                            if title and len(results[press_name]) < 3:
+                                if title not in results[press_name]:
+                                    results[press_name].append(title)
+            
             await browser.close()
     except Exception as e:
         logger.error(f"Playwright 에러: {e}")
-        return results
-
-    soup = BeautifulSoup(html, "html.parser")
-    for item in soup.find_all(class_='opinion_editorial_item'):
-        press_tag = item.find(class_='press_name')
-        if not press_tag:
-            continue
-        press_name = press_tag.get_text(strip=True)
         
-        if press_name in target_papers:
-            desc_tag = item.find(class_='description')
-            if desc_tag:
-                title = desc_tag.get_text(strip=True)
-                title = _clean_title(title)
-                if title and len(results[press_name]) < 3:
-                    if title not in results[press_name]:
-                        results[press_name].append(title)
-                        
     return results
 
 
