@@ -245,3 +245,4 @@ def send_schedule_nureongi():
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     send_schedule()
+    send_schedule_nureongi()
