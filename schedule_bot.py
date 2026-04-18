@@ -1,6 +1,7 @@
 import os
 import re
 import asyncio
+import html
 import requests
 import urllib.parse
 from datetime import datetime
@@ -26,29 +27,38 @@ ASSEMBLY_TARGETS = [
 ]
 
 def fetch_news1_schedule_url():
-    """네이버 검색 API로 당일 뉴스1 정치 일정 기사 URL 획득"""
+    """네이버 검색 API로 당일 뉴스1 정치 일정 기사 URL 획득 (fallback 쿼리 지원)"""
     client_id = os.environ.get('NAVER_CLIENT_ID')
     client_secret = os.environ.get('NAVER_CLIENT_SECRET')
     if not client_id or not client_secret:
         logger.error("NAVER API credentials missing")
         return None
 
-    query = '주요일정 정치'
-    url = f'https://openapi.naver.com/v1/search/news.json?query={urllib.parse.quote(query)}&display=100&sort=date'
+    queries = [
+        '주요일정 정치',
+        '오늘의 주요일정 정치',
+        '주요일정 정치 정부',
+    ]
     headers = {
         'X-Naver-Client-Id': client_id,
         'X-Naver-Client-Secret': client_secret
     }
-    
-    try:
-        resp = requests.get(url, headers=headers, timeout=10)
-        data = resp.json()
-        for item in data.get('items', []):
-            originallink = item.get('originallink', '')
-            if 'news1.kr' in originallink:
-                return originallink
-    except Exception as e:
-        logger.error(f"Naver API error: {e}")
+
+    for query in queries:
+        url = f'https://openapi.naver.com/v1/search/news.json?query={urllib.parse.quote(query)}&display=100&sort=date'
+        try:
+            resp = requests.get(url, headers=headers, timeout=10)
+            data = resp.json()
+            for item in data.get('items', []):
+                originallink = item.get('originallink', '')
+                if 'news1.kr' in originallink:
+                    logger.info(f"뉴스1 기사 발견 (쿼리: '{query}'): {originallink}")
+                    return originallink
+            logger.info(f"쿼리 '{query}'에서 news1.kr 기사 없음, 다음 쿼리 시도")
+        except Exception as e:
+            logger.error(f"Naver API error (쿼리: '{query}'): {e}")
+
+    logger.warning("모든 쿼리에서 뉴스1 기사를 찾지 못했습니다.")
     return None
 
 async def parse_schedule_text(url, locator_selector_primary, targets):
@@ -138,16 +148,16 @@ def format_schedule_message(news1_data, assembly_data):
         if items:
             lines.append(f'<b>{category}</b>')
             for item in items:
-                lines.append(item)
+                lines.append(html.escape(item))
             lines.append('')
-            
+
     # 2. 국회 수집 결과
     for category in ASSEMBLY_TARGETS:
         items = assembly_data.get(category, [])
         if items:
             lines.append(f'<b>{category}</b>')
             for item in items:
-                lines.append(item)
+                lines.append(html.escape(item))
             lines.append('')
             
     # 푸터
