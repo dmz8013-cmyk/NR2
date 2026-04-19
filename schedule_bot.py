@@ -4,7 +4,7 @@ import asyncio
 import html
 import requests
 import urllib.parse
-from datetime import datetime
+from datetime import datetime, date
 import logging
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
@@ -132,9 +132,33 @@ async def parse_schedule_text(url, locator_selector_primary, targets):
     return results
 
 def format_schedule_message(news1_data, assembly_data):
-    today = datetime.now()
-    date_str = today.strftime('%Y.%m.%d')
+    today_dt = datetime.now()
+    today_date = date.today()
+    date_str = today_dt.strftime('%Y.%m.%d')
     lines = []
+    
+    election_day = date(2026, 6, 3)
+    dday = (election_day - today_date).days
+
+    schedule_items = [
+        ("예비후보 등록 마감", date(2026, 4, 30)),
+        ("본후보 등록", date(2026, 5, 15)),
+        ("공식 선거운동 시작", date(2026, 5, 20)),
+        ("사전투표", date(2026, 5, 29)),
+        ("선거일", date(2026, 6, 3)),
+    ]
+
+    lines.append(f'⏳ 6.3 지방선거까지 D-{dday}')
+    for name, item_date in schedule_items:
+        diff = (item_date - today_date).days
+        if diff > 0:
+            status = f"D-{diff}"
+        elif diff == 0:
+            status = "오늘!"
+        else:
+            status = "✅완료"
+        lines.append(f"- {name}: {status}")
+    lines.append('')
     
     # 헤더
     lines.append(f'📌📌📌주요 일정({date_str})📌📌📌')

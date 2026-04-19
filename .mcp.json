@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "computer-use": {
+      "command": "npx",
+      "args": ["@anthropic-ai/computer-use-mcp"]
+    }
+  }
+}

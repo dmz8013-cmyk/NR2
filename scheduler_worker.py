@@ -28,7 +28,8 @@ from scripts.daily_scrap import run as daily_scrap_run
 from nr2_web_bot import poll_commands, send_youcheck_daily
 from weekly_briefing import send_weekly_briefing
 from aesa_monitoring_bot import process_rss_feeds, send_batch_alerts, flush_nighttime_queue, send_daily_summary_email, send_daily_content_report
-from poll_tracker import run_poll_tracker
+from poll_tracker import run_poll_tracker, check_basic_polls
+from candidate_tracker import check_candidate_changes
 
 scheduler = BlockingScheduler(timezone='Asia/Seoul')
 INTERVAL_MINUTES = int(os.environ.get('YOUTUBE_CHECK_INTERVAL', 10))
@@ -166,6 +167,19 @@ def poll_tracker_job():
     """매일 오전 8시 30분 여론조사 봇 실행"""
     logger.info('[Scheduler] 지방선거 여론조사 모니터링 봇 실행 중...')
     run_poll_tracker()
+
+@scheduler.scheduled_job('interval', hours=2, id='candidate_tracker_job', coalesce=True, max_instances=1)
+def candidate_tracker_job():
+    """매 2시간마다 후보 변동사항 확인"""
+    logger.info('[Scheduler] 후보 현황 트래커 실행 중...')
+    check_candidate_changes()
+
+@scheduler.scheduled_job('interval', hours=3, id='basic_poll_tracker_job', coalesce=True, max_instances=1)
+def basic_poll_tracker_job():
+    """매 3시간마다 기초/교육감/정당 지지율 여론조사 확인"""
+    logger.info('[Scheduler] 기초/교육감/정당 여론조사 봇 실행 중...')
+    check_basic_polls()
+
 
 
 
