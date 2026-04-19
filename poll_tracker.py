@@ -14,6 +14,24 @@ from playwright.async_api import async_playwright
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+def extract_first_json(text):
+    """Claude 응답에서 첫 번째 JSON 객체만 추출 (코드펜스/복수 블록 대응)"""
+    text = re.sub(r'```json\s*', '', text)
+    text = re.sub(r'```\s*', '', text)
+    text = text.strip()
+    brace_count = 0
+    start = None
+    for i, ch in enumerate(text):
+        if ch == '{':
+            if start is None:
+                start = i
+            brace_count += 1
+        elif ch == '}':
+            brace_count -= 1
+            if brace_count == 0 and start is not None:
+                return text[start:i+1]
+    return None
+
 # 환경변수 로드
 DATABASE_URL = os.environ.get('DATABASE_URL')
 NAVER_CLIENT_ID = os.environ.get('NAVER_CLIENT_ID')
@@ -230,12 +248,15 @@ def parse_poll_data_with_claude(prompt_context, text, poll_type):
         )
         
         content = response.content[0].text.strip()
-        json_str = content
-        if "```json" in content: json_str = content.split("```json")[-1].split("```")[0].strip()
-        elif "```" in content: json_str = content.split("```")[-1].split("```")[0].strip()
-            
-        if json_str == "null": return None
-        return json.loads(json_str)
+        if content == "null" or content.strip() == "null":
+            return None
+
+        raw = extract_first_json(content)
+        if raw:
+            data = json.loads(raw)
+        else:
+            data = None
+        return data
     except Exception as e:
         logger.error(f"[{prompt_context}] Claude API 파싱 오류: {e}")
         return None
