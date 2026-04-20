@@ -8,7 +8,6 @@ from telegram import Bot
 
 BOT_TOKEN = os.environ.get('NUREONGI_NEWS_BOT_TOKEN')
 CHAT_ID = "@gazzzza2025"
-SENT_FILE = '/tmp/sent_news.json'
 
 # --- DB 저장용 ---
 BIAS_DATA = None
@@ -80,57 +79,77 @@ def save_article_to_db(art):
     finally:
         conn.close()
 
-SENT_CAP = 2000  # 최대 보관 URL 수 (10분 × 3건 × 24h ≈ 432 → 약 4~5일치)
-SENT_TRIM = 1000  # 초과 시 앞에서 잘라내고 남길 개수 (FIFO)
+SENT_RETENTION_DAYS = 30  # 30일치 URL 이력 보관
 
-def load_sent_news():
-    """저장된 URL 이력을 list→(list, set) 튜플로 로드.
-    list는 삽입 순서 보존용, set은 O(1) lookup용.
-    """
-    try:
-        with open(SENT_FILE, 'r') as f:
-            data = json.load(f)
-        if isinstance(data, list):
-            return list(data), set(data)
-    except Exception:
-        pass
-    return [], set()
-
-def save_sent_news(sent_list):
-    """list(ordered)로 저장. FIFO로 오래된 항목부터 잘라냄."""
-    try:
-        if len(sent_list) > SENT_CAP:
-            # 앞쪽(오래된 것)부터 잘라내고 최근 SENT_TRIM개만 보존
-            sent_list = sent_list[-SENT_TRIM:]
-        with open(SENT_FILE, 'w') as f:
-            json.dump(sent_list, f)
-    except Exception:
-        pass
-
-def mark_as_sent(sent_list, sent_set, url):
-    """URL을 발송 이력에 추가 (list+set 동기 갱신)."""
-    if url in sent_set:
-        return
-    sent_list.append(url)
-    sent_set.add(url)
-
-def is_already_sent_db(url):
-    """DB 기반 2차 안전망 — 컨테이너 재시작으로 /tmp가 날아가도
-    crossposted_articles 테이블로 재발송 방지.
-    """
-    conn = _get_db_conn()
+def _ensure_sent_news_table(conn):
+    """nr2_sent_news 테이블 보장 — 최초 실행 시 생성."""
     if not conn:
-        return False
+        return
     try:
         cur = conn.cursor()
-        cur.execute("SELECT 1 FROM crossposted_articles WHERE url = %s LIMIT 1", (url,))
-        hit = cur.fetchone() is not None
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS nr2_sent_news (
+                id SERIAL PRIMARY KEY,
+                url TEXT UNIQUE NOT NULL,
+                sent_at TIMESTAMP DEFAULT NOW()
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_nr2_sent_news_sent_at ON nr2_sent_news(sent_at)")
+        conn.commit()
         cur.close()
-        return hit
-    except Exception:
-        return False
-    finally:
-        conn.close()
+    except Exception as e:
+        print(f"[DB] nr2_sent_news 테이블 보장 실패: {e}")
+        conn.rollback()
+
+def load_sent_urls_from_db(conn):
+    """최근 30일 내 발송된 URL set 반환. DB 실패 시 빈 set."""
+    if not conn:
+        return set()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT url FROM nr2_sent_news WHERE sent_at > NOW() - INTERVAL '%s days'" % SENT_RETENTION_DAYS
+        )
+        urls = {row[0] for row in cur.fetchall()}
+        cur.close()
+        return urls
+    except Exception as e:
+        print(f"[DB] sent_urls 조회 실패: {e}")
+        return set()
+
+def mark_url_sent_db(conn, url):
+    """URL을 nr2_sent_news에 삽입 (중복 무시)."""
+    if not conn:
+        return
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO nr2_sent_news (url) VALUES (%s) ON CONFLICT (url) DO NOTHING",
+            (url,)
+        )
+        conn.commit()
+        cur.close()
+    except Exception as e:
+        print(f"[DB] sent URL 기록 실패: {e}")
+        conn.rollback()
+
+def clean_old_sent_db(conn):
+    """30일 이상 된 sent URL 정리."""
+    if not conn:
+        return
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "DELETE FROM nr2_sent_news WHERE sent_at < NOW() - INTERVAL '%s days'" % SENT_RETENTION_DAYS
+        )
+        deleted = cur.rowcount
+        conn.commit()
+        cur.close()
+        if deleted > 0:
+            print(f"[DB] 30일 이상 sent URL {deleted}건 정리")
+    except Exception as e:
+        print(f"[DB] sent URL 정리 실패: {e}")
+        conn.rollback()
 
 KEYWORDS = [
     "삼성", "SK", "LG", "현대", "AI", "챗GPT", "테슬라", "엔비디아",
@@ -434,22 +453,29 @@ async def send_news():
     # 크로스포스팅 테이블 보장
     _ensure_crosspost_table()
 
-    sent_list, sent_set = load_sent_news()
-    first_run = len(sent_set) == 0
+    # sent_news DB 연결 — 한 사이클 동안 재사용
+    sent_conn = _get_db_conn()
+    if sent_conn:
+        _ensure_sent_news_table(sent_conn)
+        clean_old_sent_db(sent_conn)
+        sent_set = load_sent_urls_from_db(sent_conn)
+    else:
+        # DB 불가 시 보수적으로 재발송 방지 — 빈 set + mark_url_sent_db no-op
+        sent_set = set()
+        print("[뉴스봇v2] 경고: DB 연결 실패, sent URL 조회 불가 (이번 사이클은 보수적으로 스킵)")
+
     bot = Bot(BOT_TOKEN)
     try:
+        # DB 연결 실패 시 이번 사이클 전면 스킵 — 발송 후 기록할 수 없으면 재발송 위험
+        if not sent_conn:
+            print("[뉴스봇v2] DB 없음 — 발송 건너뜀")
+            return
+
         await bot.initialize()
         articles = get_news()
 
-        # 이미 보낸 기사 제외 (파일 기반)
+        # 이미 보낸 기사 제외 (DB 기반 30일 이력)
         new_articles = [a for a in articles if a['link'] not in sent_set]
-
-        if first_run:
-            for art in new_articles:
-                mark_as_sent(sent_list, sent_set, art['link'])
-            save_sent_news(sent_list)
-            print(f"[뉴스봇v2] 첫 실행 — {len(new_articles)}건 기록 (발송 건너뜀)")
-            return
 
         # 제목 유사도 기반 중복 제거 (같은 사건 → 대표 1건, 임계값 강화)
         deduped = _deduplicate_articles(new_articles, threshold=0.55)
@@ -460,7 +486,9 @@ async def send_news():
         new_count = 0
         db_saved = 0
         for art in deduped:
-            mark_as_sent(sent_list, sent_set, art['link'])
+            # sent 이력 기록 — 텔레그램 발송 여부와 무관하게 "이번 사이클에 본 기사"를 기록
+            # (MAX_SEND_PER_CYCLE=3 초과분도 다음 사이클에서 다시 보내지 않음)
+            mark_url_sent_db(sent_conn, art['link'])
 
             # DB 저장: 하루 10건 제한
             if db_saved < remaining_quota:
@@ -469,11 +497,6 @@ async def send_news():
 
             # 텔레그램 발송: 회당 3건 제한
             if new_count < MAX_SEND_PER_CYCLE:
-                # DB 기반 2차 중복 체크 — /tmp 소실 대비 재발송 방지
-                if is_already_sent_db(art['link']):
-                    print(f"⏭️  이미 발송됨(DB): [{art['press']}] {art['title'][:30]}")
-                    continue
-
                 message = format_message(art)
                 try:
                     await bot.send_message(
@@ -489,14 +512,12 @@ async def send_news():
                     print(f"❌ 전송 실패: {e}")
 
                 # nr2.kr 크로스포스팅 (텔레그램과 독립적으로 동작)
-                # crossposted_articles 테이블에 URL 기록 → 다음 사이클 DB pre-check의 근거
                 try:
                     crosspost_to_nr2(art)
                 except Exception as e:
                     print(f"❌ 크로스포스팅 실패: {e}")
 
         _increment_daily_db_count(db_saved)
-        save_sent_news(sent_list)
         print(f"[뉴스봇v2] 완료 — 텔레그램 {new_count}건, DB {db_saved}건 (오늘 총 {daily_count + db_saved}/{MAX_DB_SAVE_PER_DAY}건)")
 
         # 랭킹 기사 수집 (네이버 + 다음 교집합 우선, 나머지도 저장)
@@ -525,6 +546,11 @@ async def send_news():
             await bot.shutdown()
         except Exception as e:
             print(f"[뉴스봇v2] Bot shutdown 경고: {e}")
+        if sent_conn:
+            try:
+                sent_conn.close()
+            except Exception:
+                pass
 
 
 # --- 네이버 랭킹 수집 ---
