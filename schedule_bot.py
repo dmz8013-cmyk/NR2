@@ -27,7 +27,13 @@ ASSEMBLY_TARGETS = [
 ]
 
 def fetch_news1_schedule_url():
-    """네이버 검색 API로 당일 뉴스1 정치 일정 기사 URL 획득 (fallback 쿼리 지원)"""
+    """네이버 검색 API로 당일 뉴스1 정치 일정 기사 URL 획득.
+
+    버그 수정: 제목 필터 없이 첫 news1.kr 매치를 취하면 '주요일정' 키워드만
+    우연히 포함된 무관 기사(예: 잠수함 사업 보도)가 선택됨.
+    → 제목이 '[오늘의 주요일정]' 또는 '주요일정' 패턴을 포함하고,
+      URL 경로가 /politics/ 이하일 때만 선택.
+    """
     client_id = os.environ.get('NAVER_CLIENT_ID')
     client_secret = os.environ.get('NAVER_CLIENT_SECRET')
     if not client_id or not client_secret:
@@ -35,14 +41,26 @@ def fetch_news1_schedule_url():
         return None
 
     queries = [
-        '주요일정 정치',
         '오늘의 주요일정 정치',
         '주요일정 정치 정부',
+        '주요일정 정치',
     ]
     headers = {
         'X-Naver-Client-Id': client_id,
         'X-Naver-Client-Secret': client_secret
     }
+
+    # HTML 태그 스트립용
+    tag_re = re.compile(r'<[^>]+>')
+
+    def is_valid_schedule_article(title_text, origin_url):
+        # 제목에 "주요일정"이 반드시 포함되어야 함 (정치·정부 스케줄 기사 패턴)
+        if '주요일정' not in title_text:
+            return False
+        # URL 경로가 politics 섹션이어야 함 (industry 등 다른 섹션 오매칭 차단)
+        if '/politics/' not in origin_url:
+            return False
+        return True
 
     for query in queries:
         url = f'https://openapi.naver.com/v1/search/news.json?query={urllib.parse.quote(query)}&display=100&sort=date'
@@ -51,14 +69,15 @@ def fetch_news1_schedule_url():
             data = resp.json()
             for item in data.get('items', []):
                 originallink = item.get('originallink', '')
-                if 'news1.kr' in originallink:
-                    logger.info(f"뉴스1 기사 발견 (쿼리: '{query}'): {originallink}")
+                title_text = tag_re.sub('', item.get('title', ''))
+                if 'news1.kr' in originallink and is_valid_schedule_article(title_text, originallink):
+                    logger.info(f"뉴스1 주요일정 기사 발견 (쿼리: '{query}'): {title_text} | {originallink}")
                     return originallink
-            logger.info(f"쿼리 '{query}'에서 news1.kr 기사 없음, 다음 쿼리 시도")
+            logger.info(f"쿼리 '{query}'에서 유효한 news1 주요일정 기사 없음, 다음 쿼리 시도")
         except Exception as e:
             logger.error(f"Naver API error (쿼리: '{query}'): {e}")
 
-    logger.warning("모든 쿼리에서 뉴스1 기사를 찾지 못했습니다.")
+    logger.warning("모든 쿼리에서 뉴스1 주요일정 기사를 찾지 못했습니다.")
     return None
 
 async def parse_schedule_text(url, locator_selector_primary, targets):
@@ -72,7 +91,9 @@ async def parse_schedule_text(url, locator_selector_primary, targets):
             await page.goto(url, wait_until='domcontentloaded', timeout=15000)
             await page.wait_for_timeout(3000) # JS Render 대기
             
-            selectors = [locator_selector_primary, '.detail_body', '#articleBody', '.article_body', '.news_body', '#nowNa-text', 'article']
+            # news1 현재 DOM에서는 '.detail_body' 계열이 미스, 'article'만 히트.
+            # 'article'을 상위로 올려 1차 시도하고, primary가 아직 유효한 경로(국회 #nowNa-text 등)는 유지.
+            selectors = [locator_selector_primary, 'article', '.detail_body', '#articleBody', '.article_body', '.news_body', '#nowNa-text', '#newsContent']
             
             raw_text = ""
             for sel in selectors:
@@ -217,7 +238,14 @@ def _run_schedule_job(bot_token, chat_id, job_name="일정봇"):
         loop.close()
     
     message = format_schedule_message(news1_data, assembly_data)
-    
+
+    # 빈 일정 발송 차단 — news1/국회 섹션에서 실질 내용이 하나도 없으면 중단
+    total_items = sum(len(v) for v in news1_data.values()) + sum(len(v) for v in assembly_data.values())
+    if total_items == 0 or '◇' not in message:
+        logger.warning(f"[{job_name}] 일정 내용 없음 (news1/국회 모두 빈 값) — 발송 중단")
+        print(f"[SKIP] {job_name} 일정 내용 없음 — 발송 중단")
+        return
+
     # 분할 전송 방어 로직
     parts = []
     current = ''
