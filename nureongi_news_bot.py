@@ -80,19 +80,57 @@ def save_article_to_db(art):
     finally:
         conn.close()
 
+SENT_CAP = 2000  # 최대 보관 URL 수 (10분 × 3건 × 24h ≈ 432 → 약 4~5일치)
+SENT_TRIM = 1000  # 초과 시 앞에서 잘라내고 남길 개수 (FIFO)
+
 def load_sent_news():
+    """저장된 URL 이력을 list→(list, set) 튜플로 로드.
+    list는 삽입 순서 보존용, set은 O(1) lookup용.
+    """
     try:
         with open(SENT_FILE, 'r') as f:
-            return set(json.load(f))
-    except:
-        return set()
-
-def save_sent_news(sent):
-    try:
-        with open(SENT_FILE, 'w') as f:
-            json.dump(list(sent)[-500:], f)
-    except:
+            data = json.load(f)
+        if isinstance(data, list):
+            return list(data), set(data)
+    except Exception:
         pass
+    return [], set()
+
+def save_sent_news(sent_list):
+    """list(ordered)로 저장. FIFO로 오래된 항목부터 잘라냄."""
+    try:
+        if len(sent_list) > SENT_CAP:
+            # 앞쪽(오래된 것)부터 잘라내고 최근 SENT_TRIM개만 보존
+            sent_list = sent_list[-SENT_TRIM:]
+        with open(SENT_FILE, 'w') as f:
+            json.dump(sent_list, f)
+    except Exception:
+        pass
+
+def mark_as_sent(sent_list, sent_set, url):
+    """URL을 발송 이력에 추가 (list+set 동기 갱신)."""
+    if url in sent_set:
+        return
+    sent_list.append(url)
+    sent_set.add(url)
+
+def is_already_sent_db(url):
+    """DB 기반 2차 안전망 — 컨테이너 재시작으로 /tmp가 날아가도
+    crossposted_articles 테이블로 재발송 방지.
+    """
+    conn = _get_db_conn()
+    if not conn:
+        return False
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM crossposted_articles WHERE url = %s LIMIT 1", (url,))
+        hit = cur.fetchone() is not None
+        cur.close()
+        return hit
+    except Exception:
+        return False
+    finally:
+        conn.close()
 
 KEYWORDS = [
     "삼성", "SK", "LG", "현대", "AI", "챗GPT", "테슬라", "엔비디아",
@@ -396,20 +434,20 @@ async def send_news():
     # 크로스포스팅 테이블 보장
     _ensure_crosspost_table()
 
-    sent_news = load_sent_news()
-    first_run = len(sent_news) == 0
+    sent_list, sent_set = load_sent_news()
+    first_run = len(sent_set) == 0
     bot = Bot(BOT_TOKEN)
     try:
         await bot.initialize()
         articles = get_news()
 
-        # 이미 보낸 기사 제외
-        new_articles = [a for a in articles if a['link'] not in sent_news]
+        # 이미 보낸 기사 제외 (파일 기반)
+        new_articles = [a for a in articles if a['link'] not in sent_set]
 
         if first_run:
             for art in new_articles:
-                sent_news.add(art['link'])
-            save_sent_news(sent_news)
+                mark_as_sent(sent_list, sent_set, art['link'])
+            save_sent_news(sent_list)
             print(f"[뉴스봇v2] 첫 실행 — {len(new_articles)}건 기록 (발송 건너뜀)")
             return
 
@@ -422,7 +460,7 @@ async def send_news():
         new_count = 0
         db_saved = 0
         for art in deduped:
-            sent_news.add(art['link'])
+            mark_as_sent(sent_list, sent_set, art['link'])
 
             # DB 저장: 하루 10건 제한
             if db_saved < remaining_quota:
@@ -431,6 +469,11 @@ async def send_news():
 
             # 텔레그램 발송: 회당 3건 제한
             if new_count < MAX_SEND_PER_CYCLE:
+                # DB 기반 2차 중복 체크 — /tmp 소실 대비 재발송 방지
+                if is_already_sent_db(art['link']):
+                    print(f"⏭️  이미 발송됨(DB): [{art['press']}] {art['title'][:30]}")
+                    continue
+
                 message = format_message(art)
                 try:
                     await bot.send_message(
@@ -446,13 +489,14 @@ async def send_news():
                     print(f"❌ 전송 실패: {e}")
 
                 # nr2.kr 크로스포스팅 (텔레그램과 독립적으로 동작)
+                # crossposted_articles 테이블에 URL 기록 → 다음 사이클 DB pre-check의 근거
                 try:
                     crosspost_to_nr2(art)
                 except Exception as e:
                     print(f"❌ 크로스포스팅 실패: {e}")
 
         _increment_daily_db_count(db_saved)
-        save_sent_news(sent_news)
+        save_sent_news(sent_list)
         print(f"[뉴스봇v2] 완료 — 텔레그램 {new_count}건, DB {db_saved}건 (오늘 총 {daily_count + db_saved}/{MAX_DB_SAVE_PER_DAY}건)")
 
         # 랭킹 기사 수집 (네이버 + 다음 교집합 우선, 나머지도 저장)
