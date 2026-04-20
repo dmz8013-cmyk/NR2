@@ -134,24 +134,26 @@ async def fetch_article_text(url):
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
-            await page.goto(url, wait_until='domcontentloaded', timeout=15000)
-            
-            content = ""
-            if "naver.com" in url:
-                elem = await page.query_selector("#dic_area")
-                if elem:
-                    content = await elem.inner_text()
-            
-            if not content:
-                paragraphs = await page.query_selector_all("p")
-                text_blocks = []
-                for p_elem in paragraphs:
-                    text_blocks.append(await p_elem.inner_text())
-                content = "\n".join(text_blocks)
-                
-            await browser.close()
-            return content.strip()
+            try:
+                page = await browser.new_page()
+                await page.goto(url, wait_until='domcontentloaded', timeout=15000)
+
+                content = ""
+                if "naver.com" in url:
+                    elem = await page.query_selector("#dic_area")
+                    if elem:
+                        content = await elem.inner_text()
+
+                if not content:
+                    paragraphs = await page.query_selector_all("p")
+                    text_blocks = []
+                    for p_elem in paragraphs:
+                        text_blocks.append(await p_elem.inner_text())
+                    content = "\n".join(text_blocks)
+
+                return content.strip()
+            finally:
+                await browser.close()
     except Exception as e:
         logger.error(f"본문 로드 오류 ({url}): {e}")
         return ""
@@ -307,7 +309,15 @@ async def run_candidate_tracker_async():
     logger.info("후보 현황 트래커 작업 완료.")
 
 def check_candidate_changes():
-    asyncio.run(run_candidate_tracker_async())
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(run_candidate_tracker_async())
+    finally:
+        try:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        except Exception:
+            pass
+        loop.close()
 
 if __name__ == "__main__":
     check_candidate_changes()

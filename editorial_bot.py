@@ -17,6 +17,24 @@ import asyncio
 
 logger = logging.getLogger(__name__)
 
+
+def _run_async(coro):
+    """asyncio.run 대체: event loop를 명시적으로 생성/종료해 자원 누수를 방지.
+
+    asyncio.run()은 내부에서 shutdown_default_executor()가 새 스레드를 시작하는데,
+    워커 프로세스가 스레드 포화 상태면 여기서 RuntimeError('can't start new thread')가 발생한다.
+    명시적으로 loop를 관리하면 누수 원인이 되는 executor/asyncgen 정리 단계를 통제할 수 있다.
+    """
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        try:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        except Exception:
+            pass
+        loop.close()
+
 BOT_TOKEN = os.environ.get('SCRAP_BOT_TOKEN')
 CHAT_ID = os.environ.get('SCRAP_CHAT_ID', '5132309076')
 
@@ -141,35 +159,35 @@ async def fetch_naver_editorials(target_papers):
     try:
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
-            
-            for date_str in dates:
-                url = f"https://news.naver.com/opinion/editorial?date={date_str}"
-                page = await browser.new_page(
-                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36"
-                )
-                await page.goto(url, wait_until="networkidle", timeout=30000)
-                for _ in range(15):
-                    await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                    await page.wait_for_timeout(800)
-                html = await page.content()
-                await page.close()
-                
-                soup = BeautifulSoup(html, "html.parser")
-                for item in soup.find_all(class_='opinion_editorial_item'):
-                    press_tag = item.find(class_='press_name')
-                    if not press_tag:
-                        continue
-                    press_name = press_tag.get_text(strip=True)
-                    
-                    if press_name in target_papers:
-                        desc_tag = item.find(class_='description')
-                        if desc_tag:
-                            title = _clean_title(desc_tag.get_text(strip=True))
-                            if title and len(results[press_name]) < 3:
-                                if title not in results[press_name]:
-                                    results[press_name].append(title)
-            
-            await browser.close()
+            try:
+                for date_str in dates:
+                    url = f"https://news.naver.com/opinion/editorial?date={date_str}"
+                    page = await browser.new_page(
+                        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36"
+                    )
+                    await page.goto(url, wait_until="networkidle", timeout=30000)
+                    for _ in range(15):
+                        await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                        await page.wait_for_timeout(800)
+                    html = await page.content()
+                    await page.close()
+
+                    soup = BeautifulSoup(html, "html.parser")
+                    for item in soup.find_all(class_='opinion_editorial_item'):
+                        press_tag = item.find(class_='press_name')
+                        if not press_tag:
+                            continue
+                        press_name = press_tag.get_text(strip=True)
+
+                        if press_name in target_papers:
+                            desc_tag = item.find(class_='description')
+                            if desc_tag:
+                                title = _clean_title(desc_tag.get_text(strip=True))
+                                if title and len(results[press_name]) < 3:
+                                    if title not in results[press_name]:
+                                        results[press_name].append(title)
+            finally:
+                await browser.close()
     except Exception as e:
         logger.error(f"Playwright 에러: {e}")
         
@@ -269,8 +287,8 @@ def send_editorial():
     if papers_to_fallback:
         target_names = [name for _, name, _ in papers_to_fallback]
         print(f"\n[Playwright] 네이버 사설 페이지 보완 수집 시작: {target_names}")
-        fallback_res = asyncio.run(fetch_naver_editorials(target_names))
-        
+        fallback_res = _run_async(fetch_naver_editorials(target_names))
+
         for category, name, p in papers_to_fallback:
             added_titles = fallback_res.get(name, [])
             rows = editorials[category]
@@ -368,7 +386,7 @@ def send_editorial_nureongi():
 
     if papers_to_fallback:
         target_names = [name for _, name, _ in papers_to_fallback]
-        fallback_res = asyncio.run(fetch_naver_editorials(target_names))
+        fallback_res = _run_async(fetch_naver_editorials(target_names))
         for category, name, p in papers_to_fallback:
             added_titles = fallback_res.get(name, [])
             rows = editorials[category]

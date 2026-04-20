@@ -399,79 +399,88 @@ async def send_news():
     sent_news = load_sent_news()
     first_run = len(sent_news) == 0
     bot = Bot(BOT_TOKEN)
-    articles = get_news()
-
-    # 이미 보낸 기사 제외
-    new_articles = [a for a in articles if a['link'] not in sent_news]
-
-    if first_run:
-        for art in new_articles:
-            sent_news.add(art['link'])
-        save_sent_news(sent_news)
-        print(f"[뉴스봇v2] 첫 실행 — {len(new_articles)}건 기록 (발송 건너뜀)")
-        return
-
-    # 제목 유사도 기반 중복 제거 (같은 사건 → 대표 1건, 임계값 강화)
-    deduped = _deduplicate_articles(new_articles, threshold=0.55)
-    daily_count = _get_daily_db_count()
-    remaining_quota = max(0, MAX_DB_SAVE_PER_DAY - daily_count)
-    print(f"[뉴스봇v2] 신규 {len(new_articles)}건 → 중복제거 {len(deduped)}건 → 일일잔여 {remaining_quota}건")
-
-    new_count = 0
-    db_saved = 0
-    for art in deduped:
-        sent_news.add(art['link'])
-
-        # DB 저장: 하루 10건 제한
-        if db_saved < remaining_quota:
-            save_article_to_db(art)
-            db_saved += 1
-
-        # 텔레그램 발송: 회당 3건 제한
-        if new_count < MAX_SEND_PER_CYCLE:
-            message = format_message(art)
-            try:
-                await bot.send_message(
-                    CHAT_ID, message,
-                    parse_mode="HTML",
-                    disable_web_page_preview=True
-                )
-                tag = "🚨속보" if art['is_breaking'] else "📰"
-                print(f"✅ {tag} [{art['press']}] {art['title'][:30]}")
-                new_count += 1
-                await asyncio.sleep(2)
-            except Exception as e:
-                print(f"❌ 전송 실패: {e}")
-
-            # nr2.kr 크로스포스팅 (텔레그램과 독립적으로 동작)
-            try:
-                crosspost_to_nr2(art)
-            except Exception as e:
-                print(f"❌ 크로스포스팅 실패: {e}")
-
-    _increment_daily_db_count(db_saved)
-    save_sent_news(sent_news)
-    print(f"[뉴스봇v2] 완료 — 텔레그램 {new_count}건, DB {db_saved}건 (오늘 총 {daily_count + db_saved}/{MAX_DB_SAVE_PER_DAY}건)")
-
-    # 랭킹 기사 수집 (네이버 + 다음 교집합 우선, 나머지도 저장)
     try:
-        naver_ranking = fetch_naver_ranking()
-        daum_ranking = fetch_daum_ranking()
-        cross = cross_platform_ranking(naver_ranking, daum_ranking)
+        await bot.initialize()
+        articles = get_news()
 
-        # 교집합 기사 우선 저장
-        for art in cross:
-            save_ranking_to_db(art)
+        # 이미 보낸 기사 제외
+        new_articles = [a for a in articles if a['link'] not in sent_news]
 
-        # 나머지 네이버 랭킹도 저장
-        cross_links = {a['link'] for a in cross}
-        for art in naver_ranking:
-            if art['link'] not in cross_links:
+        if first_run:
+            for art in new_articles:
+                sent_news.add(art['link'])
+            save_sent_news(sent_news)
+            print(f"[뉴스봇v2] 첫 실행 — {len(new_articles)}건 기록 (발송 건너뜀)")
+            return
+
+        # 제목 유사도 기반 중복 제거 (같은 사건 → 대표 1건, 임계값 강화)
+        deduped = _deduplicate_articles(new_articles, threshold=0.55)
+        daily_count = _get_daily_db_count()
+        remaining_quota = max(0, MAX_DB_SAVE_PER_DAY - daily_count)
+        print(f"[뉴스봇v2] 신규 {len(new_articles)}건 → 중복제거 {len(deduped)}건 → 일일잔여 {remaining_quota}건")
+
+        new_count = 0
+        db_saved = 0
+        for art in deduped:
+            sent_news.add(art['link'])
+
+            # DB 저장: 하루 10건 제한
+            if db_saved < remaining_quota:
+                save_article_to_db(art)
+                db_saved += 1
+
+            # 텔레그램 발송: 회당 3건 제한
+            if new_count < MAX_SEND_PER_CYCLE:
+                message = format_message(art)
+                try:
+                    await bot.send_message(
+                        CHAT_ID, message,
+                        parse_mode="HTML",
+                        disable_web_page_preview=True
+                    )
+                    tag = "🚨속보" if art['is_breaking'] else "📰"
+                    print(f"✅ {tag} [{art['press']}] {art['title'][:30]}")
+                    new_count += 1
+                    await asyncio.sleep(2)
+                except Exception as e:
+                    print(f"❌ 전송 실패: {e}")
+
+                # nr2.kr 크로스포스팅 (텔레그램과 독립적으로 동작)
+                try:
+                    crosspost_to_nr2(art)
+                except Exception as e:
+                    print(f"❌ 크로스포스팅 실패: {e}")
+
+        _increment_daily_db_count(db_saved)
+        save_sent_news(sent_news)
+        print(f"[뉴스봇v2] 완료 — 텔레그램 {new_count}건, DB {db_saved}건 (오늘 총 {daily_count + db_saved}/{MAX_DB_SAVE_PER_DAY}건)")
+
+        # 랭킹 기사 수집 (네이버 + 다음 교집합 우선, 나머지도 저장)
+        try:
+            naver_ranking = fetch_naver_ranking()
+            daum_ranking = fetch_daum_ranking()
+            cross = cross_platform_ranking(naver_ranking, daum_ranking)
+
+            # 교집합 기사 우선 저장
+            for art in cross:
                 save_ranking_to_db(art)
 
-        print(f"[랭킹] 완료 — 네이버 {len(naver_ranking)}건, 다음 {len(daum_ranking)}건, 교집합 {len(cross)}건")
-    except Exception as e:
-        print(f"[랭킹] 수집 오류: {e}")
+            # 나머지 네이버 랭킹도 저장
+            cross_links = {a['link'] for a in cross}
+            for art in naver_ranking:
+                if art['link'] not in cross_links:
+                    save_ranking_to_db(art)
+
+            print(f"[랭킹] 완료 — 네이버 {len(naver_ranking)}건, 다음 {len(daum_ranking)}건, 교집합 {len(cross)}건")
+        except Exception as e:
+            print(f"[랭킹] 수집 오류: {e}")
+    finally:
+        # python-telegram-bot Bot은 httpx AsyncClient를 통해 백그라운드 스레드/커넥션을 쥐고 있음.
+        # 매 호출마다 명시적으로 shutdown 하지 않으면 워커 프로세스에 thread/fd가 누적돼 "can't start new thread" 발생.
+        try:
+            await bot.shutdown()
+        except Exception as e:
+            print(f"[뉴스봇v2] Bot shutdown 경고: {e}")
 
 
 # --- 네이버 랭킹 수집 ---
@@ -658,7 +667,15 @@ def save_ranking_to_db(art):
 
 
 def run_news_bot():
-    asyncio.run(send_news())
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(send_news())
+    finally:
+        try:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        except Exception:
+            pass
+        loop.close()
 
 
 def run_ranking_collector():

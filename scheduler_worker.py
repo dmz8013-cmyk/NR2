@@ -4,6 +4,7 @@ APScheduler 스케줄러 워커 - Railway worker 서비스 전용
 import os
 import logging
 from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.executors.pool import ThreadPoolExecutor
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,7 +32,10 @@ from aesa_monitoring_bot import process_rss_feeds, send_batch_alerts, flush_nigh
 from poll_tracker import run_poll_tracker, check_basic_polls
 from candidate_tracker import check_candidate_changes
 
-scheduler = BlockingScheduler(timezone='Asia/Seoul')
+executors = {
+    'default': ThreadPoolExecutor(max_workers=3)
+}
+scheduler = BlockingScheduler(executors=executors, timezone='Asia/Seoul')
 INTERVAL_MINUTES = int(os.environ.get('YOUTUBE_CHECK_INTERVAL', 10))
 
 # [비활성화] AESA 게시판에 이준석 관련 등 중복 글 자동생성 문제로 비활성화

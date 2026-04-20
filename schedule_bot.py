@@ -192,24 +192,29 @@ def format_schedule_message(news1_data, assembly_data):
 
 def _run_schedule_job(bot_token, chat_id, job_name="일정봇"):
     logger.info(f"=== {job_name} 시작 ===")
-    
+
     news1_url = fetch_news1_schedule_url()
-    
+
+    # 명시적 loop 생성 후 try/finally로 반드시 close — Playwright 서브프로세스 누수 방지.
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    
-    news1_data = {t: [] for t in NEWS1_TARGETS}
-    if news1_url:
-        logger.info(f"파싱 시작: News1 ({news1_url})")
-        news1_data = loop.run_until_complete(parse_schedule_text(news1_url, '.detail_body', NEWS1_TARGETS))
-    else:
-        logger.warning("뉴스1 일정 기사를 찾지 못했습니다.")
-        
-    logger.info("파싱 시작: 국회 (https://assembly.go.kr/portal/main/main.do)")
-    assembly_url = 'https://assembly.go.kr/portal/main/main.do'
-    assembly_data = loop.run_until_complete(parse_schedule_text(assembly_url, '#nowNa-text', ASSEMBLY_TARGETS))
-    
-    loop.close()
+    try:
+        news1_data = {t: [] for t in NEWS1_TARGETS}
+        if news1_url:
+            logger.info(f"파싱 시작: News1 ({news1_url})")
+            news1_data = loop.run_until_complete(parse_schedule_text(news1_url, '.detail_body', NEWS1_TARGETS))
+        else:
+            logger.warning("뉴스1 일정 기사를 찾지 못했습니다.")
+
+        logger.info("파싱 시작: 국회 (https://assembly.go.kr/portal/main/main.do)")
+        assembly_url = 'https://assembly.go.kr/portal/main/main.do'
+        assembly_data = loop.run_until_complete(parse_schedule_text(assembly_url, '#nowNa-text', ASSEMBLY_TARGETS))
+    finally:
+        try:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        except Exception:
+            pass
+        loop.close()
     
     message = format_schedule_message(news1_data, assembly_data)
     
