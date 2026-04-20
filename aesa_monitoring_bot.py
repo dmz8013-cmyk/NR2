@@ -375,13 +375,13 @@ def process_rss_feeds():
                                 lenses=lenses, korea_link=korea_link,
                                 is_urgent=True, korea_insight=korea_insight
                             )
-                            # Threads 초안 생성 및 발송
+                            # Threads 초안 생성 및 발송 (SOB Scrap 채널 전용)
                             threads_draft = generate_threads_draft(title, summary, lenses, url)
                             if threads_draft:
                                 threads_msg = f"✍️ *Threads 초안 (복사용)*\n"
                                 threads_msg += "━" * 20 + "\n\n"
                                 threads_msg += threads_draft
-                                _send_telegram_raw(threads_msg)
+                                _send_threads_draft(threads_msg)
                             source_stats['urgent_sent'] += 1
                         except Exception as tg_err:
                             logger.error(f"[AESA] 긴급 텔레그램 발송 실패 (id={article.id}): {tg_err}")
@@ -481,6 +481,25 @@ def _send_telegram_raw(text):
         )
     except Exception as e:
         logger.error(f"Telegram raw send error: {e}")
+
+
+def _send_threads_draft(text):
+    """Threads 초안 전용 — SOB Scrap 채널로 발송.
+    AESA 공용 채널(@nr2aesa)과 분리하여 PD 작업용 초안만 모으는 채널.
+    """
+    bot_token = os.environ.get('SCRAP_BOT_TOKEN')
+    chat_id = os.environ.get('SCRAP_CHAT_ID', '5132309076')
+    if not bot_token:
+        logger.warning("[Threads] SCRAP_BOT_TOKEN 미설정 — 초안 발송 건너뜀")
+        return
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{bot_token}/sendMessage",
+            json={'chat_id': chat_id, 'text': text, 'parse_mode': 'Markdown'},
+            timeout=10
+        )
+    except Exception as e:
+        logger.error(f"[Threads] SOB Scrap 발송 오류: {e}")
 
 
 def send_telegram_alert(source, title, url, score, summary,
