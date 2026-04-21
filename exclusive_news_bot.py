@@ -20,8 +20,6 @@ KST = pytz.timezone('Asia/Seoul')
 
 BOT_TOKEN_SCRAP = os.environ.get('SCRAP_BOT_TOKEN')
 CHAT_ID_SCRAP = os.environ.get('SCRAP_CHAT_ID', '5132309076')
-BOT_TOKEN_NR = os.environ.get('NUREONGI_NEWS_BOT_TOKEN')
-CHAT_ID_NR = '@gazzzza2025'
 
 NAVER_API_URL = 'https://openapi.naver.com/v1/search/news.json'
 BULY_SHORTEN_URL = 'https://buly.kr/api/shorten'
@@ -167,29 +165,57 @@ def classify_category(title, description=''):
 
 
 def shorten_url(long_url):
-    """buly.kr로 단축 시도. 실패 시 원본 URL 반환.
+    """buly.kr API로 단축 시도. 실패 시 원본 URL 반환.
 
-    buly.kr는 현재 공개 JSON API가 없어 대체로 실패할 것임을 가정.
-    최초 호출이 실패하면 이번 사이클 동안 단축기 비활성화(성능 보호).
+    BULY_API_KEY 환경변수가 있을 때만 시도. 여러 엔드포인트를 순서대로
+    시도하다 JSON/텍스트 응답이 http URL이면 단축 성공으로 판단.
+    최초 호출이 완전히 실패하면 이번 사이클 동안 단축기 비활성화(성능 보호).
     """
     global _shortener_disabled
     if _shortener_disabled or not long_url:
         return long_url
+
+    api_key = os.environ.get('BULY_API_KEY')
+    if not api_key:
+        _shortener_disabled = True
+        logger.info('BULY_API_KEY 미설정 — 단축 비활성화, 원본 URL 사용')
+        return long_url
+
+    endpoints = [
+        f'https://buly.kr/api/shorten?url={long_url}&apikey={api_key}',
+        f'https://buly.kr/api?url={long_url}&key={api_key}',
+        f'https://buly.kr/api/create?url={long_url}&apikey={api_key}',
+    ]
+
     try:
-        resp = requests.get(BULY_SHORTEN_URL, params={'url': long_url}, timeout=3)
-        if resp.status_code == 200:
-            ct = resp.headers.get('content-type', '')
-            if 'json' in ct.lower():
+        for endpoint in endpoints:
+            resp = requests.get(endpoint, timeout=5)
+            if resp.status_code != 200:
+                continue
+            # JSON 시도
+            try:
                 data = resp.json()
-                short = data.get('shortUrl') or data.get('short_url')
-                if short and short.startswith('http'):
+                data_obj = data.get('data') if isinstance(data, dict) else None
+                short = (
+                    data.get('shortUrl')
+                    or data.get('short_url')
+                    or data.get('url')
+                    or data.get('result')
+                    or (data_obj.get('url') if isinstance(data_obj, dict) else None)
+                )
+                if short and isinstance(short, str) and short.startswith('http'):
                     return short
-        # JSON이 아니거나 비정상 응답 — 단축기 비활성화
-        _shortener_disabled = True
-        logger.info('buly.kr 단축 API 비활성화 — 원본 URL 사용')
+            except ValueError:
+                # JSON 아님 — 본문이 http URL 한 줄이면 그걸 사용
+                body = resp.text.strip()
+                if body.startswith('http') and '\n' not in body and len(body) < 200:
+                    return body
     except Exception as e:
-        _shortener_disabled = True
-        logger.info(f'buly.kr 단축 실패, 원본 URL 사용: {e}')
+        logger.info(f'buly.kr 단축 실패: {e}')
+
+    # 모든 엔드포인트 실패 — 이번 사이클 단축 포기
+    _shortener_disabled = True
+    logger.info('buly.kr 단축 API 비활성화 — 이번 사이클 원본 URL 사용')
     return long_url
 
 
@@ -361,7 +387,7 @@ def _send_telegram(token, chat_id, text, channel_label):
 
 
 def send_exclusive_news():
-    """단독 뉴스 오전판 — SOB Scrap + 누렁이 정보방 동시 발송."""
+    """단독 뉴스 오전판 — SOB Scrap 채널 발송."""
     logger.info('=== 단독 뉴스 오전판 시작 ===')
     items = fetch_exclusive_news()
     logger.info(f'수집 결과: {len(items)}건')
@@ -369,7 +395,6 @@ def send_exclusive_news():
     message = format_exclusive_message(items)
 
     _send_telegram(BOT_TOKEN_SCRAP, CHAT_ID_SCRAP, message, 'SOB Scrap')
-    _send_telegram(BOT_TOKEN_NR, CHAT_ID_NR, message, '누렁이 정보방')
 
     logger.info('=== 단독 뉴스 오전판 종료 ===')
 
