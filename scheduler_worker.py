@@ -26,6 +26,7 @@ from schedule_bot import send_schedule, send_schedule_nureongi
 from vip_alert_bot import run_vip_alert
 from app.utils.bias_report import generate_weekly_report, send_weekly_report_to_telegram
 from scripts.daily_scrap import run as daily_scrap_run
+from exclusive_news_bot import send_exclusive_news
 from nr2_web_bot import poll_commands, send_youcheck_daily
 from weekly_briefing import send_weekly_briefing
 from aesa_monitoring_bot import process_rss_feeds, send_batch_alerts, flush_nighttime_queue, send_daily_summary_email, send_daily_content_report
@@ -117,6 +118,13 @@ def daily_scrap_morning():
 def daily_scrap_afternoon():
     logger.info('[Scheduler] 단독 뉴스 스크랩 — 오후판 실행 중...')
     daily_scrap_run('afternoon')
+
+@scheduler.scheduled_job('cron', hour=7, minute=31, id='exclusive_news_job', timezone='Asia/Seoul',
+                          coalesce=True, max_instances=1)
+def exclusive_news_job():
+    """매일 오전 07:31 KST — 단독 뉴스 오전판 SOB Scrap + 누렁이 정보방 동시 발송"""
+    logger.info('[Scheduler] 단독 뉴스 오전판 봇 실행 중...')
+    send_exclusive_news()
 
 @scheduler.scheduled_job('interval', minutes=1, id='web_bot_poll',
                           coalesce=True, max_instances=1)
