@@ -24,7 +24,6 @@ BOT_TOKEN_SCRAP = os.environ.get('SCRAP_BOT_TOKEN')
 CHAT_ID_SCRAP = os.environ.get('SCRAP_CHAT_ID', '5132309076')
 
 NAVER_API_URL = 'https://openapi.naver.com/v1/search/news.json'
-TINYURL_API = 'https://tinyurl.com/api-create.php'
 TELEGRAM_API = 'https://api.telegram.org/bot{token}/sendMessage'
 TELEGRAM_LIMIT = 4096
 
@@ -134,23 +133,15 @@ def classify_category(title, description=''):
     return '📌 기타'
 
 
+from scripts.url_shortener import shorten_url as _shorten_url
+
 def shorten_url(long_url):
-    """TinyURL API로 단축 — 키 불필요, Railway 호환 확인됨"""
+    """nr2.kr/s/ API로 단축"""
     if not long_url:
         return long_url
     try:
-        encoded = quote(long_url, safe='')
-        resp = requests.get(
-            f'{TINYURL_API}?url={encoded}',
-            timeout=10,
-            headers={'User-Agent': 'SOBProduction/1.0'}
-        )
-        if resp.status_code == 200 and resp.text.strip().startswith('http'):
-            result = resp.text.strip()
-            print(f'[단축] 성공: {result}')
-            return result
-        else:
-            print(f'[단축] 실패 - 상태코드: {resp.status_code}, 응답: {resp.text[:100]}')
+        short = _shorten_url(long_url, source_bot='exclusive_morning')
+        return short if short else long_url
     except Exception as e:
         print(f'[단축] 예외: {type(e).__name__}: {e}')
     return long_url
