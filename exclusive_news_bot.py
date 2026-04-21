@@ -22,7 +22,7 @@ BOT_TOKEN_SCRAP = os.environ.get('SCRAP_BOT_TOKEN')
 CHAT_ID_SCRAP = os.environ.get('SCRAP_CHAT_ID', '5132309076')
 
 NAVER_API_URL = 'https://openapi.naver.com/v1/search/news.json'
-BULY_SHORTEN_URL = 'https://buly.kr/api/shorten'
+LRL_SHORTEN_URL = 'https://lrl.kr/api/v4/'
 TELEGRAM_API = 'https://api.telegram.org/bot{token}/sendMessage'
 TELEGRAM_LIMIT = 4096
 
@@ -165,57 +165,40 @@ def classify_category(title, description=''):
 
 
 def shorten_url(long_url):
-    """buly.kr API로 단축 시도. 실패 시 원본 URL 반환.
+    """lrl.kr API로 단축 시도. 실패 시 원본 URL 반환.
 
-    BULY_API_KEY 환경변수가 있을 때만 시도. 여러 엔드포인트를 순서대로
-    시도하다 JSON/텍스트 응답이 http URL이면 단축 성공으로 판단.
-    최초 호출이 완전히 실패하면 이번 사이클 동안 단축기 비활성화(성능 보호).
+    POST https://lrl.kr/api/v4/ body: {"url": long_url}
+    응답: {"result": {"url": "https://lrl.kr/xxxxxx"}}
+
+    최초 호출이 실패하면 이번 사이클 동안 단축기 비활성화(성능 보호).
     """
     global _shortener_disabled
     if _shortener_disabled or not long_url:
         return long_url
-
-    api_key = os.environ.get('BULY_API_KEY')
-    if not api_key:
-        _shortener_disabled = True
-        logger.info('BULY_API_KEY 미설정 — 단축 비활성화, 원본 URL 사용')
-        return long_url
-
-    endpoints = [
-        f'https://buly.kr/api/shorten?url={long_url}&apikey={api_key}',
-        f'https://buly.kr/api?url={long_url}&key={api_key}',
-        f'https://buly.kr/api/create?url={long_url}&apikey={api_key}',
-    ]
-
     try:
-        for endpoint in endpoints:
-            resp = requests.get(endpoint, timeout=5)
-            if resp.status_code != 200:
-                continue
-            # JSON 시도
+        resp = requests.post(LRL_SHORTEN_URL, json={'url': long_url}, timeout=5)
+        if resp.status_code == 200:
             try:
                 data = resp.json()
-                data_obj = data.get('data') if isinstance(data, dict) else None
-                short = (
-                    data.get('shortUrl')
-                    or data.get('short_url')
-                    or data.get('url')
-                    or data.get('result')
-                    or (data_obj.get('url') if isinstance(data_obj, dict) else None)
-                )
-                if short and isinstance(short, str) and short.startswith('http'):
-                    return short
             except ValueError:
-                # JSON 아님 — 본문이 http URL 한 줄이면 그걸 사용
-                body = resp.text.strip()
-                if body.startswith('http') and '\n' not in body and len(body) < 200:
-                    return body
+                data = None
+            if isinstance(data, dict):
+                result = data.get('result')
+                short = None
+                if isinstance(result, dict):
+                    short = result.get('url')
+                elif isinstance(result, str):
+                    short = result
+                if not short:
+                    # 대체 응답 형태 대비
+                    short = data.get('url') or data.get('shortUrl') or data.get('short_url')
+                if isinstance(short, str) and short.startswith('http'):
+                    return short
     except Exception as e:
-        logger.info(f'buly.kr 단축 실패: {e}')
+        logger.info(f'lrl.kr 단축 실패: {e}')
 
-    # 모든 엔드포인트 실패 — 이번 사이클 단축 포기
     _shortener_disabled = True
-    logger.info('buly.kr 단축 API 비활성화 — 이번 사이클 원본 URL 사용')
+    logger.info('lrl.kr 단축 API 비활성화 — 이번 사이클 원본 URL 사용')
     return long_url
 
 
