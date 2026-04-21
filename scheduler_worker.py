@@ -3,6 +3,8 @@ APScheduler 스케줄러 워커 - Railway worker 서비스 전용
 """
 import os
 import logging
+from datetime import datetime, timedelta
+import pytz
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
 
@@ -201,6 +203,17 @@ def basic_poll_tracker_job():
 # def youtube_api_job():
 #     logger.info('[Scheduler] YouTube API v3 새 영상 확인 중...')
 #     check_and_post_new_videos_api(app)
+
+# [임시 검증] TinyURL 교체 검증용 — 컨테이너 기동 2분 후 1회 실행
+_TEST_KST = pytz.timezone('Asia/Seoul')
+scheduler.add_job(
+    send_exclusive_news,
+    'date',
+    run_date=datetime.now(_TEST_KST) + timedelta(minutes=2),
+    id='exclusive_news_job_test',
+    max_instances=1,
+    misfire_grace_time=300,
+)
 
 if __name__ == '__main__':
     logger.info('[Scheduler] 시작')

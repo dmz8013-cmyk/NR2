@@ -9,7 +9,7 @@ import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
 from email.utils import parsedate_to_datetime
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 
 import pytz
 import requests
@@ -22,7 +22,7 @@ BOT_TOKEN_SCRAP = os.environ.get('SCRAP_BOT_TOKEN')
 CHAT_ID_SCRAP = os.environ.get('SCRAP_CHAT_ID', '5132309076')
 
 NAVER_API_URL = 'https://openapi.naver.com/v1/search/news.json'
-LRL_SHORTEN_URL = 'https://lrl.kr/api/v4/'
+TINYURL_API = 'https://tinyurl.com/api-create.php'
 TELEGRAM_API = 'https://api.telegram.org/bot{token}/sendMessage'
 TELEGRAM_LIMIT = 4096
 
@@ -106,9 +106,6 @@ PRESS_MAP = {
 
 _TAG_RE = re.compile(r'<[^>]+>')
 
-# buly.kr 공개 API가 없어 연속 실패 시 이번 사이클은 단축을 포기 (원본 링크 사용).
-_shortener_disabled = False
-
 
 def clean_html(text):
     """네이버 API 문자열의 <b> 태그 + HTML 엔티티 제거."""
@@ -165,51 +162,29 @@ def classify_category(title, description=''):
 
 
 def shorten_url(long_url):
-    """lrl.kr API로 단축 시도. 실패 시 원본 URL 반환.
-
-    POST https://lrl.kr/api/v4/ body: {"url": long_url}
-    응답: {"result": {"url": "https://lrl.kr/xxxxxx"}}
-
-    최초 호출이 실패하면 이번 사이클 동안 단축기 비활성화(성능 보호).
-    """
-    global _shortener_disabled
-    if _shortener_disabled or not long_url:
+    """TinyURL API로 단축 — 키 불필요, Railway 호환 확인됨"""
+    if not long_url:
         return long_url
     try:
-        resp = requests.post(LRL_SHORTEN_URL, json={'url': long_url}, timeout=5)
-        logger.info(f'[단축] 상태코드: {resp.status_code}')
-        logger.info(f'[단축] 응답: {resp.text[:200]}')
-        if resp.status_code in (200, 201):
-            try:
-                data = resp.json()
-            except ValueError:
-                data = None
-            if isinstance(data, dict):
-                result = data.get('result')
-                short = None
-                if isinstance(result, dict):
-                    short = result.get('url')
-                elif isinstance(result, str):
-                    short = result
-                if not short:
-                    # 대체 응답 형태 대비
-                    short = data.get('url') or data.get('shortUrl') or data.get('short_url')
-                if isinstance(short, str) and short.startswith('http'):
-                    logger.info(f'[단축] 성공: {short}')
-                    return short
+        encoded = quote(long_url, safe='')
+        resp = requests.get(
+            f'{TINYURL_API}?url={encoded}',
+            timeout=10,
+            headers={'User-Agent': 'SOBProduction/1.0'}
+        )
+        if resp.status_code == 200 and resp.text.strip().startswith('http'):
+            result = resp.text.strip()
+            print(f'[단축] 성공: {result}')
+            return result
+        else:
+            print(f'[단축] 실패 - 상태코드: {resp.status_code}, 응답: {resp.text[:100]}')
     except Exception as e:
-        logger.info(f'[단축] 실패: {type(e).__name__}: {e}')
-
-    _shortener_disabled = True
-    logger.info('lrl.kr 단축 API 비활성화 — 이번 사이클 원본 URL 사용')
+        print(f'[단축] 예외: {type(e).__name__}: {e}')
     return long_url
 
 
 def fetch_exclusive_news():
     """네이버 뉴스 검색 API로 [단독] 기사 수집 → 시간 필터링."""
-    global _shortener_disabled
-    _shortener_disabled = False  # 매 실행 초기화
-
     client_id = os.environ.get('NAVER_CLIENT_ID')
     client_secret = os.environ.get('NAVER_CLIENT_SECRET')
     if not client_id or not client_secret:
