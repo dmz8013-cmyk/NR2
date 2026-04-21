@@ -128,6 +128,9 @@ def create_app(config_name='default'):
     from app.routes.dashboard_routes import dashboard_bp
     app.register_blueprint(dashboard_bp)
 
+    from app.routes import shortener
+    app.register_blueprint(shortener.bp)
+
     # KST 시간대 Jinja2 필터
     KST = timezone(timedelta(hours=9))
     def format_kst(dt, fmt='%Y-%m-%d %H:%M'):

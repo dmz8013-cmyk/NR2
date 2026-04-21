@@ -20,7 +20,7 @@ import requests
 
 from app import db
 from app.models.url_shortener import URLShortener, URLClickLog
-from app.utils.press_map import extract_press, extract_domain
+from app.utils.press_map import resolve_press_name, extract_domain
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +110,7 @@ def shorten_url(original_url, source_bot=None, user_id=None,
 
         title = _extract_og_title(original_url)
         domain = extract_domain(original_url)
-        press_name = extract_press(original_url)
+        press_name = resolve_press_name(original_url)
 
         row = URLShortener(
             code=code,
