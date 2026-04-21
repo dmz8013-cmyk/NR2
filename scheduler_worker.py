@@ -3,8 +3,6 @@ APScheduler 스케줄러 워커 - Railway worker 서비스 전용
 """
 import os
 import logging
-from datetime import datetime, timedelta
-import pytz
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
 
@@ -121,13 +119,10 @@ def daily_scrap_afternoon():
     logger.info('[Scheduler] 단독 뉴스 스크랩 — 오후판 실행 중...')
     daily_scrap_run('afternoon')
 
-_KST = pytz.timezone('Asia/Seoul')
-_EXCLUSIVE_TEST_RUN_AT = datetime.now(_KST) + timedelta(minutes=2)
-
-@scheduler.scheduled_job('date', run_date=_EXCLUSIVE_TEST_RUN_AT, id='exclusive_news_job',
-                          max_instances=1, misfire_grace_time=300)
+@scheduler.scheduled_job('cron', hour=7, minute=31, id='exclusive_news_job', timezone='Asia/Seoul',
+                          coalesce=True, max_instances=1)
 def exclusive_news_job():
-    """[임시 테스트] 컨테이너 기동 2분 후 1회 실행 — lrl.kr 단축 로그 검증용"""
+    """매일 오전 07:31 KST — 단독 뉴스 오전판 SOB Scrap + 누렁이 정보방 동시 발송"""
     logger.info('[Scheduler] 단독 뉴스 오전판 봇 실행 중...')
     send_exclusive_news()
 
