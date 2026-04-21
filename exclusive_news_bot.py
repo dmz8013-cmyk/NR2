@@ -14,6 +14,8 @@ from urllib.parse import urlparse, quote
 import pytz
 import requests
 
+from app.utils.press_map import PRESS_MAP
+
 logger = logging.getLogger(__name__)
 
 KST = pytz.timezone('Asia/Seoul')
@@ -74,35 +76,6 @@ CATEGORIES = [
     },
 ]
 CATEGORY_ORDER = [c['label'] for c in CATEGORIES] + ['📌 기타']
-
-PRESS_MAP = {
-    'chosun': '조선일보',
-    'joongang': '중앙일보',
-    'donga': '동아일보',
-    'hani': '한겨레',
-    'khan': '경향신문',
-    'ohmynews': '오마이뉴스',
-    'yna': '연합뉴스',
-    'yonhapnewstv': '연합뉴스TV',
-    'mbc': 'MBC',
-    'kbs': 'KBS',
-    'sbs': 'SBS',
-    'jtbc': 'JTBC',
-    'tvchosun': 'TV조선',
-    'mbn': 'MBN',
-    'hankyung': '한국경제',
-    'mk': '매일경제',
-    'edaily': '이데일리',
-    'newsis': '뉴시스',
-    'news1': '뉴스1',
-    'nocut': '노컷뉴스',
-    'seoul': '서울신문',
-    'munhwa': '문화일보',
-    'kmib': '국민일보',
-    'segye': '세계일보',
-    'dt': '디지털타임스',
-    'etnews': '전자신문',
-}
 
 _TAG_RE = re.compile(r'<[^>]+>')
 

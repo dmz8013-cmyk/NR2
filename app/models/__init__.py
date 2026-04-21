@@ -16,6 +16,7 @@ from app.models.np_point import PointHistory
 from app.models.badge import Badge, UserBadge
 from app.models.scoop_alert import ScoopAlert
 from app.models.aesa_article import AesaArticle
+from app.models.url_shortener import URLShortener, URLClickLog
 
 __all__ = [
     'User',
@@ -40,4 +41,6 @@ __all__ = [
     'UserBadge',
     'ScoopAlert',
     'AesaArticle',
+    'URLShortener',
+    'URLClickLog',
 ]
