@@ -96,8 +96,8 @@ def fetch_exclusive_news():
     start_time, end_time = get_time_range()
     all_items = []
 
-    # 100건씩 최대 3페이지 (300건)
-    for start in (1, 101, 201):
+    # 100건씩 최대 10페이지 (1000건) — 전날 17:00~당일 07:30 구간 안정 커버
+    for start in (1, 101, 201, 301, 401, 501, 601, 701, 801, 901):
         params = {
             'query': '[단독]',
             'display': 100,
