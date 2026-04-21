@@ -177,7 +177,9 @@ def shorten_url(long_url):
         return long_url
     try:
         resp = requests.post(LRL_SHORTEN_URL, json={'url': long_url}, timeout=5)
-        if resp.status_code == 200:
+        logger.info(f'[단축] 상태코드: {resp.status_code}')
+        logger.info(f'[단축] 응답: {resp.text[:200]}')
+        if resp.status_code in (200, 201):
             try:
                 data = resp.json()
             except ValueError:
@@ -193,9 +195,10 @@ def shorten_url(long_url):
                     # 대체 응답 형태 대비
                     short = data.get('url') or data.get('shortUrl') or data.get('short_url')
                 if isinstance(short, str) and short.startswith('http'):
+                    logger.info(f'[단축] 성공: {short}')
                     return short
     except Exception as e:
-        logger.info(f'lrl.kr 단축 실패: {e}')
+        logger.info(f'[단축] 실패: {type(e).__name__}: {e}')
 
     _shortener_disabled = True
     logger.info('lrl.kr 단축 API 비활성화 — 이번 사이클 원본 URL 사용')
