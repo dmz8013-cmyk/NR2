@@ -5,6 +5,7 @@
     "buildCommand": "pip install -r requirements.txt"
   },
   "deploy": {
+    "startCommand": "sh -c 'exec gunicorn run:app --bind 0.0.0.0:${PORT:-5000} --workers 4 --timeout 120'",
     "healthcheckPath": "/",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
