@@ -214,6 +214,104 @@ def fetch_exclusive_news():
     return filtered
 
 
+# ── 지역지 [단독] 기사 보완 수집 ─────────────────────────────
+# fetch_exclusive_news()의 '[단독]' 전체 검색에서 노출 순위 밀려 누락되는
+# 지역지를 '[단독] {언론사명}' 별도 쿼리로 보완. 기존 파이프라인과 완전 호환.
+REGIONAL_PRESS = {
+    '부산일보': {'domain': 'busan.com',     'tag': '[경상]'},
+    '매일신문': {'domain': 'imaeil.com',    'tag': '[경상]'},
+    '영남일보': {'domain': 'yeongnam.com',  'tag': '[경상]'},
+    '전남일보': {'domain': 'jnilbo.com',    'tag': '[전라]'},
+    '광주일보': {'domain': 'kwangju.co.kr', 'tag': '[전라]'},
+    '경인일보': {'domain': 'kyeongin.com',  'tag': '[경기]'},
+    '경기일보': {'domain': 'kyeonggi.com',  'tag': '[경기]'},
+    '중부일보': {'domain': 'joongboo.com',  'tag': '[경기]'},
+}
+
+REGIONAL_EXCLUSIVE_KEYWORDS = (
+    '[단독]', '[단독보도]', '[단독입수]', '[단독취재]',
+    '[특종]', '【단독】', '단독]',
+)
+
+
+def fetch_regional_exclusive_news():
+    """지역지 8개 대상 '[단독] {언론사명}' 쿼리 별도 검색.
+
+    - 기존 get_time_range() 시간창 동일 적용
+    - originallink 도메인으로 실제 발행처 검증 (타 매체 인용 배제)
+    - press 필드는 '[지역] 언론사명'으로 확정 태깅
+    - 반환 dict는 fetch_exclusive_news()와 동일한 7개 필드
+    """
+    client_id = os.environ.get('NAVER_CLIENT_ID')
+    client_secret = os.environ.get('NAVER_CLIENT_SECRET')
+    if not client_id or not client_secret:
+        logger.error('[지역지] NAVER_CLIENT_ID/SECRET 환경변수 없음')
+        return []
+
+    headers = {
+        'X-Naver-Client-Id': client_id,
+        'X-Naver-Client-Secret': client_secret,
+    }
+
+    start_time, end_time = get_time_range()
+    seen_urls = set()
+    results = []
+
+    for press_name, meta in REGIONAL_PRESS.items():
+        params = {
+            'query': f'[단독] {press_name}',
+            'display': 20,
+            'start': 1,
+            'sort': 'date',
+        }
+        try:
+            resp = requests.get(NAVER_API_URL, headers=headers, params=params, timeout=10)
+            items = resp.json().get('items', [])
+        except Exception as e:
+            logger.error(f'[지역지] {press_name} API 호출 실패: {e}')
+            continue
+
+        count = 0
+        for item in items:
+            title = clean_html(item.get('title', ''))
+            if not any(kw in title for kw in REGIONAL_EXCLUSIVE_KEYWORDS):
+                continue
+
+            naver_link = item.get('link') or ''
+            originallink = item.get('originallink') or ''
+            if not naver_link or naver_link in seen_urls:
+                continue
+
+            # 실제 발행처 도메인 검증 — 타 매체가 지역지를 인용/언급한 기사 배제
+            if meta['domain'] not in originallink.lower():
+                continue
+
+            pub_dt = parse_pub_date(item.get('pubDate', ''))
+            if not pub_dt:
+                continue
+            if not (start_time <= pub_dt <= end_time):
+                continue
+
+            description = clean_html(item.get('description', ''))
+            seen_urls.add(naver_link)
+            results.append({
+                'pub_dt': pub_dt,
+                'datetime_str': pub_dt.strftime('%Y-%m-%d %H:%M'),
+                'title': title,
+                'link': naver_link,
+                'short_link': shorten_url(naver_link),
+                'press': f"{meta['tag']} {press_name}",
+                'category': classify_category(title, description),
+            })
+            count += 1
+
+        logger.info(f'[지역지] {press_name}: {count}건')
+
+    results.sort(key=lambda x: x['pub_dt'], reverse=True)
+    logger.info(f'[지역지] 합계 {len(results)}건')
+    return results
+
+
 def format_exclusive_message(items):
     now = datetime.now(KST)
     yesterday = (now - timedelta(days=1)).strftime('%m/%d')
@@ -315,7 +413,15 @@ def send_exclusive_news():
     """단독 뉴스 오전판 — SOB Scrap 채널 발송."""
     logger.info('=== 단독 뉴스 오전판 시작 ===')
     items = fetch_exclusive_news()
-    logger.info(f'수집 결과: {len(items)}건')
+    logger.info(f'기본 수집: {len(items)}건')
+
+    # 지역지 보완 — link 기준 중복 제거 후 합산, 시간 역순 재정렬
+    regional = fetch_regional_exclusive_news()
+    existing_links = {it['link'] for it in items}
+    added = [r for r in regional if r['link'] not in existing_links]
+    items.extend(added)
+    items.sort(key=lambda x: x['pub_dt'], reverse=True)
+    logger.info(f'지역지 신규 {len(added)}건 → 총 {len(items)}건')
 
     message = format_exclusive_message(items)
 
