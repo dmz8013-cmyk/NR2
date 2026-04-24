@@ -87,11 +87,19 @@ def clean_html(text):
     return html.unescape(stripped).strip()
 
 
-def get_time_range():
-    """오전판 수집 구간: 전날 17:00 ~ 당일 07:30 (KST)."""
+def get_time_range(edition='morning'):
+    """수집 구간.
+
+    - morning:   전날 17:00 ~ 당일 07:30 (KST)
+    - afternoon: 당일 07:30 ~ 당일 16:30 (KST)
+    """
     now = datetime.now(KST)
-    end = now.replace(hour=7, minute=30, second=0, microsecond=0)
-    start = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
+    if edition == 'afternoon':
+        start = now.replace(hour=7, minute=30, second=0, microsecond=0)
+        end = now.replace(hour=16, minute=30, second=0, microsecond=0)
+    else:
+        end = now.replace(hour=7, minute=30, second=0, microsecond=0)
+        start = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
     return start, end
 
 
@@ -147,7 +155,7 @@ def shorten_url(long_url):
     return long_url
 
 
-def fetch_exclusive_news():
+def fetch_exclusive_news(edition='morning'):
     """네이버 뉴스 검색 API로 [단독] 기사 수집 → 시간 필터링."""
     client_id = os.environ.get('NAVER_CLIENT_ID')
     client_secret = os.environ.get('NAVER_CLIENT_SECRET')
@@ -160,7 +168,7 @@ def fetch_exclusive_news():
         'X-Naver-Client-Secret': client_secret,
     }
 
-    start_time, end_time = get_time_range()
+    start_time, end_time = get_time_range(edition)
     all_items = []
 
     # 100건씩 최대 10페이지 (1000건) — 전날 17:00~당일 07:30 구간 안정 커버
@@ -234,10 +242,10 @@ REGIONAL_EXCLUSIVE_KEYWORDS = (
 )
 
 
-def fetch_regional_exclusive_news():
+def fetch_regional_exclusive_news(edition='morning'):
     """지역지 8개 대상 '[단독] {언론사명}' 쿼리 별도 검색.
 
-    - 기존 get_time_range() 시간창 동일 적용
+    - get_time_range(edition) 시간창 동일 적용
     - originallink 도메인으로 실제 발행처 검증 (타 매체 인용 배제)
     - press 필드는 '[지역] 언론사명'으로 확정 태깅
     - 반환 dict는 fetch_exclusive_news()와 동일한 7개 필드
@@ -253,7 +261,7 @@ def fetch_regional_exclusive_news():
         'X-Naver-Client-Secret': client_secret,
     }
 
-    start_time, end_time = get_time_range()
+    start_time, end_time = get_time_range(edition)
     seen_urls = set()
     results = []
 
@@ -312,14 +320,21 @@ def fetch_regional_exclusive_news():
     return results
 
 
-def format_exclusive_message(items):
+def format_exclusive_message(items, edition='morning'):
     now = datetime.now(KST)
-    yesterday = (now - timedelta(days=1)).strftime('%m/%d')
     today = now.strftime('%m/%d')
 
+    if edition == 'afternoon':
+        header = '🌆 단독 뉴스 오후판 🌆'
+        time_range = f'수집 기준: {today} 07:30 ~ {today} 16:30 KST'
+    else:
+        yesterday = (now - timedelta(days=1)).strftime('%m/%d')
+        header = '🌅 단독 뉴스 오전판 🌅'
+        time_range = f'수집 기준: {yesterday} 17:00 ~ {today} 07:30 KST'
+
     lines = [
-        '🚨 단독 뉴스 오전판 🚨',
-        f'수집 기준: {yesterday} 17:00 ~ {today} 07:30 KST',
+        header,
+        time_range,
         '',
     ]
 
@@ -409,27 +424,36 @@ def _send_telegram(token, chat_id, text, channel_label):
     return ok
 
 
-def send_exclusive_news():
-    """단독 뉴스 오전판 — SOB Scrap 채널 발송."""
-    logger.info('=== 단독 뉴스 오전판 시작 ===')
-    items = fetch_exclusive_news()
+def send_exclusive_news(edition='morning'):
+    """단독 뉴스 — SOB Scrap 채널 발송.
+
+    edition: 'morning' (07:31) | 'afternoon' (16:30)
+    """
+    label = '오전판' if edition == 'morning' else '오후판'
+    logger.info(f'=== 단독 뉴스 {label} 시작 ===')
+    items = fetch_exclusive_news(edition)
     logger.info(f'기본 수집: {len(items)}건')
 
     # 지역지 보완 — link 기준 중복 제거 후 합산, 시간 역순 재정렬
-    regional = fetch_regional_exclusive_news()
+    regional = fetch_regional_exclusive_news(edition)
     existing_links = {it['link'] for it in items}
     added = [r for r in regional if r['link'] not in existing_links]
     items.extend(added)
     items.sort(key=lambda x: x['pub_dt'], reverse=True)
     logger.info(f'지역지 신규 {len(added)}건 → 총 {len(items)}건')
 
-    message = format_exclusive_message(items)
+    message = format_exclusive_message(items, edition)
 
     _send_telegram(BOT_TOKEN_SCRAP, CHAT_ID_SCRAP, message, 'SOB Scrap')
 
-    logger.info('=== 단독 뉴스 오전판 종료 ===')
+    logger.info(f'=== 단독 뉴스 {label} 종료 ===')
 
 
 if __name__ == '__main__':
+    import sys
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
-    send_exclusive_news()
+    edition_arg = sys.argv[1] if len(sys.argv) > 1 else 'morning'
+    if edition_arg not in ('morning', 'afternoon'):
+        print('사용법: python exclusive_news_bot.py [morning|afternoon]')
+        sys.exit(1)
+    send_exclusive_news(edition_arg)

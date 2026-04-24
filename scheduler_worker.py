@@ -25,7 +25,6 @@ from editorial_bot import send_editorial, send_editorial_nureongi
 from schedule_bot import send_schedule, send_schedule_nureongi
 from vip_alert_bot import run_vip_alert
 from app.utils.bias_report import generate_weekly_report, send_weekly_report_to_telegram
-from scripts.daily_scrap import run as daily_scrap_run
 from exclusive_news_bot import send_exclusive_news
 from nr2_web_bot import poll_commands, send_youcheck_daily
 from weekly_briefing import send_weekly_briefing
@@ -109,22 +108,19 @@ def weekly_bias_report():
         else:
             logger.error(f'[Scheduler] 주간 편향 리포트 전송 실패: {result["message"]}')
 
-@scheduler.scheduled_job('cron', hour=7, minute=30, id='daily_scrap_morning', timezone='Asia/Seoul')
-def daily_scrap_morning():
-    logger.info('[Scheduler] 단독 뉴스 스크랩 — 오전판 실행 중...')
-    daily_scrap_run('morning')
-
-@scheduler.scheduled_job('cron', hour=16, minute=30, id='daily_scrap_afternoon', timezone='Asia/Seoul')
-def daily_scrap_afternoon():
-    logger.info('[Scheduler] 단독 뉴스 스크랩 — 오후판 실행 중...')
-    daily_scrap_run('afternoon')
-
 @scheduler.scheduled_job('cron', hour=7, minute=31, id='exclusive_news_job', timezone='Asia/Seoul',
                           coalesce=True, max_instances=1)
 def exclusive_news_job():
-    """매일 오전 07:31 KST — 단독 뉴스 오전판 SOB Scrap + 누렁이 정보방 동시 발송"""
+    """매일 07:31 KST — 단독 뉴스 오전판 SOB Scrap 발송"""
     logger.info('[Scheduler] 단독 뉴스 오전판 봇 실행 중...')
-    send_exclusive_news()
+    send_exclusive_news('morning')
+
+@scheduler.scheduled_job('cron', hour=16, minute=30, id='exclusive_news_afternoon', timezone='Asia/Seoul',
+                          coalesce=True, max_instances=1)
+def exclusive_news_afternoon_job():
+    """매일 16:30 KST — 단독 뉴스 오후판 SOB Scrap 발송 (오전판과 동일 포맷)"""
+    logger.info('[Scheduler] 단독 뉴스 오후판 봇 실행 중...')
+    send_exclusive_news('afternoon')
 
 @scheduler.scheduled_job('interval', minutes=1, id='web_bot_poll',
                           coalesce=True, max_instances=1)
