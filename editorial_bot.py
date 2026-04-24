@@ -53,6 +53,7 @@ PAPERS = {
         {'name': '경향신문', 'kind': 'rss', 'url': 'https://www.khan.co.kr/rss/rssdata/opinion_news.xml'},
         {'name': '국민일보', 'kind': 'none'},
         {'name': '동아일보', 'kind': 'rss', 'url': 'https://rss.donga.com/editorials.xml'},
+        {'name': '문화일보', 'kind': 'none'},
         {'name': '서울신문', 'kind': 'html',
          'url': 'https://www.seoul.co.kr/news/newsList.php?section=editorial'},
         {'name': '세계일보', 'kind': 'none'},
@@ -61,6 +62,7 @@ PAPERS = {
         {'name': '중앙일보', 'kind': 'none'},
         {'name': '한겨레', 'kind': 'rss', 'url': 'https://www.hani.co.kr/rss/opinion/'},
         {'name': '한국일보', 'kind': 'none'},
+        {'name': '내일신문', 'kind': 'direct'},
     ],
     '경제지': [
         {'name': '디지털타임스', 'kind': 'none'},
@@ -70,8 +72,12 @@ PAPERS = {
         {'name': '이데일리', 'kind': 'none'},
         {'name': '파이낸셜뉴스', 'kind': 'none'},
         {'name': '한국경제', 'kind': 'rss', 'url': 'https://www.hankyung.com/feed/opinion'},
+        {'name': '헤럴드경제', 'kind': 'none'},
     ],
 }
+
+# 석간 전용 대상 — send_editorial_afternoon() 필터
+EVENING_PAPERS = {'문화일보', '헤럴드경제', '내일신문'}
 
 
 
@@ -194,6 +200,40 @@ async def fetch_naver_editorials(target_papers):
     return results
 
 
+NAEIL_TAG = '[내일시론]'  # 내일신문은 사설 대신 '내일시론' 섹션을 사설격으로 운영
+
+
+def fetch_naeil_direct(limit=3):
+    """내일신문 /opinion/editorial 페이지에서 [내일시론] prefix 제목 추출."""
+    url = 'https://www.naeil.com/opinion/editorial'
+    try:
+        r = requests.get(url, headers=REQ_HEADERS, timeout=8)
+        r.encoding = r.apparent_encoding or r.encoding
+        if r.status_code != 200:
+            return []
+        soup = BeautifulSoup(r.text, 'html.parser')
+    except Exception as e:
+        logger.warning(f'내일신문 크롤링 실패: {e}')
+        return []
+
+    seen = set()
+    titles = []
+    for a in soup.find_all('a', href=True):
+        if '/news/read/' not in a['href']:
+            continue
+        text = a.get_text(strip=True)
+        if not text.startswith(NAEIL_TAG):
+            continue
+        clean = unescape(text[len(NAEIL_TAG):]).strip()
+        clean = re.sub(r'<[^>]+>', '', clean)
+        if clean and len(clean) > 5 and clean not in seen:
+            seen.add(clean)
+            titles.append(clean)
+            if len(titles) >= limit:
+                break
+    return titles
+
+
 def fetch_titles(paper):
     """언론사 정의를 보고 적절한 fetcher 호출"""
     kind = paper.get('kind')
@@ -201,14 +241,18 @@ def fetch_titles(paper):
         return fetch_rss(paper['url'])
     if kind == 'html':
         return fetch_html(paper['url'])
+    if kind == 'direct' and paper.get('name') == '내일신문':
+        return fetch_naeil_direct()
     return None  # 미지원
 
 
-def format_message(editorials):
+def format_message(editorials, header=None):
     today = datetime.now().strftime('%Y.%m.%d')
     lines = []
-    
-    lines.append(f'🗞️주요 신문 사설({today})🗞️')
+
+    if header is None:
+        header = f'🗞️주요 신문 사설({today})🗞️'
+    lines.append(header)
     lines.append('')
     lines.append('출처 : https://buly.kr/7mBN720')
     lines.append('')
@@ -430,6 +474,142 @@ def send_editorial_nureongi():
             print(f'누렁이 정보방 전송 실패: {resp.text}')
 
 
+def _collect_evening_editorials():
+    """석간 대상(EVENING_PAPERS) 수집 + 실패분 네이버 fallback.
+
+    반환: (editorials dict, total count)
+    editorials = {'종합지': [(name, titles, note), ...], ...}
+    """
+    editorials = {}
+    total = 0
+    papers_to_fallback = []
+
+    for category, papers in PAPERS.items():
+        rows = []
+        for p in papers:
+            name = p['name']
+            if name not in EVENING_PAPERS:
+                continue
+            try:
+                titles = fetch_titles(p)
+            except Exception as e:
+                logger.error(f'{name} 수집 실패: {e}')
+                titles, note = [], f'수집 실패 ({type(e).__name__})'
+            else:
+                note = None
+                if titles is None or len(titles) == 0:
+                    if p['kind'] in ('rss', 'html', 'direct'):
+                        note = '수집 실패'
+                    else:
+                        titles, note = [], '수집 미지원'
+
+            rows.append((name, titles, note))
+            total += len(titles or [])
+
+            if not titles:
+                papers_to_fallback.append((category, name, p))
+
+            print(f'  {name} (v1): {len(titles or [])}개' + (f' | {note}' if note else ''))
+            for t in (titles or []):
+                print(f'    - {t}')
+
+        if rows:
+            editorials[category] = rows
+
+    if papers_to_fallback:
+        target_names = [name for _, name, _ in papers_to_fallback]
+        print(f'\n[Playwright] 네이버 사설 페이지 보완 수집 시작: {target_names}')
+        fallback_res = _run_async(fetch_naver_editorials(target_names))
+        for category, name, p in papers_to_fallback:
+            added = fallback_res.get(name, [])
+            rows = editorials[category]
+            for idx, r in enumerate(rows):
+                if r[0] == name:
+                    if added:
+                        rows[idx] = (name, added, None)
+                        total += len(added)
+                        print(f'  [Playwright] {name}: {len(added)}개 보완')
+                        for t in added:
+                            print(f'    - {t}')
+                    else:
+                        rows[idx] = (name, [], '크롤링 실패')
+                    break
+
+    return editorials, total
+
+
+def _send_evening(message, token, chat_id, label):
+    if not token:
+        print(f'[{label}] 토큰 없음 — 전송 생략')
+        return
+    if len(message) > 4000:
+        parts, current = [], ''
+        for line in message.split('\n'):
+            if len(current) + len(line) + 1 > 4000:
+                parts.append(current)
+                current = line
+            else:
+                current += '\n' + line if current else line
+        if current:
+            parts.append(current)
+    else:
+        parts = [message]
+
+    url = f'https://api.telegram.org/bot{token}/sendMessage'
+    for part in parts:
+        try:
+            resp = requests.post(url, json={
+                'chat_id': chat_id,
+                'text': part,
+                'parse_mode': 'HTML',
+                'disable_web_page_preview': True,
+            }, timeout=10)
+            if resp.status_code == 200:
+                print(f'[{label}] 전송 완료 ({len(part)}자)')
+            else:
+                print(f'[{label}] 전송 실패: {resp.text[:200]}')
+        except Exception as e:
+            logger.error(f'[{label}] 전송 오류: {e}')
+
+
+def send_editorial_afternoon():
+    """석간 사설 — SOB Scrap 채널. 문화일보 + 헤럴드경제 + 내일신문."""
+    logger.info('=== 석간 사설봇 시작 (SOB Scrap) ===')
+    print('석간 사설봇 시작 (SOB Scrap)...')
+
+    editorials, total = _collect_evening_editorials()
+    print(f'\n총 수집: {total}건')
+
+    today = datetime.now().strftime('%Y.%m.%d')
+    message = format_message(editorials, header=f'🗞️석간 신문 사설({today})🗞️')
+    _send_evening(message, BOT_TOKEN, CHAT_ID, 'SOB Scrap')
+
+    logger.info('=== 석간 사설봇 완료 (SOB Scrap) ===')
+
+
+def send_editorial_afternoon_nureongi():
+    """석간 사설 — 누렁이 정보방. 문화일보 + 헤럴드경제 + 내일신문."""
+    logger.info('=== 석간 사설봇 시작 (누렁이) ===')
+    NUREONGI_TOKEN = os.environ.get('NUREONGI_NEWS_BOT_TOKEN')
+    NUREONGI_CHAT = '@gazzzza2025'
+
+    editorials, total = _collect_evening_editorials()
+    print(f'\n총 수집: {total}건')
+
+    today = datetime.now().strftime('%Y.%m.%d')
+    message = format_message(editorials, header=f'🗞️석간 신문 사설({today})🗞️')
+    _send_evening(message, NUREONGI_TOKEN, NUREONGI_CHAT, '누렁이 정보방')
+
+    logger.info('=== 석간 사설봇 완료 (누렁이) ===')
+
+
 if __name__ == '__main__':
+    import sys
     logging.basicConfig(level=logging.INFO)
-    send_editorial()
+    mode = sys.argv[1] if len(sys.argv) > 1 else 'morning'
+    if mode == 'afternoon':
+        send_editorial_afternoon()
+    elif mode == 'afternoon_nureongi':
+        send_editorial_afternoon_nureongi()
+    else:
+        send_editorial()
