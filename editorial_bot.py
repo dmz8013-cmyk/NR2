@@ -73,11 +73,12 @@ PAPERS = {
         {'name': '파이낸셜뉴스', 'kind': 'none'},
         {'name': '한국경제', 'kind': 'rss', 'url': 'https://www.hankyung.com/feed/opinion'},
         {'name': '헤럴드경제', 'kind': 'none'},
+        {'name': '아시아경제', 'kind': 'direct'},
     ],
 }
 
 # 석간 전용 대상 — send_editorial_afternoon() 필터
-EVENING_PAPERS = {'문화일보', '헤럴드경제', '내일신문'}
+EVENING_PAPERS = {'문화일보', '헤럴드경제', '내일신문', '아시아경제'}
 
 
 
@@ -203,6 +204,48 @@ async def fetch_naver_editorials(target_papers):
 NAEIL_TAG = '[내일시론]'  # 내일신문은 사설 대신 '내일시론' 섹션을 사설격으로 운영
 
 
+async def fetch_asiae_siron(limit=3):
+    """아시아경제 '시론' 섹션 Playwright 수집.
+
+    아시아경제는 공식 사설 섹션 부재. '시론'이 사설격 컨텐츠.
+    HTML SSR에 기사 미노출이라 Playwright로 렌더링 후 article.component_bx 추출.
+    """
+    from playwright.async_api import async_playwright
+
+    url = 'https://www.asiae.co.kr/list/opinion-column/column15/'
+    items = []
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            try:
+                page = await browser.new_page(
+                    user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+                               'AppleWebKit/537.36 Chrome/120.0 Safari/537.36'
+                )
+                await page.goto(url, wait_until='networkidle', timeout=20000)
+                await page.wait_for_timeout(2000)
+                items = await page.eval_on_selector_all(
+                    'article.component_bx a[href*="/article/"]',
+                    'els => els.map(e => e.innerText.trim())'
+                )
+            finally:
+                await browser.close()
+    except Exception as e:
+        logger.warning(f'아시아경제 Playwright 실패: {e}')
+        return []
+
+    seen = set()
+    titles = []
+    for t in items:
+        if not t or len(t) < 10 or t in seen:
+            continue
+        seen.add(t)
+        titles.append(t)
+        if len(titles) >= limit:
+            break
+    return titles
+
+
 def fetch_naeil_direct(limit=3):
     """내일신문 /opinion/editorial 페이지에서 [내일시론] prefix 제목 추출."""
     url = 'https://www.naeil.com/opinion/editorial'
@@ -241,8 +284,12 @@ def fetch_titles(paper):
         return fetch_rss(paper['url'])
     if kind == 'html':
         return fetch_html(paper['url'])
-    if kind == 'direct' and paper.get('name') == '내일신문':
-        return fetch_naeil_direct()
+    if kind == 'direct':
+        name = paper.get('name')
+        if name == '내일신문':
+            return fetch_naeil_direct()
+        if name == '아시아경제':
+            return _run_async(fetch_asiae_siron())
     return None  # 미지원
 
 
