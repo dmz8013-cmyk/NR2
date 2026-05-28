@@ -193,7 +193,8 @@ def poll_tracker_job():
     logger.info('[Scheduler] 지방선거 여론조사 모니터링 봇 실행 중...')
     run_poll_tracker()
 
-@scheduler.scheduled_job('interval', hours=2, id='candidate_tracker_job', coalesce=True, max_instances=1)
+# 후보 매칭 데이터 부정확, 6월 선거 후 옵션 B로 재구축 예정
+# @scheduler.scheduled_job('interval', hours=2, id='candidate_tracker_job', coalesce=True, max_instances=1)
 def candidate_tracker_job():
     """매 2시간마다 후보 변동사항 확인"""
     logger.info('[Scheduler] 후보 현황 트래커 실행 중...')
