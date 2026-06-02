@@ -78,6 +78,16 @@ CATEGORY_ORDER = [c['label'] for c in CATEGORIES] + ['📌 기타']
 
 _TAG_RE = re.compile(r'<[^>]+>')
 
+# 제목 앞부분이 괄호류([], (), <>, 【】)로 감싼 단독/특종 태그로 시작할 때만 인정.
+# 허용: [단독] (단독) <단독> 【단독】 [특종] [단독보도] [단독취재] [단독입수]
+# 배제: "단독 콘서트"/"단독 선두" 등 일반어, 제목 중간에 위치한 [단독]
+_EXCLUSIVE_PREFIX_RE = re.compile(r'^\s*[\[\(<【]\s*(?:단독(?:보도|입수|취재)?|특종)\s*[\]\)>】]')
+
+
+def is_exclusive_title(title):
+    """제목이 괄호로 감싼 단독/특종 태그로 시작하면 True."""
+    return bool(_EXCLUSIVE_PREFIX_RE.match(title or ''))
+
 
 def clean_html(text):
     """네이버 API 문자열의 <b> 태그 + HTML 엔티티 제거."""
@@ -193,7 +203,7 @@ def fetch_exclusive_news(edition='morning'):
     filtered = []
     for item in all_items:
         title = clean_html(item.get('title', ''))
-        if '단독' not in title:
+        if not is_exclusive_title(title):
             continue
         # 표시용 URL은 반드시 네이버뉴스 링크(item['link'])
         naver_link = item.get('link') or ''
@@ -236,10 +246,8 @@ REGIONAL_PRESS = {
     '중부일보': {'domain': 'joongboo.com',  'tag': '[경기]'},
 }
 
-REGIONAL_EXCLUSIVE_KEYWORDS = (
-    '[단독]', '[단독보도]', '[단독입수]', '[단독취재]',
-    '[특종]', '【단독】', '단독]',
-)
+# 단독/특종 판별은 공통 헬퍼 is_exclusive_title()로 일원화 (앞부분 앵커).
+# 기존 REGIONAL_EXCLUSIVE_KEYWORDS(위치 무관 substring) 방식은 폐기.
 
 
 def fetch_regional_exclusive_news(edition='morning'):
@@ -282,7 +290,7 @@ def fetch_regional_exclusive_news(edition='morning'):
         count = 0
         for item in items:
             title = clean_html(item.get('title', ''))
-            if not any(kw in title for kw in REGIONAL_EXCLUSIVE_KEYWORDS):
+            if not is_exclusive_title(title):
                 continue
 
             naver_link = item.get('link') or ''
