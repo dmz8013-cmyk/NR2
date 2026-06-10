@@ -187,7 +187,13 @@ def aesa_content_report_job():
     logger.info('[Scheduler] AESA 영상 콘텐츠 후보 TOP3 발송 중...')
     send_daily_content_report()
 
-@scheduler.scheduled_job('cron', hour=8, minute=30, id='poll_tracker_daily', timezone='Asia/Seoul')
+# [POLL_BOT] 비활성화 상태 안내 — 모듈 로드 시 1회 출력
+if os.getenv("ENABLE_POLL_BOT", "false").lower() != "true":
+    logger.info("[POLL_BOT] disabled by ENABLE_POLL_BOT flag — skipping job registration")
+
+# 2026.05.03 일시 중단 - 데이터 정합성 문제.
+# 6월 선거 후 옵션 B(중앙선거여론조사심의위 직접 연동) 방향으로 재구축 예정
+# @scheduler.scheduled_job('cron', hour=8, minute=30, id='poll_tracker_daily', timezone='Asia/Seoul')
 def poll_tracker_job():
     """매일 오전 8시 30분 여론조사 봇 실행"""
     logger.info('[Scheduler] 지방선거 여론조사 모니터링 봇 실행 중...')
@@ -200,7 +206,9 @@ def candidate_tracker_job():
     logger.info('[Scheduler] 후보 현황 트래커 실행 중...')
     check_candidate_changes()
 
-@scheduler.scheduled_job('interval', hours=3, id='basic_poll_tracker_job', coalesce=True, max_instances=1)
+# 2026.05.03 일시 중단 - 데이터 정합성 문제.
+# 6월 선거 후 옵션 B(중앙선거여론조사심의위 직접 연동) 방향으로 재구축 예정
+# @scheduler.scheduled_job('interval', hours=3, id='basic_poll_tracker_job', coalesce=True, max_instances=1)
 def basic_poll_tracker_job():
     """매 3시간마다 기초/교육감/정당 지지율 여론조사 확인"""
     logger.info('[Scheduler] 기초/교육감/정당 여론조사 봇 실행 중...')

@@ -315,6 +315,9 @@ def upsert_poll_data(region, poll_data, default_candidate_party_map=None):
     return is_new
 
 def send_telegram_targets(message):
+    if os.getenv("ENABLE_POLL_BOT", "false").lower() != "true":
+        logger.info("[POLL_BOT] blocked at function entry")
+        return
     targets = []
     if BOT_TOKEN_SCRAP: targets.append((BOT_TOKEN_SCRAP, CHAT_ID_SCRAP))
     if BOT_TOKEN_NR: targets.append((BOT_TOKEN_NR, CHAT_ID_NR))
@@ -406,6 +409,9 @@ async def run_poll_tracker_async():
     logger.info("여론조사 트래커 (광역) 완료.")
 
 def run_poll_tracker():
+    if os.getenv("ENABLE_POLL_BOT", "false").lower() != "true":
+        logger.info("[POLL_BOT] blocked at function entry")
+        return
     loop = asyncio.new_event_loop()
     try:
         loop.run_until_complete(run_poll_tracker_async())
@@ -493,6 +499,9 @@ async def check_basic_polls_async():
     logger.info("기초/교육감/정당 여론조사 확인 완료.")
 
 def check_basic_polls():
+    if os.getenv("ENABLE_POLL_BOT", "false").lower() != "true":
+        logger.info("[POLL_BOT] blocked at function entry")
+        return
     loop = asyncio.new_event_loop()
     try:
         loop.run_until_complete(check_basic_polls_async())
