@@ -3,8 +3,10 @@ APScheduler 스케줄러 워커 - Railway worker 서비스 전용
 """
 import os
 import logging
+import threading
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
+from apscheduler.events import EVENT_JOB_SUBMITTED, EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,6 +44,52 @@ executors = {
 }
 scheduler = BlockingScheduler(executors=executors, timezone='Asia/Seoul')
 INTERVAL_MINUTES = int(os.environ.get('YOUTUBE_CHECK_INTERVAL', 10))
+
+# ─── 스케줄러 하드닝: 진단 로그 + 하트비트 자가복구 (telegram NetworkError: can't start new thread 대응) ───
+# 목표는 ①관측가능성 ②자가복구 두 가지뿐. H1(asyncio default executor 스레드 회수) 근본픽스는
+# editorial_bot.py:24 주석이 경고하는 부작용 영역이라 1주 진단 데이터로 확증 후 별도 Phase에서 진행.
+THREAD_LIMIT = int(os.environ.get('THREAD_LIMIT', 40))
+
+# 진단 로그: APScheduler 이벤트 리스너로 잡 본문을 전혀 건드리지 않고 실행 전후 스레드 수를 기록.
+# (submitted=실행 직전, executed/error=실행 종료 → 잡별 스레드 증감 delta 특정)
+# 주의: executor max_workers=3 으로 최대 3개 잡이 겹칠 수 있어 delta는 동시 실행 잡과 교란될 수 있음.
+# 누수의 권위 신호는 하트비트의 절대 threads 수와 주간 추세이고, DIAG delta는 용의 잡 좁히기용.
+_diag_before = {}
+
+def _diag_on_submitted(event):
+    if event.job_id == 'heartbeat':
+        return
+    _diag_before[event.job_id] = threading.active_count()
+
+def _diag_on_done(event):
+    if event.job_id == 'heartbeat':
+        return
+    before = _diag_before.pop(event.job_id, None)
+    after = threading.active_count()
+    if before is None:
+        logger.info(f"[DIAG] job={event.job_id} after={after} (no before snapshot)")
+    else:
+        logger.info(f"[DIAG] job={event.job_id} before={before} after={after} delta={after - before}")
+
+scheduler.add_listener(_diag_on_submitted, EVENT_JOB_SUBMITTED)
+scheduler.add_listener(_diag_on_done, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
+
+@scheduler.scheduled_job('interval', minutes=5, id='heartbeat', coalesce=True, max_instances=1)
+def heartbeat_job():
+    n = threading.active_count()
+    jobs = scheduler.get_jobs()
+    logger.info(f"[HEARTBEAT] threads={n} jobs={len(jobs)}")
+    if n > THREAD_LIMIT:
+        # 사후 부검용: 스레드 수 + 전체 잡 이름 목록 + 살아있는 스레드 이름 전체를 남기고 강제 종료.
+        # 스케줄러 잡은 executor 워커 스레드에서 돌므로 sys.exit는 스레드만 죽임 → os._exit(1) 필수.
+        job_ids = [j.id for j in jobs]
+        thread_names = [t.name for t in threading.enumerate()]
+        logger.critical(
+            f"[HEARTBEAT] CRITICAL thread limit exceeded: threads={n} > THREAD_LIMIT={THREAD_LIMIT}. "
+            f"jobs={job_ids} thread_names={thread_names}. "
+            f"Forcing os._exit(1) -> Railway ON_FAILURE restart."
+        )
+        os._exit(1)
 
 # [비활성화] AESA 게시판에 이준석 관련 등 중복 글 자동생성 문제로 비활성화
 # @scheduler.scheduled_job('interval', minutes=INTERVAL_MINUTES, id='youtube_feed_check',
