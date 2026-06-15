@@ -36,6 +36,11 @@ BRIEFING_MIN_CHARS = 1000
 BRIEFING_MAX_CHARS = 1500
 TELEGRAM_MAX_LENGTH = 4096
 
+# ── 암호화폐 시세 (Upbit, 무인증) ─────────────────
+UPBIT_TICKER_URL = "https://api.upbit.com/v1/ticker"
+CRYPTO_MARKETS = ["KRW-BTC", "KRW-ETH"]
+CRYPTO_NAMES = {"KRW-BTC": "비트코인", "KRW-ETH": "이더리움"}
+
 # ── RSS 피드 설정 (카테고리별) ────────────────────
 RSS_FEEDS = {
     "정치/시사": [
@@ -164,11 +169,56 @@ def fetch_news_by_category(
 
 
 # ══════════════════════════════════════════════════
+#  2.5. 암호화폐 시세 수집 (Upbit, 무인증)
+# ══════════════════════════════════════════════════
+def fetch_crypto_prices() -> str | None:
+    """Upbit에서 BTC/ETH 현재가를 가져와 한 줄 문자열로 반환.
+
+    실패(네트워크/비200/파싱/유효 시세 없음) 시 None을 반환하여
+    호출부에서 시세 줄을 통째로 생략(폴백)하도록 한다.
+    """
+    try:
+        resp = requests.get(
+            UPBIT_TICKER_URL,
+            params={"markets": ",".join(CRYPTO_MARKETS)},
+            timeout=10,
+        )
+        if resp.status_code != 200:
+            logger.warning(f"[시세] Upbit 비정상 응답: HTTP {resp.status_code}")
+            return None
+        data = resp.json()
+    except Exception as e:
+        logger.warning(f"[시세] Upbit 조회 실패: {e}")
+        return None
+
+    by_market = {t.get("market"): t for t in data if isinstance(t, dict)}
+    parts: list[str] = []
+    for market in CRYPTO_MARKETS:
+        t = by_market.get(market)
+        if not t:
+            continue
+        try:
+            price = int(round(float(t["trade_price"])))
+            rate = float(t["signed_change_rate"]) * 100
+        except (KeyError, TypeError, ValueError):
+            continue
+        name = CRYPTO_NAMES.get(market, market)
+        parts.append(f"{name} {price:,}원({rate:+.1f}%)")
+
+    if not parts:
+        logger.warning("[시세] Upbit 응답에서 유효한 시세를 찾지 못함")
+        return None
+
+    return "📈 시세(Upbit 기준): " + " · ".join(parts)
+
+
+# ══════════════════════════════════════════════════
 #  3. Claude Haiku로 브리핑 생성
 # ══════════════════════════════════════════════════
 def generate_briefing_with_ai(
     categorized_news: dict[str, list[dict]],
     period: str,
+    crypto_line: str | None = None,
 ) -> str | None:
     """수집된 헤드라인을 Claude Haiku에게 보내 브리핑 생성."""
     api_key = _env("ANTHROPIC_API_KEY")
@@ -200,6 +250,16 @@ def generate_briefing_with_ai(
     except Exception:
         fact_context = ""
 
+    # 시세 블록 (있을 때만 — 폴백 시 통째로 생략)
+    if crypto_line:
+        crypto_context = (
+            "[시세 데이터 — 아래 수치를 그대로(반올림·변형 없이) 사용하고, "
+            "💰 경제/산업 섹션의 마지막 줄에 이 줄을 그대로 포함]\n"
+            f"{crypto_line}\n"
+        )
+    else:
+        crypto_context = ""
+
     prompt = f"""{fact_context}당신은 '누렁이 정보공유방'의 뉴스 브리핑 AI입니다.
 아래 뉴스 헤드라인들을 바탕으로 {period} 브리핑을 작성하세요.
 
@@ -221,8 +281,9 @@ def generate_briefing_with_ai(
 11. 특정 분야 기사가 없으면 해당 분야는 "주요 보도 없음"으로 짧게 언급하고 다음 분야로 넘어가세요.
 12. [팩트 정확도] 헤드라인에 명시된 내용만 요약하세요. 헤드라인에 없는 감정, 반응, 발언을 지어내지 마세요. 예: "OO 열애설" 헤드라인 → "열애설이 보도됐다"까지만. "심기불편", "분노" 등 추측성 표현 절대 금지.
 13. [시의성] 제공된 헤드라인은 모두 오늘자입니다. "최근", "지난달" 등 모호한 시점 대신 "오늘", "금일" 기준으로 작성하세요.
+14. [수치·날짜 임의생성 금지] 팩트 컨텍스트와 [시세 데이터]로 제공된 값 외에는 구체적 수치(가격·지수·통계·퍼센트), 날짜, 인과관계('~때문에', 'A가 B를 초래')를 지어내지 마세요. 헤드라인에 숫자가 없으면 숫자를 쓰지 말고, 제공되지 않은 시세·지표는 언급하지 마세요.
 
-[오늘의 뉴스 헤드라인]
+{crypto_context}[오늘의 뉴스 헤드라인]
 {news_block}"""
 
     client = anthropic.Anthropic(api_key=api_key)
@@ -345,8 +406,15 @@ def send_briefing():
             logger.warning("수집된 뉴스가 없어 브리핑을 건너뜁니다.")
             return
 
+        # 2.7) 시세 수집 (실패해도 파이프라인 계속 — 폴백: 시세 줄 생략)
+        crypto_line = fetch_crypto_prices()
+        if crypto_line:
+            logger.info(f"[시세] 수집 완료: {crypto_line}")
+        else:
+            logger.warning("[시세] Upbit 조회 실패 — 시세 줄 생략")
+
         # 3) AI 요약
-        briefing = generate_briefing_with_ai(categorized, period)
+        briefing = generate_briefing_with_ai(categorized, period, crypto_line)
         if not briefing:
             logger.warning("AI 브리핑 생성 실패 — 건너뜁니다.")
             return
