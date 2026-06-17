@@ -120,8 +120,9 @@ def generate_threads_draft(title, korean_summary, lenses, url):
         lens_str = ', '.join(f'[{l}]' for l in lenses) if lenses else '[?]'
 
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             max_tokens=300,
+            thinking={"type": "disabled"},
             messages=[{
                 "role": "user",
                 "content": THREADS_PROMPT_TEMPLATE.format(
@@ -270,8 +271,9 @@ def process_rss_feeds():
 
                     try:
                         response = client.messages.create(
-                            model="claude-sonnet-4-20250514",
+                            model="claude-sonnet-4-6",
                             max_tokens=400,
+                            thinking={"type": "disabled"},
                             system="당신은 최고 수준의 국제정치, 기술 트렌드, 글로벌 금융 분석가입니다.",
                             messages=[{"role": "user", "content": prompt}]
                         )
@@ -690,8 +692,9 @@ JSON 배열로만 응답. 다른 텍스트 없음.
         try:
             client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'))
             response = client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-4-6",
                 max_tokens=1500,
+                thinking={"type": "disabled"},
                 messages=[{"role": "user", "content": prompt}]
             )
 
