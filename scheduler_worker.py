@@ -180,10 +180,10 @@ def exclusive_news_job():
     logger.info('[Scheduler] 단독 뉴스 오전판 봇 실행 중...')
     send_exclusive_news('morning')
 
-@scheduler.scheduled_job('cron', hour=16, minute=30, id='exclusive_news_afternoon', timezone='Asia/Seoul',
+@scheduler.scheduled_job('cron', hour=17, minute=0, id='exclusive_news_afternoon', timezone='Asia/Seoul',
                           coalesce=True, max_instances=1)
 def exclusive_news_afternoon_job():
-    """매일 16:30 KST — 단독 뉴스 오후판 SOB Scrap 발송 (오전판과 동일 포맷)"""
+    """매일 17:00 KST — 단독 뉴스 오후판 SOB Scrap 발송 (오전판과 동일 포맷)"""
     logger.info('[Scheduler] 단독 뉴스 오후판 봇 실행 중...')
     send_exclusive_news('afternoon')
 

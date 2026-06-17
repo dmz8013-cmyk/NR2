@@ -101,12 +101,12 @@ def get_time_range(edition='morning'):
     """수집 구간.
 
     - morning:   전날 17:00 ~ 당일 07:30 (KST)
-    - afternoon: 당일 07:30 ~ 당일 16:30 (KST)
+    - afternoon: 당일 07:30 ~ 당일 17:00 (KST)
     """
     now = datetime.now(KST)
     if edition == 'afternoon':
         start = now.replace(hour=7, minute=30, second=0, microsecond=0)
-        end = now.replace(hour=16, minute=30, second=0, microsecond=0)
+        end = now.replace(hour=17, minute=0, second=0, microsecond=0)
     else:
         end = now.replace(hour=7, minute=30, second=0, microsecond=0)
         start = (now - timedelta(days=1)).replace(hour=17, minute=0, second=0, microsecond=0)
@@ -334,7 +334,7 @@ def format_exclusive_message(items, edition='morning'):
 
     if edition == 'afternoon':
         header = '🌆 단독 뉴스 오후판 🌆'
-        time_range = f'수집 기준: {today} 07:30 ~ {today} 16:30 KST'
+        time_range = f'수집 기준: {today} 07:30 ~ {today} 17:00 KST'
     else:
         yesterday = (now - timedelta(days=1)).strftime('%m/%d')
         header = '🌅 단독 뉴스 오전판 🌅'
@@ -435,7 +435,7 @@ def _send_telegram(token, chat_id, text, channel_label):
 def send_exclusive_news(edition='morning'):
     """단독 뉴스 — SOB Scrap 채널 발송.
 
-    edition: 'morning' (07:31) | 'afternoon' (16:30)
+    edition: 'morning' (07:31) | 'afternoon' (17:00)
     """
     label = '오전판' if edition == 'morning' else '오후판'
     logger.info(f'=== 단독 뉴스 {label} 시작 ===')
