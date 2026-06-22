@@ -272,24 +272,60 @@ def process_rss_feeds():
                     try:
                         response = client.messages.create(
                             model="claude-sonnet-4-6",
-                            max_tokens=400,
+                            max_tokens=1024,
                             thinking={"type": "disabled"},
                             system="당신은 최고 수준의 국제정치, 기술 트렌드, 글로벌 금융 분석가입니다.",
                             messages=[{"role": "user", "content": prompt}]
                         )
 
+                        # 응답이 max_tokens로 잘리면 닫는 '}'가 빠져 조용한 score=0이 됨.
+                        # 무증상으로 넘기지 않도록 경고+errors 집계 (1024로도 또 잘리면 상향 신호).
+                        truncated = (response.stop_reason == 'max_tokens')
+                        if truncated:
+                            logger.warning(
+                                f"[AESA] {source_name}: 응답이 max_tokens로 잘림 "
+                                f"(stop_reason=max_tokens) — JSON 보정 파싱 시도: {title[:50]}"
+                            )
+                            source_stats['errors'] += 1
+
                         response_text = response.content[0].text
-                        if "{" in response_text and "}" in response_text:
+                        result = None
+                        if "{" in response_text:
                             start = response_text.find("{")
-                            end = response_text.rfind("}") + 1
-                            json_str = response_text[start:end]
-                            result = json.loads(json_str)
+                            # 1차: 정상(닫는 '}'까지) 파싱
+                            if "}" in response_text:
+                                try:
+                                    result = json.loads(response_text[start:response_text.rfind("}") + 1])
+                                except json.JSONDecodeError:
+                                    result = None
+                            # 2차(잘림 대응): 마지막 완성 필드까지 잘라 '}'로 닫고 재시도.
+                            # score 등 핵심 필드는 JSON 앞쪽에 있어 reason이 잘려도 복구 가능.
+                            if result is None:
+                                frag = response_text[start:]
+                                cut = frag.rfind(",")
+                                if cut != -1:
+                                    try:
+                                        result = json.loads(frag[:cut] + "}")
+                                        logger.info(f"[AESA] {source_name}: 잘린 JSON 보정 파싱 성공")
+                                    except json.JSONDecodeError:
+                                        result = None
+
+                        if result is not None:
                             score = min(int(result.get("score", 0)), 10)
                             summary = result.get("korean_summary", "")
                             lenses = result.get("lenses", [])
                             korea_link = bool(result.get("korea_investment_link", False))
                             korea_insight = result.get("korea_insight")
                             logger.info(f"[AESA] korea_insight 추출 완료: {korea_insight}")
+                        else:
+                            # 응답은 왔으나 보정으로도 JSON 추출 실패 → 그때만 에러로 집계
+                            # (truncated면 위에서 이미 +1 했으므로 중복 카운트 방지)
+                            if not truncated:
+                                source_stats['errors'] += 1
+                            summary = "분석 실패"
+                            logger.error(
+                                f"[AESA] {source_name}: JSON 파싱 실패(보정 후에도) — score=0 처리: {title[:50]}"
+                            )
                     except anthropic.BadRequestError as e:
                         # 크레딧 고갈이면 score=0 쓰레기 행을 더 쌓지 않도록 사이클 즉시 중단
                         if _is_credit_exhausted_error(e):
