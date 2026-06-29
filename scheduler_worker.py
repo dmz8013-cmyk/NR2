@@ -104,44 +104,52 @@ def news_job():
     logger.info('[Scheduler] 뉴스 크롤링 중...')
     run_news_bot()
 
-@scheduler.scheduled_job('cron', hour=6, minute=0, id='morning_briefing', timezone='Asia/Seoul')
+@scheduler.scheduled_job('cron', hour=6, minute=0, id='morning_briefing', timezone='Asia/Seoul',
+                          misfire_grace_time=300, coalesce=True)
 def morning_briefing():
     logger.info('[Scheduler] 아침 AI 브리핑 생성 중...')
     send_briefing()
 
-@scheduler.scheduled_job('cron', hour=18, minute=0, id='evening_briefing', timezone='Asia/Seoul')
+@scheduler.scheduled_job('cron', hour=18, minute=0, id='evening_briefing', timezone='Asia/Seoul',
+                          misfire_grace_time=300, coalesce=True)
 def evening_briefing():
     logger.info('[Scheduler] 저녁 AI 브리핑 생성 중...')
     send_briefing()
 
-@scheduler.scheduled_job('cron', hour=13, minute=0, id='afternoon_political', timezone='Asia/Seoul')
+@scheduler.scheduled_job('cron', hour=13, minute=0, id='afternoon_political', timezone='Asia/Seoul',
+                          misfire_grace_time=300, coalesce=True)
 def afternoon_political():
     logger.info('[Scheduler] 오후 정치 브리핑 생성 중...')
     afternoon_political_briefing()
 
-@scheduler.scheduled_job('cron', hour=22, minute=0, id='evening_political', timezone='Asia/Seoul')
+@scheduler.scheduled_job('cron', hour=22, minute=0, id='evening_political', timezone='Asia/Seoul',
+                          misfire_grace_time=300, coalesce=True)
 def evening_political():
     logger.info('[Scheduler] 저녁 정치 브리핑 생성 중...')
     evening_political_briefing()
 
-@scheduler.scheduled_job('cron', hour=6, minute=0, id='editorial_morning_brief', timezone='Asia/Seoul')
+@scheduler.scheduled_job('cron', hour=6, minute=0, id='editorial_morning_brief', timezone='Asia/Seoul',
+                          misfire_grace_time=300, coalesce=True)
 def editorial_job():
     logger.info('[Scheduler] 사설봇 실행 중...')
     send_editorial()
 
-@scheduler.scheduled_job('cron', hour=7, minute=0, id='editorial_nureongi_brief', timezone='Asia/Seoul')
+@scheduler.scheduled_job('cron', hour=7, minute=0, id='editorial_nureongi_brief', timezone='Asia/Seoul',
+                          misfire_grace_time=300, coalesce=True)
 def editorial_nureongi_job():
     logger.info('[Scheduler] 누렁이 정보방 사설봇 실행 중 (07:00)...')
     send_editorial_nureongi()
 
 @scheduler.scheduled_job('cron', hour=14, minute=0, id='evening_editorial_scrap_job',
-                          timezone='Asia/Seoul', coalesce=True, max_instances=1)
+                          timezone='Asia/Seoul', coalesce=True, max_instances=1,
+                          misfire_grace_time=300)
 def evening_editorial_scrap_job():
     logger.info('[Scheduler] 석간 사설봇 실행 중 (SOB Scrap, 14:00)...')
     send_editorial_afternoon()
 
 @scheduler.scheduled_job('cron', hour=14, minute=1, id='evening_editorial_nureongi_job',
-                          timezone='Asia/Seoul', coalesce=True, max_instances=1)
+                          timezone='Asia/Seoul', coalesce=True, max_instances=1,
+                          misfire_grace_time=300)
 def evening_editorial_nureongi_job():
     logger.info('[Scheduler] 석간 사설봇 실행 중 (누렁이, 14:01)...')
     send_editorial_afternoon_nureongi()
@@ -201,7 +209,8 @@ def youcheck_daily():
     send_youcheck_daily(app)
 
 @scheduler.scheduled_job('cron', day_of_week='sun', hour=20, minute=0,
-                          id='weekly_briefing', timezone='Asia/Seoul')
+                          id='weekly_briefing', timezone='Asia/Seoul',
+                          misfire_grace_time=300, coalesce=True)
 def weekly_briefing_job():
     """매주 일요일 20:00 KST — 주간 TOP5 브리핑"""
     logger.info('[Scheduler] 주간 TOP5 브리핑 생성 중...')
