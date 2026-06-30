@@ -284,4 +284,9 @@ def basic_poll_tracker_job():
 if __name__ == '__main__':
     logger.info('[Scheduler] 시작')
     # check_and_post_new_videos(app)  # 비활성화: AESA 중복 글 문제
+    # [TEMP-VERIFY 2026-06-29] morning_briefing 미실행 수정 검증용 1회 트리거 — 확인 후 즉시 원복
+    from datetime import datetime as _dt, timedelta as _td
+    scheduler.add_job(morning_briefing, 'date',
+                      run_date=_dt.now() + _td(seconds=25),
+                      id='temp_morning_verify', misfire_grace_time=600)
     scheduler.start()
