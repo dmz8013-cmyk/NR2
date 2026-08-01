@@ -435,9 +435,20 @@ def send_cards_to_telegram(paths: list[str], chat_id: str,
     logger.info(f"[카드뉴스] 업로드 준비: {len(payloads)}장, {total_kb}KB")
 
     ok = True
-    # 10장씩 청크 (8장이면 1회)
-    for chunk_start in range(0, len(payloads), 10):
-        chunk = payloads[chunk_start:chunk_start + 10]
+    # 앨범당 최대 10장 — 초과 시 균등 분할 (12장 → 6+6, 10+2 방지)
+    import math
+    n = len(payloads)
+    num_groups = max(1, math.ceil(n / 10))
+    base, extra = divmod(n, num_groups)
+    sizes = [base + 1] * extra + [base] * (num_groups - extra)
+    boundaries = []
+    pos = 0
+    for s in sizes:
+        boundaries.append((pos, pos + s))
+        pos += s
+
+    for chunk_start, chunk_end in boundaries:
+        chunk = payloads[chunk_start:chunk_end]
         media = []
         files = {}
         for i, (name, data, mime) in enumerate(chunk):

@@ -69,11 +69,17 @@ def _card(hero_uri, c, idx):
             f'<div class="hero-ph">🎨<div class="ph-t">일러스트 자리</div>'
             f'<div class="ph-s">{_esc(c.get("scene_ko",""))}</div></div>'
         )
+    tier_html = ""
+    if c.get("tier_label"):
+        tier_html = f'<span class="tier">{_esc(c["tier_label"])}</span>'
     return f"""
     <section class="card v3">
       <div class="hero">
         {hero_inner}
-        <span class="cat" style="background:{bg};color:{fg}">{_esc(c['cat'])} · {idx:02d}</span>
+        <div class="chips">
+          <span class="cat" style="background:{bg};color:{fg}">{_esc(c['cat'])} · {idx:02d}</span>
+          {tier_html}
+        </div>
         <div class="hero-fade"></div>
       </div>
       <div class="body fit">
@@ -136,9 +142,12 @@ def build_html(issues, hero_uris, date_str):
      max-width:82%; line-height:1.35; }}
   .hero-fade {{ position:absolute; left:0; right:0; bottom:0; height:120px;
      background:linear-gradient(to top, rgba(255,246,228,.9), rgba(255,246,228,0)); }}
-  .cat {{ position:absolute; top:34px; left:34px; font-size:40px; padding:12px 34px;
+  .chips {{ position:absolute; top:34px; left:34px; display:flex; align-items:center; gap:18px; }}
+  .cat {{ font-size:40px; padding:12px 34px;
           border-radius:999px; border:5px solid rgba(36,26,5,.85);
           box-shadow:5px 5px 0 rgba(36,26,5,.8); }}
+  .tier {{ font-size:34px; padding:12px 30px; border-radius:999px;
+           background:rgba(36,26,5,.85); color:#FFD54A; font-family:'Do Hyeon',sans-serif; }}
   .body {{ position:absolute; top:{HERO_H}px; left:0; right:0; bottom:0;
            padding:40px 56px 0; display:flex; flex-direction:column; }}
   .head {{ font-size:74px; line-height:1.14; letter-spacing:-2px; word-break:keep-all; }}

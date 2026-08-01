@@ -41,26 +41,58 @@ logging.basicConfig(
 logger = logging.getLogger("cardnews_daily")
 
 SELECT_MODEL = "claude-sonnet-4-6"
-NUM_ISSUES = 6
+NUM_ISSUES = 10          # 콘텐츠 카드 수 (표지+엔딩 포함 총 12장)
+
+# 티어 → 카드 표시 라벨 (배열 순서이기도 함: 무거움 → 가벼움)
+TIER_LABELS = {
+    "headline": "오늘의 1면",
+    "core": "핵심",
+    "life": "생활",
+    "trend": "트렌드",
+    "talk": "오늘의 화제",
+}
+TIER_ORDER = ["headline", "core", "life", "trend", "talk"]
+TIER_QUOTA = {"headline": 1, "core": 3, "life": 3, "trend": 2, "talk": 1}
 
 
 # ══════════════════════════════════════════════════
-#  1. Claude — 이슈 선별 + 설명문 + 장면 프롬프트
+#  1. Claude — 점수화 + 티어 배열 + 설명문 + 장면 프롬프트
 # ══════════════════════════════════════════════════
-PROMPT = """당신은 '누렁이 정보공유방' 카드뉴스 편집자입니다.
+PROMPT = """당신은 '누렁이 정보공유방' 카드뉴스 편집장입니다.
 아래는 오늘 하루치 뉴스 브리핑(어제 저녁 + 오늘 아침)입니다.
-이 중 카드뉴스로 만들 핵심 이슈 정확히 {n}개를 중요도 순으로 선별하세요.
+카드뉴스 {n}장에 실을 이슈를 2단계로 선별·배열하세요.
 
-[선별 기준] 파급력(한국 사회·경제 영향), 시의성(오늘의 뉴스 가치), 독자 관심
+[1단계 — 점수화]
+브리핑에 등장하는 모든 이슈를 100점 만점으로 평가하세요:
+- 생활 영향 (30점): 독자의 돈·건강·일상에 직접 닿는가 (물가·금리·부동산·의료·재해·제도 변화)
+- 파급력 (25점): 한국 사회·경제·외교에 구조적 영향을 주는가
+- 시의성 (20점): 오늘 새로 발생/전개됐는가, 오늘 알아야 가치가 있는가
+- 화제성 (15점): 오늘 사람들의 대화 소재가 될 만한가
+- 지속성 (10점): 앞으로 계속 커질 이슈의 시작점/변곡점인가
+
+[2단계 — 티어 배열 (정확히 {n}개, 이 순서대로)]
+- "headline" 1개: 종합 최고점. 오늘 하루를 한 장으로 요약하는 이슈
+- "core" 3개: 정치·국제·경제의 굵직한 이슈 (티어 내 점수순)
+- "life" 3개: 지갑·건강·일상 밀착 이슈 (생활 영향 점수가 높은 것 우선)
+- "trend" 2개: AI·테크·문화의 흐름을 보여주는 이슈
+- "talk" 1개: 스포츠·연예 등 가볍고 화제성 높은 이슈 (마지막 카드, 스몰토크용)
+
+[배열 규칙]
+- issues 배열 순서 = 카드 순서. 위 티어 순서(headline→core→life→trend→talk)를 반드시 지킬 것.
+- 같은 분야(cat)는 전체에서 최대 3개까지만.
+- 어제 저녁·오늘 아침 브리핑에 같은 사건이 겹치면 하나로 병합하고 최신 내용 기준으로 작성.
+- 특정 티어에 맞는 이슈가 정말 없으면 인접 티어 성격의 이슈로 채우되 순서는 유지.
 
 [각 이슈에 필요한 것]
 1. cat: 카테고리. "경제" / "정치" / "사회국제" / "생활문화" / "AI" 중 하나
-2. title: 카드 제목 한 줄. 25자 이내. 구어체로 흥미롭게. 이모지 1개까지 허용
-3. desc: 설명 2~3문장. "~했어요/~있어요/~한답니다" 체의 친근한 존댓말.
+2. tier: "headline" / "core" / "life" / "trend" / "talk" 중 하나
+3. score: 1단계에서 매긴 0~100 정수
+4. title: 카드 제목 한 줄. 25자 이내. 구어체로 흥미롭게. 이모지 1개까지 허용
+5. desc: 설명 2~3문장. "~했어요/~있어요/~한답니다" 체의 친근한 존댓말.
    브리핑에 있는 사실과 수치만 사용. 없는 내용 지어내기 절대 금지.
    각 문장은 완결형으로 끝낼 것. 전체 100~140자.
-4. scene_ko: 이 뉴스를 대표하는 일러스트 장면을 한국어로 한 줄 묘사(검수용)
-5. image_prompt: 위 장면을 그릴 영어 프롬프트.
+6. scene_ko: 이 뉴스를 대표하는 일러스트 장면을 한국어로 한 줄 묘사(검수용)
+7. image_prompt: 위 장면을 그릴 영어 프롬프트.
 
 [image_prompt 작성 규칙 — 매우 중요]
 - 뉴스 내용을 상징하는 '한 장면'을 사람·사물의 행동으로 묘사할 것.
@@ -78,7 +110,7 @@ PROMPT = """당신은 '누렁이 정보공유방' 카드뉴스 편집자입니�
 결과물은 오직 아래 JSON 으로만 반환하세요. 설명·마크다운 금지:
 {{
   "issues": [
-    {{"cat":"경제","title":"제목","desc":"설명 2~3문장","scene_ko":"장면 묘사","image_prompt":"english scene"}}
+    {{"cat":"경제","tier":"headline","score":87,"title":"제목","desc":"설명 2~3문장","scene_ko":"장면 묘사","image_prompt":"english scene"}}
   ]
 }}
 issues 배열은 정확히 {n}개여야 합니다.
@@ -98,10 +130,11 @@ def select_issues(briefing_text: str, n: int = NUM_ISSUES) -> list[dict]:
     if anthropic is None:
         raise ImportError("anthropic 패키지가 설치되지 않았습니다.")
 
-    client = anthropic.Anthropic(api_key=api_key, timeout=60.0)
+    # 10개 이슈 × (점수+설명+장면프롬프트)는 출력이 커서 넉넉한 타임아웃/토큰 필요
+    client = anthropic.Anthropic(api_key=api_key, timeout=180.0, max_retries=2)
     resp = client.messages.create(
         model=SELECT_MODEL,
-        max_tokens=4096,
+        max_tokens=8192,
         messages=[{"role": "user", "content": PROMPT.format(n=n, briefing=briefing_text)}],
     )
     data = _extract_json(resp.content[0].text)
@@ -111,8 +144,17 @@ def select_issues(briefing_text: str, n: int = NUM_ISSUES) -> list[dict]:
         cat = (it.get("cat") or "기타").strip()
         if cat not in VALID_CATS:
             cat = "기타"
+        tier = (it.get("tier") or "").strip()
+        if tier not in TIER_LABELS:
+            tier = "core"
+        try:
+            score = max(0, min(100, int(it.get("score", 0))))
+        except (TypeError, ValueError):
+            score = 0
         issues.append({
             "cat": cat,
+            "tier": tier,
+            "score": score,
             "title": (it.get("title") or "").strip(),
             "desc": (it.get("desc") or "").strip(),
             "scene_ko": (it.get("scene_ko") or "").strip(),
@@ -120,7 +162,14 @@ def select_issues(briefing_text: str, n: int = NUM_ISSUES) -> list[dict]:
         })
     if not issues:
         raise ValueError("선별된 이슈가 없습니다.")
-    logger.info(f"[카드뉴스] 이슈 {len(issues)}개 선별 완료")
+
+    # 안전망: Claude가 배열 순서를 어겨도 티어 순(무거움→가벼움) + 티어 내 점수순으로 재정렬
+    issues.sort(key=lambda x: (TIER_ORDER.index(x["tier"]), -x["score"]))
+
+    dist = {}
+    for i in issues:
+        dist[i["tier"]] = dist.get(i["tier"], 0) + 1
+    logger.info(f"[카드뉴스] 이슈 {len(issues)}개 선별 완료 — 티어 분포: {dist}")
     return issues
 
 
@@ -186,8 +235,11 @@ def generate_daily_cardnews(briefing_text: str,
     호출부는 반드시 sent를 확인해야 한다(여기서 관리자 알림까지 처리).
     """
     issues = select_issues(briefing_text)
+    # 카드 뱃지에 표시할 티어 라벨 주입 (v3 템플릿은 tier_label만 참조)
+    for iss in issues:
+        iss["tier_label"] = TIER_LABELS.get(iss.get("tier", ""), "")
 
-    # 장면 일러스트 6장 생성 (실패한 장은 플레이스홀더로 대체되어 렌더는 계속)
+    # 장면 일러스트 생성 (실패한 장은 플레이스홀더로 대체되어 렌더는 계속)
     # 요청 간격 12초: 무결제 계정 분당 6건 제한 대응 (결제 등록 후에도 무해)
     import time
     heros = []
