@@ -228,8 +228,11 @@ def handle_cardnews_command(chat_id, app):
             return
 
         # 명령을 보낸 채팅(관리자)으로 직접 전송
-        paths = generate_daily_cardnews(text, chat_id=str(chat_id))
-        tg_send(chat_id, f"✅ 카드뉴스 {len(paths)}장 생성·전송 완료")
+        paths, sent = generate_daily_cardnews(text, chat_id=str(chat_id))
+        if sent:
+            tg_send(chat_id, f"✅ 카드뉴스 {len(paths)}장 생성·전송 완료")
+        else:
+            tg_send(chat_id, f"❌ 카드뉴스 {len(paths)}장 생성됐으나 앨범 전송 실패 — 다시 /cardnews 시도해주세요.")
     except Exception as e:
         logger.error(f'[WebBot] /cardnews 처리 오류: {e}')
         tg_send(chat_id, f"❌ 카드뉴스 생성 실패: {e}")

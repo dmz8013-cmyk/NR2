@@ -178,8 +178,13 @@ def _notify_admin(text: str) -> None:
 
 
 def generate_daily_cardnews(briefing_text: str,
-                            chat_id: str | None = None) -> list[str]:
-    """브리핑 텍스트 → 8장 생성 → 관리자 텔레그램 전송. PNG 경로 반환."""
+                            chat_id: str | None = None) -> tuple[list[str], bool]:
+    """브리핑 텍스트 → 8장 생성 → 관리자 텔레그램 전송.
+
+    반환: (PNG 경로 목록, 전송 성공 여부).
+    2026-08-02 06:04 사고 교훈: 전송 실패가 반환값으로만 알려지므로
+    호출부는 반드시 sent를 확인해야 한다(여기서 관리자 알림까지 처리).
+    """
     issues = select_issues(briefing_text)
 
     # 장면 일러스트 6장 생성 (실패한 장은 플레이스홀더로 대체되어 렌더는 계속)
@@ -212,8 +217,15 @@ def generate_daily_cardnews(briefing_text: str,
             f"/cardnews 로 재생성할 수 있습니다."
         )
 
-    send_cards_to_telegram(paths, target, caption=caption)
-    return paths
+    sent = send_cards_to_telegram(paths, target, caption=caption)
+    if not sent:
+        logger.error("[카드뉴스] 텔레그램 전송 최종 실패 — 관리자 알림 발송")
+        _notify_admin(
+            "❌ <b>카드뉴스 전송 실패</b>\n\n"
+            f"8장 생성은 완료됐으나 텔레그램 업로드가 실패했습니다.\n"
+            "/cardnews 로 재시도할 수 있습니다."
+        )
+    return paths, sent
 
 
 def run_daily_cardnews_safe(morning_briefing: str | None = None) -> None:
@@ -227,8 +239,11 @@ def run_daily_cardnews_safe(morning_briefing: str | None = None) -> None:
             logger.warning("[카드뉴스] 사용할 브리핑 텍스트가 없음 — 생략")
             _notify_admin("⚠️ <b>카드뉴스 생성 생략</b>\n\n사용할 브리핑 텍스트를 찾지 못했습니다.")
             return
-        paths = generate_daily_cardnews(text)
-        logger.info(f"[카드뉴스] 완료 ✅ ({len(paths)}장)")
+        paths, sent = generate_daily_cardnews(text)
+        if sent:
+            logger.info(f"[카드뉴스] 완료 ✅ ({len(paths)}장 생성·전송)")
+        else:
+            logger.error(f"[카드뉴스] 생성 {len(paths)}장 완료, 전송 실패 ❌ (관리자 알림 발송됨)")
     except Exception as e:
         logger.error(f"[카드뉴스] 생성 실패(브리핑 발송에는 영향 없음): {e}", exc_info=True)
         _notify_admin(

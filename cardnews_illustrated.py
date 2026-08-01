@@ -197,7 +197,8 @@ def generate_illustration_checked(scene_prompt: str,
         last = data
         if not _image_has_text(data):
             return data
-        logger.warning(f"[일러스트] 글자 감지 — 재생성 {attempt + 1}/{max_retries}")
+        if attempt < max_retries:
+            logger.warning(f"[일러스트] 글자 감지 — 재생성 {attempt + 1}/{max_retries}")
     logger.warning("[일러스트] 재생성 후에도 글자 잔존 — 마지막 결과 사용")
     return last
 

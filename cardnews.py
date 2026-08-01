@@ -389,9 +389,39 @@ def render_cards(html: str, out_dir: str) -> list[str]:
 # ══════════════════════════════════════════════════
 #  4. 텔레그램 전송 (관리자 채팅, 앨범)
 # ══════════════════════════════════════════════════
+def _to_jpeg_payloads(paths: list[str]) -> list[tuple[str, bytes, str]]:
+    """업로드용 (파일명, 바이트, MIME) 목록. PNG→JPEG 변환으로 용량 ~1/5 축소.
+
+    텔레그램은 'photo'를 서버에서 JPEG로 재인코딩하므로 PNG 원본을 보내도
+    화질 이득이 없다. 2026-08-02 06:04 PNG 8장(~12MB) 업로드가 write timeout으로
+    실패한 원인 제거용. 변환 실패 시 해당 장만 PNG 원본으로 폴백.
+    """
+    payloads: list[tuple[str, bytes, str]] = []
+    for path in paths:
+        try:
+            import io as _io
+            from PIL import Image
+            img = Image.open(path).convert("RGB")
+            buf = _io.BytesIO()
+            img.save(buf, format="JPEG", quality=88)
+            name = os.path.splitext(os.path.basename(path))[0] + ".jpg"
+            payloads.append((name, buf.getvalue(), "image/jpeg"))
+        except Exception as e:
+            logger.warning(f"[카드뉴스] JPEG 변환 실패({e}) — PNG 원본 사용: {path}")
+            with open(path, "rb") as f:
+                payloads.append((os.path.basename(path), f.read(), "image/png"))
+    return payloads
+
+
 def send_cards_to_telegram(paths: list[str], chat_id: str,
                            caption: str = "") -> bool:
-    """카드 PNG 묶음을 sendMediaGroup 으로 전송(최대 10장/앨범)."""
+    """카드 묶음을 sendMediaGroup 으로 전송(최대 10장/앨범).
+
+    JPEG 변환 + 넉넉한 타임아웃 + 3회 재시도. 실패 시 False 반환 —
+    호출부는 반드시 반환값을 확인해 관리자 알림을 보낼 것.
+    """
+    import time
+
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token:
         logger.warning("[카드뉴스] TELEGRAM_BOT_TOKEN 미설정 — 전송 생략")
@@ -400,40 +430,43 @@ def send_cards_to_telegram(paths: list[str], chat_id: str,
         return False
 
     url = f"https://api.telegram.org/bot{token}/sendMediaGroup"
+    payloads = _to_jpeg_payloads(paths)
+    total_kb = sum(len(b) for _, b, _ in payloads) // 1024
+    logger.info(f"[카드뉴스] 업로드 준비: {len(payloads)}장, {total_kb}KB")
+
     ok = True
     # 10장씩 청크 (8장이면 1회)
-    for chunk_start in range(0, len(paths), 10):
-        chunk = paths[chunk_start:chunk_start + 10]
+    for chunk_start in range(0, len(payloads), 10):
+        chunk = payloads[chunk_start:chunk_start + 10]
         media = []
         files = {}
-        for i, path in enumerate(chunk):
+        for i, (name, data, mime) in enumerate(chunk):
             key = f"photo{i}"
             item = {"type": "photo", "media": f"attach://{key}"}
             if i == 0 and caption and chunk_start == 0:
                 item["caption"] = caption
             media.append(item)
-            files[key] = (os.path.basename(path), open(path, "rb"), "image/png")
-        try:
-            resp = requests.post(
-                url,
-                data={"chat_id": chat_id, "media": json.dumps(media)},
-                files=files,
-                timeout=60,
-            )
-            if not resp.ok:
-                logger.error(f"[카드뉴스] 텔레그램 전송 실패: {resp.text}")
-                ok = False
-            else:
-                logger.info(f"[카드뉴스] 텔레그램 앨범 전송 성공 ({len(chunk)}장)")
-        except Exception as e:
-            logger.error(f"[카드뉴스] 텔레그램 전송 오류: {e}")
-            ok = False
-        finally:
-            for _, fobj, _ in files.values():
-                try:
-                    fobj.close()
-                except Exception:
-                    pass
+            files[key] = (name, data, mime)   # bytes라 재시도에도 재사용 가능
+
+        sent = False
+        for attempt in range(1, 4):
+            try:
+                resp = requests.post(
+                    url,
+                    data={"chat_id": chat_id, "media": json.dumps(media)},
+                    files=files,
+                    timeout=(30, 300),   # (connect, read/write)
+                )
+                if resp.ok:
+                    logger.info(f"[카드뉴스] 텔레그램 앨범 전송 성공 ({len(chunk)}장)")
+                    sent = True
+                    break
+                logger.error(f"[카드뉴스] 텔레그램 전송 실패({attempt}/3): {resp.text[:200]}")
+            except Exception as e:
+                logger.error(f"[카드뉴스] 텔레그램 전송 오류({attempt}/3): {e}")
+            if attempt < 3:
+                time.sleep(10 * attempt)
+        ok = ok and sent
     return ok
 
 
