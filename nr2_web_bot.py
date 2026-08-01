@@ -210,6 +210,38 @@ def handle_bias_command(chat_id, args, app):
 
 
 # ──────────────────────────────────────────────
+# /cardnews — 최신 브리핑으로 카드뉴스 수동 생성
+# ──────────────────────────────────────────────
+
+def handle_cardnews_command(chat_id, app):
+    """최신 AI 브리핑을 카드뉴스 8장으로 생성해 관리자 채팅에 전송.
+
+    카드 생성/전송은 cardnews 모듈이 담당(관리자 채팅에만 발송).
+    여기서는 최신 브리핑 텍스트를 DB에서 꺼내 넘기고 진행 상황만 알린다.
+    """
+    tg_send(chat_id, "🗞️ 카드뉴스 생성 중… 최신 브리핑을 불러옵니다. (1~2분 소요)")
+    try:
+        with app.app_context():
+            from app.models.briefing import Briefing
+            latest = Briefing.query.filter(
+                Briefing.briefing_type.in_(['ai_morning', 'ai_evening'])
+            ).order_by(Briefing.created_at.desc()).first()
+
+        if not latest:
+            tg_send(chat_id, "⚠️ 최근 AI 브리핑을 찾을 수 없습니다.")
+            return
+
+        period = '아침' if latest.briefing_type == 'ai_morning' else '저녁'
+        from cardnews import generate_cardnews
+        # 명령을 보낸 채팅(관리자)으로 직접 전송
+        paths = generate_cardnews(latest.content, period=period, chat_id=str(chat_id))
+        tg_send(chat_id, f"✅ 카드뉴스 {len(paths)}장 생성·전송 완료 ({period} 브리핑 기준)")
+    except Exception as e:
+        logger.error(f'[WebBot] /cardnews 처리 오류: {e}')
+        tg_send(chat_id, f"❌ 카드뉴스 생성 실패: {e}")
+
+
+# ──────────────────────────────────────────────
 # 폴링 — 모든 명령어 통합 처리
 # ──────────────────────────────────────────────
 
@@ -263,6 +295,10 @@ def poll_commands(app):
             elif cmd in ('/bias', '/bias@nr2_bot'):
                 logger.info(f'[WebBot] /bias 수신: chat_id={chat_id}, args={args}')
                 handle_bias_command(chat_id, args, app)
+
+            elif cmd in ('/cardnews', '/cardnews@nr2_bot'):
+                logger.info(f'[WebBot] /cardnews 수신: chat_id={chat_id}')
+                handle_cardnews_command(chat_id, app)
 
         except Exception as e:
             logger.error(f'[WebBot] 명령어 처리 오류: {cmd} → {e}')

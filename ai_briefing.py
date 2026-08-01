@@ -482,6 +482,15 @@ def send_briefing():
         logger.info("AI 브리핑 파이프라인 완료 ✅")
         logger.info("=" * 50)
 
+        # 6) 카드뉴스 자동 생성 (브리핑 발송과 완전히 분리 — 실패해도 무영향)
+        #    run_cardnews_safe 는 내부에서 모든 예외를 삼키지만, import 실패 등
+        #    최상위 경로까지도 브리핑에 영향 없도록 여기서 한 번 더 감싼다.
+        try:
+            from cardnews import run_cardnews_safe
+            run_cardnews_safe(briefing, period=period)
+        except Exception as cn_err:
+            logger.error(f"[카드뉴스] 트리거 실패(브리핑 발송에는 영향 없음): {cn_err}")
+
     except Exception as e:
         logger.error(f"AI 브리핑 오류: {e}", exc_info=True)
 

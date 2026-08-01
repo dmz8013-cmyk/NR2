@@ -30,6 +30,10 @@ instance/
 .DS_Store
 Thumbs.db
 
+# Cardnews generated output (PNG 8장/일 — 코드가 매 브리핑마다 재생성)
+output/cardnews/
+_cardnews_preview.html
+
 # Uploads
 app/static/uploads/*
 !app/static/uploads/.gitkeep
