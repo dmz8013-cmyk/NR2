@@ -48,3 +48,4 @@ bleach
 lxml
 anthropic>=0.40.0
 playwright
+replicate>=1.0.0

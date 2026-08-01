@@ -219,23 +219,17 @@ def handle_cardnews_command(chat_id, app):
     카드 생성/전송은 cardnews 모듈이 담당(관리자 채팅에만 발송).
     여기서는 최신 브리핑 텍스트를 DB에서 꺼내 넘기고 진행 상황만 알린다.
     """
-    tg_send(chat_id, "🗞️ 카드뉴스 생성 중… 최신 브리핑을 불러옵니다. (1~2분 소요)")
+    tg_send(chat_id, "🗞️ 카드뉴스 생성 중… 브리핑 분석 후 일러스트 6장을 그립니다. (2~3분 소요)")
     try:
-        with app.app_context():
-            from app.models.briefing import Briefing
-            latest = Briefing.query.filter(
-                Briefing.briefing_type.in_(['ai_morning', 'ai_evening'])
-            ).order_by(Briefing.created_at.desc()).first()
-
-        if not latest:
+        from cardnews_daily import collect_today_briefings, generate_daily_cardnews
+        text = collect_today_briefings()
+        if not text.strip():
             tg_send(chat_id, "⚠️ 최근 AI 브리핑을 찾을 수 없습니다.")
             return
 
-        period = '아침' if latest.briefing_type == 'ai_morning' else '저녁'
-        from cardnews import generate_cardnews
         # 명령을 보낸 채팅(관리자)으로 직접 전송
-        paths = generate_cardnews(latest.content, period=period, chat_id=str(chat_id))
-        tg_send(chat_id, f"✅ 카드뉴스 {len(paths)}장 생성·전송 완료 ({period} 브리핑 기준)")
+        paths = generate_daily_cardnews(text, chat_id=str(chat_id))
+        tg_send(chat_id, f"✅ 카드뉴스 {len(paths)}장 생성·전송 완료")
     except Exception as e:
         logger.error(f'[WebBot] /cardnews 처리 오류: {e}')
         tg_send(chat_id, f"❌ 카드뉴스 생성 실패: {e}")
