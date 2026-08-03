@@ -49,8 +49,17 @@ CAT_COLOR = {
     "사회국제": ("#E4572E", "#ffffff"),
     "AI":     ("#4E8FC0", "#ffffff"),
     "생활문화": ("#7FB069", "#12280f"),
+    "외신":   ("#1F7A8C", "#ffffff"),
     "기타":   ("#7FB069", "#12280f"),
 }
+
+# 국내 뉴스 일러스트 한국인 기본값 강제 (코드단 안전망 — Claude가 국적 명시를
+# 빠뜨려도 여기서 붙는다. 이미지 모델은 지시가 없으면 서양인을 기본으로 그림.)
+KOREAN_DEFAULT_SUFFIX = (
+    " All people in the scene are Korean East Asians with Korean features, "
+    "in a modern Korean setting with Korean-style streets buildings and clothing. "
+    "No Western politicians, no blond Western statesman lookalike figures."
+)
 
 
 def _fonts_head():
@@ -61,6 +70,9 @@ def _fonts_head():
 
 def _card(hero_uri, c, idx):
     bg, fg = CAT_COLOR.get(c["cat"], CAT_COLOR["기타"])
+    # 표시 번호: 국내 01~10 / 외신 01~03 별도 카운트 (없으면 전체 순번)
+    idx = c.get("display_no", idx)
+    cat_label = "🌍 외신" if c["cat"] == "외신" else c["cat"]
     if hero_uri:
         hero_inner = f'<img class="hero-img" src="{hero_uri}" alt="">'
     else:
@@ -77,7 +89,7 @@ def _card(hero_uri, c, idx):
       <div class="hero">
         {hero_inner}
         <div class="chips">
-          <span class="cat" style="background:{bg};color:{fg}">{_esc(c['cat'])} · {idx:02d}</span>
+          <span class="cat" style="background:{bg};color:{fg}">{_esc(cat_label)} · {idx:02d}</span>
           {tier_html}
         </div>
         <div class="hero-fade"></div>
@@ -190,9 +202,13 @@ def build_html(issues, hero_uris, date_str):
 
 def _hero_for(issue):
     """콘텐츠 히어로 URI: Flux(뉴스 장면·누렁이 없음) 생성 + 글자 감지 시 재생성.
+
+    국내 카드는 한국인/한국 배경 접미를 코드단에서 강제(외신 카드는 해당 국가 유지).
     실패/토큰없음 시 None → 카드가 '일러스트 자리' 안내 플레이스홀더를 표시."""
     prompt = issue.get("image_prompt")
     if prompt:
+        if issue.get("cat") != "외신":
+            prompt = prompt.rstrip(". ") + "." + KOREAN_DEFAULT_SUFFIX
         data = generate_illustration_checked(prompt, style_suffix=STYLE_V3, max_retries=2)
         if data is not None:
             return _img_data_uri(data)
