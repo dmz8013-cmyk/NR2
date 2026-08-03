@@ -90,7 +90,9 @@ PROMPT = """당신은 '누렁이 정보공유방' 카드뉴스 편집장입니�
    외신 카드는 반드시 "외신"
 2. tier: 국내 카드는 "headline" / "core" / "life" / "trend" / "talk", 외신 카드는 "world"
 3. score: 1단계에서 매긴 0~100 정수 (외신은 AESA 점수 × 10)
-4. title: 카드 제목 한 줄. 25자 이내. 구어체로 흥미롭게. 이모지 1개까지 허용
+4. title: 카드 제목. 구어체로 흥미롭게. 이모지 1개까지 허용.
+   [길이 엄수] 공백 포함 20자 이내 — 카드에서 반드시 한 줄로 렌더되므로
+   20자를 넘기면 안 됨. 조사·수식어를 줄여서라도 20자 안에 압축할 것.
 5. desc: 설명 2~3문장. "~했어요/~있어요/~한답니다" 체의 친근한 존댓말.
    브리핑에 있는 사실과 수치만 사용. 없는 내용 지어내기 절대 금지.
    각 문장은 완결형으로 끝낼 것. 전체 100~140자.
@@ -357,6 +359,22 @@ def generate_daily_cardnews(briefing_text: str,
     html = build_html(issues, heros, now.strftime("%Y.%m.%d"))
 
     out_dir = os.path.join(_HERE, "output", "cardnews", now.strftime("%Y-%m-%d"))
+
+    # 재합성용 원본 보존: 일러스트 PNG + 이슈 JSON.
+    # 템플릿(푸터·문구·간격)만 바뀔 때 Flux 재호출 없이 0원으로 다시 합성할 수 있다.
+    try:
+        import base64 as _b64
+        raw_dir = os.path.join(out_dir, "illustrations")
+        os.makedirs(raw_dir, exist_ok=True)
+        for i, uri in enumerate(heros, 1):
+            if uri and uri.startswith("data:image/png;base64,"):
+                with open(os.path.join(raw_dir, f"{i:02d}.png"), "wb") as f:
+                    f.write(_b64.b64decode(uri.split(",", 1)[1]))
+        with open(os.path.join(out_dir, "issues.json"), "w", encoding="utf-8") as f:
+            json.dump(issues, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.warning(f"[카드뉴스] 원본 보존 실패(렌더는 계속): {e}")
+
     paths = render_cards(html, out_dir)
 
     target = chat_id or os.environ.get("TELEGRAM_ADMIN_CHAT_ID", "5132309076")

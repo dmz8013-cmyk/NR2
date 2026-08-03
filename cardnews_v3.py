@@ -53,6 +53,9 @@ CAT_COLOR = {
     "기타":   ("#7FB069", "#12280f"),
 }
 
+# 모든 카드(콘텐츠·표지·엔딩) 공통 푸터 — 단일 상수로만 관리할 것 (하드코딩 금지)
+FOOTER_TEXT = "검색 =&gt; 누렁이 정보공유방 (카카오톡 오픈채팅 / 텔레그램)"
+
 # 국내 뉴스 일러스트 한국인 기본값 강제 (코드단 안전망 — Claude가 국적 명시를
 # 빠뜨려도 여기서 붙는다. 이미지 모델은 지시가 없으면 서양인을 기본으로 그림.)
 KOREAN_DEFAULT_SUFFIX = (
@@ -97,7 +100,7 @@ def _card(hero_uri, c, idx):
       <div class="body fit">
         <h2 class="head">{_esc(c['title'])}</h2>
         <p class="desc">{_esc(c['desc'])}</p>
-        <div class="foot">🐾 누렁이 정보방 · 매일 아침 세계 스캔</div>
+        <div class="foot">{FOOTER_TEXT}</div>
       </div>
     </section>"""
 
@@ -110,7 +113,7 @@ def _cover(avatar, date_str):
       <h1 class="c-title">누렁이 <mark class="hl">브리핑</mark></h1>
       <p class="c-sub">매일 아침, AI가 세상을 킁킁 🐕</p>
       <div class="c-tape">{_esc(date_str)} · 아침</div>
-      <div class="c-foot">YOUTUBE @NR2AESA · 누렁이 정보방</div>
+      <div class="c-foot">{FOOTER_TEXT}</div>
     </section>"""
 
 
@@ -122,7 +125,7 @@ def _ending(avatar):
       <h2 class="e-copy">오늘도 세상 소식<br><mark class="hl">잘 물어왔어요!</mark> 🐶</h2>
       <p class="c-sub">더 많은 이야기는 유튜브에서 🐾</p>
       <div class="c-tape">YOUTUBE @NR2AESA</div>
-      <div class="c-foot">누렁이 정보방 · 이상한 나라의 누렁이</div>
+      <div class="c-foot">{FOOTER_TEXT}</div>
     </section>"""
 
 
@@ -162,10 +165,14 @@ def build_html(issues, hero_uris, date_str):
            background:rgba(36,26,5,.85); color:#FFD54A; font-family:'Do Hyeon',sans-serif; }}
   .body {{ position:absolute; top:{HERO_H}px; left:0; right:0; bottom:0;
            padding:40px 56px 0; display:flex; flex-direction:column; }}
-  .head {{ font-size:74px; line-height:1.14; letter-spacing:-2px; word-break:keep-all; }}
+  /* 제목은 항상 한 줄: nowrap + JS 폭맞춤 축소 (긴 제목은 폰트가 줄어듦) */
+  .head {{ font-size:74px; line-height:1.14; letter-spacing:-2px; word-break:keep-all;
+           white-space:nowrap; }}
   .desc {{ font-family:'Gaegu',cursive; font-weight:700; font-size:41px; line-height:1.42;
            color:#6A4E2A; margin-top:22px; word-break:keep-all; }}
-  .foot {{ margin-top:auto; margin-bottom:26px; font-family:'Do Hyeon',sans-serif; font-size:31px;
+  /* padding-top: 설명문과의 최소 간격 보장 (12px — 기존 대비 1.5배 수준).
+     margin-top:auto 가 푸터를 하단에 고정하므로 카드 높이·다른 배치는 불변. */
+  .foot {{ margin-top:auto; padding-top:12px; margin-bottom:26px; font-family:'Do Hyeon',sans-serif; font-size:31px;
            color:#B08A4A; }}
 
   /* ─ 표지/엔딩 ─ */
@@ -190,6 +197,14 @@ def build_html(issues, hero_uris, date_str):
 <script>
   window.__fitDone=false;
   (async function(){{ try{{ if(document.fonts&&document.fonts.ready) await document.fonts.ready; }}catch(e){{}}
+    // 1) 제목 한 줄 강제: 폭이 넘치면 그 카드 제목만 폰트 축소 (하한 40px, 그 밑이면 줄바꿈 폴백)
+    document.querySelectorAll('.head').forEach(function(el){{
+      var s=parseFloat(getComputedStyle(el).fontSize), g=0;
+      while(el.scrollWidth>el.clientWidth && s>40 && g<60){{
+        s*=0.97; el.style.fontSize=s+'px'; g++; }}
+      if(el.scrollWidth>el.clientWidth) el.style.whiteSpace='normal';
+    }});
+    // 2) 본문 높이 맞춤: 넘치면 제목·설명 동시 축소 (기존 로직)
     document.querySelectorAll('.body.fit').forEach(function(b){{
       var g=0; while(b.scrollHeight>b.clientHeight && g<60){{
         b.querySelectorAll('.head,.desc').forEach(function(el){{
