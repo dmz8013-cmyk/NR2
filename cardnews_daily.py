@@ -119,6 +119,9 @@ PROMPT = """당신은 '누렁이 정보공유방' 카드뉴스 편집장입니�
   손을 내밀거나 물건을 만지는 동작은 '받는 것'처럼 보이므로 거절 장면에 쓰지 말 것.
 - 영어로, 쉼표로 이어진 시각적 묘사 한 문장. 30단어 이내.
 
+[JSON 안전 규칙] title·desc·scene_ko 등 모든 텍스트 필드 안에서 큰따옴표(")를
+절대 쓰지 말 것 — 발언 인용이 필요하면 작은따옴표(')로 대체. (JSON 파싱 오류 방지)
+
 결과물은 오직 아래 JSON 으로만 반환하세요. 설명·마크다운 금지:
 {{
   "issues": [
@@ -213,16 +216,26 @@ def select_issues(briefing_text: str, n: int = NUM_ISSUES,
 
     # 13개 이슈 × (점수+설명+장면프롬프트)는 출력이 커서 넉넉한 타임아웃/토큰 필요
     client = anthropic.Anthropic(api_key=api_key, timeout=180.0, max_retries=2)
-    resp = client.messages.create(
-        model=SELECT_MODEL,
-        max_tokens=8192,
-        messages=[{"role": "user", "content": PROMPT.format(
-            n=n, total=total, briefing=briefing_text,
-            world_intro=world_intro, world_section=world_section,
-            world_count_note=world_count_note,
-        )}],
+    prompt_text = PROMPT.format(
+        n=n, total=total, briefing=briefing_text,
+        world_intro=world_intro, world_section=world_section,
+        world_count_note=world_count_note,
     )
-    data = _extract_json(resp.content[0].text)
+    # JSON 파싱 실패(따옴표 이스케이프 누락 등) 시 1회 재요청 — 8/4 실측 사례 대응
+    data = None
+    for attempt in (1, 2):
+        resp = client.messages.create(
+            model=SELECT_MODEL,
+            max_tokens=8192,
+            messages=[{"role": "user", "content": prompt_text}],
+        )
+        try:
+            data = _extract_json(resp.content[0].text)
+            break
+        except (json.JSONDecodeError, ValueError) as je:
+            logger.warning(f"[카드뉴스] 이슈 JSON 파싱 실패({attempt}/2): {je}")
+            if attempt == 2:
+                raise
 
     issues = []
     for it in (data.get("issues") or [])[:total]:
