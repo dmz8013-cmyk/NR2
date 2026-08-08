@@ -66,9 +66,27 @@ KOREAN_DEFAULT_SUFFIX = (
 
 
 def _fonts_head():
-    return ('<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
-            '<link href="https://fonts.googleapis.com/css2?'
-            'family=Jua&family=Gaegu:wght@400;700&family=Do+Hyeon&display=swap" rel="stylesheet">')
+    """Pretendard 로컬 OTF 임베드 (assets/fonts/ — 리포에 포함, Docker COPY로 배포).
+
+    CDN 의존 제거: 이전 Google Fonts 링크는 네트워크 장애 시 폰트 누락 위험.
+    file:// 절대경로는 로컬(_HERE=리포)과 컨테이너(_HERE=/app) 모두에서 동작.
+    """
+    fonts_dir = os.path.join(_HERE, "assets", "fonts")
+    faces = []
+    for weight, fname in ((400, "Pretendard-Regular.otf"),
+                          (600, "Pretendard-SemiBold.otf"),
+                          (700, "Pretendard-Bold.otf")):
+        path = os.path.join(fonts_dir, fname)
+        if not os.path.exists(path):
+            # 폰트 파일 누락 시 시스템 sans-serif 폴백으로 렌더는 계속되지만 반드시 로그
+            import logging
+            logging.getLogger("cardnews_v3").warning(f"[폰트] 파일 없음: {path}")
+            continue
+        faces.append(
+            f"@font-face {{ font-family:'Pretendard'; font-weight:{weight}; "
+            f"src: url('file://{path}') format('opentype'); }}"
+        )
+    return "<style>" + "\n".join(faces) + "</style>"
 
 
 def _card(hero_uri, c, idx):
@@ -139,7 +157,9 @@ def build_html(issues, hero_uris, date_str):
 <style>
   * {{ margin:0; padding:0; box-sizing:border-box; }}
   html,body {{ background:#FFF6E4; }}
-  body {{ font-family:'Jua',sans-serif; color:#4A3520; -webkit-font-smoothing:antialiased; }}
+  /* 폰트 매핑: 본문=Regular(400) · 제목/라벨=SemiBold(600) · 표지/엔딩 강조=Bold(700) */
+  body {{ font-family:'Pretendard','Apple SD Gothic Neo',sans-serif; font-weight:400;
+          color:#4A3520; -webkit-font-smoothing:antialiased; }}
   .card {{ position:relative; width:{CARD}px; height:{CARD}px; overflow:hidden; background:#FFF6E4; }}
   mark.hl {{ background:linear-gradient(180deg,transparent 50%,#FFD54A 50%,#FFD54A 92%,transparent 92%);
              color:inherit; padding:0 8px; border-radius:4px; }}
@@ -153,26 +173,26 @@ def build_html(issues, hero_uris, date_str):
      background:repeating-linear-gradient(45deg,#F3E7CC,#F3E7CC 40px,#EFE0BE 40px,#EFE0BE 80px);
      color:#B79A5E; }}
   .hero-ph .ph-t {{ font-size:44px; }}
-  .hero-ph .ph-s {{ font-size:34px; font-family:'Gaegu',cursive; font-weight:700; color:#8A6A3A;
+  .hero-ph .ph-s {{ font-size:34px; font-weight:400; color:#8A6A3A;
      max-width:82%; line-height:1.35; }}
   .hero-fade {{ position:absolute; left:0; right:0; bottom:0; height:120px;
      background:linear-gradient(to top, rgba(255,246,228,.9), rgba(255,246,228,0)); }}
   .chips {{ position:absolute; top:34px; left:34px; display:flex; align-items:center; gap:18px; }}
-  .cat {{ font-size:40px; padding:12px 34px;
+  .cat {{ font-size:40px; font-weight:600; padding:12px 34px;
           border-radius:999px; border:5px solid rgba(36,26,5,.85);
           box-shadow:5px 5px 0 rgba(36,26,5,.8); }}
-  .tier {{ font-size:34px; padding:12px 30px; border-radius:999px;
-           background:rgba(36,26,5,.85); color:#FFD54A; font-family:'Do Hyeon',sans-serif; }}
+  .tier {{ font-size:34px; font-weight:600; padding:12px 30px; border-radius:999px;
+           background:rgba(36,26,5,.85); color:#FFD54A; }}
   .body {{ position:absolute; top:{HERO_H}px; left:0; right:0; bottom:0;
            padding:40px 56px 0; display:flex; flex-direction:column; }}
   /* 제목은 항상 한 줄: nowrap + JS 폭맞춤 축소 (긴 제목은 폰트가 줄어듦) */
-  .head {{ font-size:74px; line-height:1.14; letter-spacing:-2px; word-break:keep-all;
+  .head {{ font-size:74px; font-weight:600; line-height:1.14; letter-spacing:-2px; word-break:keep-all;
            white-space:nowrap; }}
-  .desc {{ font-family:'Gaegu',cursive; font-weight:700; font-size:41px; line-height:1.42;
+  .desc {{ font-weight:400; font-size:41px; line-height:1.55;
            color:#6A4E2A; margin-top:22px; word-break:keep-all; }}
   /* padding-top: 설명문과의 최소 간격 보장 (12px — 기존 대비 1.5배 수준).
      margin-top:auto 가 푸터를 하단에 고정하므로 카드 높이·다른 배치는 불변. */
-  .foot {{ margin-top:auto; padding-top:12px; margin-bottom:26px; font-family:'Do Hyeon',sans-serif; font-size:31px;
+  .foot {{ margin-top:auto; padding-top:12px; margin-bottom:26px; font-weight:400; font-size:31px;
            color:#B08A4A; }}
 
   /* ─ 표지/엔딩 ─ */
@@ -185,13 +205,13 @@ def build_html(issues, hero_uris, date_str):
   .c-ava {{ width:330px; height:330px; border-radius:50%; object-fit:cover;
             border:14px solid #F5B301; box-shadow:0 16px 40px rgba(180,130,20,.35); }}
   .c-paw {{ position:absolute; right:-4px; bottom:18px; font-size:70px; transform:rotate(20deg); }}
-  .c-title {{ font-size:130px; line-height:1.1; letter-spacing:-2px; }}
-  .c-sub {{ font-family:'Gaegu',cursive; font-weight:700; font-size:52px; color:#8A6A3A; margin-top:26px; }}
-  .c-tape {{ margin-top:44px; background:#F5B301; color:#4A3520; font-size:46px; padding:14px 44px;
+  .c-title {{ font-size:130px; font-weight:700; line-height:1.1; letter-spacing:-2px; }}
+  .c-sub {{ font-weight:400; font-size:52px; color:#8A6A3A; margin-top:26px; }}
+  .c-tape {{ margin-top:44px; background:#F5B301; color:#4A3520; font-size:46px; font-weight:600; padding:14px 44px;
              border-radius:16px; transform:rotate(-3deg); box-shadow:0 8px 20px rgba(180,130,20,.3); }}
-  .c-foot {{ margin-top:40px; font-family:'Do Hyeon',sans-serif; font-size:32px; color:#B08A4A; }}
+  .c-foot {{ margin-top:40px; font-weight:400; font-size:32px; color:#B08A4A; }}
   .e-ava-wrap {{ width:300px; height:300px; margin-bottom:40px; }}
-  .e-copy {{ font-size:96px; line-height:1.2; letter-spacing:-2px; }}
+  .e-copy {{ font-size:96px; font-weight:700; line-height:1.2; letter-spacing:-2px; }}
 </style></head><body>
 {''.join(cards)}
 <script>
