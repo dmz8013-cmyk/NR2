@@ -216,7 +216,7 @@ def fetch_crypto_prices() -> str | None:
 #  2.8. 팩트체크 강화 — 시스템 프롬프트 3블록
 #       (확정 팩트 사전 / 생성 검증 규칙 / 최근 브리핑 이력)
 # ══════════════════════════════════════════════════
-FACTS_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "facts.json")
+FACTS_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "facts.json")
 
 # 반복 오류 5종(인명·직함, 시제 승격, 논조 반전, 별건 결합, 자기 이력 미참조) 차단 규칙.
 # 지시문 원문 그대로 — 문구 수정 금지.

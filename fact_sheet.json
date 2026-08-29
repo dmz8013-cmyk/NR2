@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-03-20",
+  "last_updated": "2026-08-29",
   "president": {
     "current": "이재명",
     "order": "제21대",
@@ -9,8 +9,8 @@
     "wrong_names": ["이준석", "윤석열", "한덕수"]
   },
   "prime_minister": {
-    "current": "이해찬",
-    "wrong_names": []
+    "current": "한성숙",
+    "wrong_names": ["이해찬", "김민석", "한덕수"]
   },
   "key_figures": [
     {
@@ -25,7 +25,7 @@
     },
     {
       "name": "한덕수",
-      "correct_title": "전 대통령 권한대행",
+      "correct_title": "전 국무총리 (내란 혐의 징역 23년 선고·법정구속)",
       "wrong_titles": ["대통령", "총리"]
     }
   ]

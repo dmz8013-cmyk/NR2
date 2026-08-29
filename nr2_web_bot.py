@@ -268,16 +268,11 @@ def handle_fact_command(chat_id, args):
                 data = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             data = {}
-        people = data.setdefault('people', [])
-        for p in people:
-            if p.get('name') == name:
-                p['title'], p['note'] = title, note
-                action = '갱신'
-                break
-        else:
-            people.append({'name': name, 'title': title, 'note': note})
-            action = '추가'
-        data['last_updated'] = datetime.now().strftime('%Y-%m-%d')
+        # config/facts.json 스키마: "인물_직함": { 이름: "직함 — 비고" }
+        people = data.setdefault('인물_직함', {})
+        action = '갱신' if name in people else '추가'
+        people[name] = title + (f" — {note}" if note else "")
+        data.setdefault('_meta', {})['updated'] = datetime.now().strftime('%Y-%m-%d')
         with open(FACTS_JSON_PATH, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         tg_send(chat_id,
