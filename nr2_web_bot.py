@@ -239,6 +239,57 @@ def handle_cardnews_command(chat_id, app):
 
 
 # ──────────────────────────────────────────────
+# /fact — 확정 팩트 사전 런타임 추가 (관리자 전용)
+# ──────────────────────────────────────────────
+
+def handle_fact_command(chat_id, args):
+    """/fact 인물명|직함|비고 → facts.json 에 append (커밋 없이 런타임 반영).
+
+    관리자 chat_id 화이트리스트 전용. 같은 인물명이 있으면 갱신.
+    주의: Railway 파일시스템은 재배포 시 초기화 — 영구 반영은 facts.json 커밋 필요.
+    """
+    admin_id = os.environ.get('TELEGRAM_ADMIN_CHAT_ID', '5132309076')
+    if str(chat_id) != str(admin_id):
+        tg_send(chat_id, "⚠️ /fact 는 관리자 전용 명령입니다.")
+        return
+
+    parts = [p.strip() for p in (args or '').split('|')]
+    if len(parts) < 2 or not parts[0] or not parts[1]:
+        tg_send(chat_id, "사용법: <code>/fact 인물명|직함|비고(선택)</code>\n예: <code>/fact 홍길동|국회 기획재정위원장|2026-07 선출</code>")
+        return
+    name, title = parts[0], parts[1]
+    note = parts[2] if len(parts) > 2 else ""
+
+    import json
+    from ai_briefing import FACTS_JSON_PATH
+    try:
+        try:
+            with open(FACTS_JSON_PATH, encoding='utf-8') as f:
+                data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            data = {}
+        people = data.setdefault('people', [])
+        for p in people:
+            if p.get('name') == name:
+                p['title'], p['note'] = title, note
+                action = '갱신'
+                break
+        else:
+            people.append({'name': name, 'title': title, 'note': note})
+            action = '추가'
+        data['last_updated'] = datetime.now().strftime('%Y-%m-%d')
+        with open(FACTS_JSON_PATH, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        tg_send(chat_id,
+                f"✅ 팩트 {action}: <b>{name}</b> — {title}" + (f" ({note})" if note else "") +
+                f"\n다음 브리핑 생성부터 반영됩니다.\n"
+                f"⚠️ 재배포 시 초기화 — 영구 반영하려면 facts.json 수정을 커밋하세요.")
+    except Exception as e:
+        logger.error(f'[WebBot] /fact 처리 오류: {e}')
+        tg_send(chat_id, f"❌ 팩트 저장 실패: {e}")
+
+
+# ──────────────────────────────────────────────
 # 폴링 — 모든 명령어 통합 처리
 # ──────────────────────────────────────────────
 
@@ -296,6 +347,10 @@ def poll_commands(app):
             elif cmd in ('/cardnews', '/cardnews@nr2_bot'):
                 logger.info(f'[WebBot] /cardnews 수신: chat_id={chat_id}')
                 handle_cardnews_command(chat_id, app)
+
+            elif cmd in ('/fact', '/fact@nr2_bot'):
+                logger.info(f'[WebBot] /fact 수신: chat_id={chat_id}')
+                handle_fact_command(chat_id, args)
 
         except Exception as e:
             logger.error(f'[WebBot] 명령어 처리 오류: {cmd} → {e}')

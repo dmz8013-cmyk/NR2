@@ -213,6 +213,109 @@ def fetch_crypto_prices() -> str | None:
 
 
 # ══════════════════════════════════════════════════
+#  2.8. 팩트체크 강화 — 시스템 프롬프트 3블록
+#       (확정 팩트 사전 / 생성 검증 규칙 / 최근 브리핑 이력)
+# ══════════════════════════════════════════════════
+FACTS_JSON_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "facts.json")
+
+# 반복 오류 5종(인명·직함, 시제 승격, 논조 반전, 별건 결합, 자기 이력 미참조) 차단 규칙.
+# 지시문 원문 그대로 — 문구 수정 금지.
+VERIFICATION_RULES = """[생성 검증 규칙 — 위반 시 해당 항목을 다시 쓸 것]
+1. 시제 승격 금지: 원문이 "상정·추진·거론·예정·검토·전망"이면 결과 표현("통과·출범·확정·가결·선정")으로 바꾸지 말 것.
+2. 논조 보존: 각 기사를 먼저 [비판·폭로 / 성과·미담 / 중립]으로 분류하고, 분류와 반대 방향의 서술을 금지할 것. (예: 징계·구속 대상자가 과거에 받은 표창은 비판 기사임)
+3. 별건 결합 금지: 서로 다른 두 사건을 "~로 발전했다", "~에 이어" 등 인과·연속 관계로 묶지 말 것. 같은 지역·기관이라도 별건은 별개 문장으로.
+4. 인명·직함: 확정 팩트 사전과 대조할 것. 사전에 없는 인물의 직함이 불확실하면 인명을 빼고 직명만 쓸 것. 실존 인물의 소속 정당·직책을 추측으로 채우지 말 것.
+5. 통계·여론조사: 조사기관과 조사기간을 병기할 것. 둘 중 하나라도 원문에 없으면 "~로 전해졌다"로 완곡 처리할 것.
+6. 섹션 배치: 금리·물가·환율·증시·코인 시세는 경제/산업 섹션에, 기술 제품·서비스·연구는 AI/기술 섹션에 배치할 것.
+7. 최근 브리핑 정합성: 함께 제공되는 [최근 브리핑 이력]과 모순되는 서술(이미 가결된 안건의 "촉구" 등)을 금지할 것. 동일 뉴스가 이틀 넘게 재등장하면 최초 발생 날짜를 명시할 것.
+8. 숫자 재검: 인원수·연도·배수는 원문에서 그대로 옮기고, 두 숫자가 섞일 수 있는 문맥(사망자 vs 실종자 등)이면 주체를 명시할 것."""
+
+
+def _facts_block() -> str:
+    """facts.json → [확정 팩트 사전] 블록. 로드 실패 시 빈 문자열(브리핑은 계속)."""
+    try:
+        with open(FACTS_JSON_PATH, encoding="utf-8") as f:
+            raw = f.read().strip()
+        return (
+            "[확정 팩트 사전 — 아래 내용과 충돌하는 서술은 절대 생성하지 말 것.\n"
+            "인물의 직함은 반드시 이 사전을 따르고, 사전에 없는 인물은 이름 대신 직명만 쓸 것]\n"
+            f"{raw}"
+        )
+    except Exception as e:
+        logger.warning(f"[팩트사전] facts.json 로드 실패 — 사전 없이 진행: {e}")
+        return ""
+
+
+def _recent_briefings_block(days: int = 7, max_items: int = 7,
+                            char_budget: int = 1400) -> str:
+    """최근 7일 발행 브리핑을 [최근 브리핑 이력] 블록으로 요약.
+
+    char_budget=1400자: 한글 토큰화(자당 ~1.5토큰) 기준 총 2,000토큰 예산 준수.
+    조회 실패 시 빈 문자열 반환(브리핑 생성은 계속).
+    경로 1) Flask 앱 컨텍스트 ORM(프로덕션) → 2) DATABASE_URL 직접 조회(드라이런 폴백)
+    """
+    rows: list[tuple] = []  # (created_at, briefing_type, title, content)
+    try:
+        from app import create_app
+        from app.models.briefing import Briefing
+        _app = create_app()
+        with _app.app_context():
+            since = datetime.now(KST).replace(tzinfo=None) - timedelta(days=days)
+            for b in (Briefing.query.filter(Briefing.created_at >= since)
+                      .order_by(Briefing.created_at.desc()).limit(max_items).all()):
+                rows.append((b.created_at, b.briefing_type, b.title or "", b.content or ""))
+    except Exception as e:
+        db_url = _env("DATABASE_URL")
+        if db_url:
+            try:
+                import psycopg2
+                conn = psycopg2.connect(db_url)
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT created_at, briefing_type, title, content FROM briefings "
+                    "WHERE created_at >= NOW() - INTERVAL '%s days' "
+                    "ORDER BY created_at DESC LIMIT %s", (days, max_items))
+                rows = [(r[0], r[1], r[2] or "", r[3] or "") for r in cur.fetchall()]
+                conn.close()
+            except Exception as e2:
+                logger.warning(f"[브리핑이력] 조회 실패(생략하고 진행): app={e} / db={e2}")
+                return ""
+        else:
+            logger.warning(f"[브리핑이력] 조회 실패(생략하고 진행): {e}")
+            return ""
+
+    if not rows:
+        return ""
+
+    lines, used = [], 0
+    for created, btype, title, content in rows:
+        # 요약 캐시 없음 → 제목 줄 + 본문 앞부분(공백 정리)으로 300자 이내 요약
+        head = " ".join((title or content.split("\n")[0]).split())[:80]
+        body = " ".join(content.split())[:180]
+        item = f"- {created:%m/%d} {btype}: {head} | {body}"[:300]
+        if used + len(item) > char_budget:
+            break
+        lines.append(item)
+        used += len(item)
+
+    if not lines:
+        return ""
+    return "[최근 브리핑 이력 — 최신순. 아래와 모순되는 서술 금지]\n" + "\n".join(lines)
+
+
+def build_briefing_system_prompt() -> str:
+    """팩트 사전 + 검증 규칙 + 최근 이력을 시스템 프롬프트로 조립."""
+    facts = _facts_block()
+    history = _recent_briefings_block()
+    system = "\n\n".join(p for p in (facts, VERIFICATION_RULES, history) if p)
+    logger.info(
+        f"[검증패치] 시스템 프롬프트 조립 — 팩트사전 {len(facts)}자 · "
+        f"규칙 {len(VERIFICATION_RULES)}자 · 이력 {len(history)}자 · 총 {len(system)}자"
+    )
+    return system
+
+
+# ══════════════════════════════════════════════════
 #  3. Claude Haiku로 브리핑 생성
 # ══════════════════════════════════════════════════
 def generate_briefing_with_ai(
@@ -287,10 +390,21 @@ def generate_briefing_with_ai(
 {news_block}"""
 
     client = anthropic.Anthropic(api_key=api_key)
+
+    # 팩트체크 강화: 확정 팩트 사전 + 생성 검증 규칙 + 최근 브리핑 이력을 시스템 프롬프트로.
+    # 조립 실패가 브리핑 생성을 막지 않도록 방어 (블록별 실패는 각 함수가 이미 흡수).
+    try:
+        system_prompt = build_briefing_system_prompt()
+    except Exception as sys_err:
+        logger.warning(f"[검증패치] 시스템 프롬프트 조립 실패 — 없이 진행: {sys_err}")
+        system_prompt = ""
+
+    kwargs = {"system": system_prompt} if system_prompt else {}
     response = client.messages.create(
         model=HAIKU_MODEL,
         max_tokens=2048,
         messages=[{"role": "user", "content": prompt}],
+        **kwargs,
     )
 
     text = response.content[0].text.strip()
