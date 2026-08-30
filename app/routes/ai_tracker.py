@@ -41,9 +41,10 @@ def _q(sql, **params):
 def index():
     supplied = _gate()
 
+    # 방법론 문서와 일치: 상단 총계는 지자체 매핑 건 기준 (미분류는 데이터만 보존)
     total = _q("""SELECT COUNT(*), COALESCE(SUM(est_price),0),
                          MIN(notice_date), MAX(notice_date)
-                  FROM ai_projects WHERE ai_verdict='예'""")
+                  FROM ai_projects WHERE ai_verdict='예' AND gov_name <> '미분류'""")
     n, amt, d_from, d_to = (total[0] if total else (0, 0, None, None))
 
     verdicts = dict((r[0], r[1]) for r in _q(

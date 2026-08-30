@@ -72,13 +72,14 @@ def build_summary_card() -> str | None:
         cur.execute("""
             SELECT bid_name, gov_name, est_price FROM ai_projects
             WHERE collected_at::date = CURRENT_DATE AND ai_verdict = '예'
+              AND gov_name <> '미분류'
             ORDER BY COALESCE(est_price, 0) DESC LIMIT 5""")
         top5 = cur.fetchall()
         cur.execute("""SELECT COUNT(*) FROM ai_projects
-                       WHERE collected_at::date = CURRENT_DATE AND ai_verdict='예'""")
+                       WHERE collected_at::date = CURRENT_DATE AND ai_verdict='예' AND gov_name <> '미분류'""")
         today_n = cur.fetchone()[0]
         cur.execute("""SELECT COUNT(*), COALESCE(SUM(est_price),0) FROM ai_projects
-                       WHERE ai_verdict='예'""")
+                       WHERE ai_verdict='예' AND gov_name <> '미분류'""")
         total_n, total_amt = cur.fetchone()
         conn.close()
     except Exception as ex:
