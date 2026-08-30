@@ -1,0 +1,47 @@
+{% extends "layouts/base.html" %}
+{% block title %}집계 기준 — AI 행정 트래커 | NR2{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-8 prose">
+  <h1 class="text-3xl font-bold mb-6">AI 행정 트래커 — 집계 기준</h1>
+
+  <h2 class="text-xl font-bold mt-6 mb-2">1. 데이터 출처</h2>
+  <p>조달청 나라장터(G2B) 입찰공고정보서비스 공공 API. 용역을 기본으로 물품·공사
+  공고를 함께 수집합니다. 2026년 1월 1일 공고분부터 집계하며 매일 오전 자동 갱신됩니다.</p>
+
+  <h2 class="text-xl font-bold mt-6 mb-2">2. 포함 키워드 (1차 필터)</h2>
+  <p>공고명에 아래 키워드가 포함된 공고를 1차 수집합니다:</p>
+  <p class="bg-gray-50 rounded p-3 text-sm">{{ keywords | join(' · ') }}</p>
+  <p class="text-sm text-gray-500">'AI'는 영문 단어 경계 기준으로 매칭해
+  AIR, PAINT 등 오탐을 제외합니다.</p>
+
+  <h2 class="text-xl font-bold mt-6 mb-2">3. 2차 판정 (제외 규칙)</h2>
+  <p>키워드에 걸린 공고를 AI 모델(Claude)이 "AI 기술의 도입·활용이 핵심인
+  사업인지" 예/아니오/애매로 재판정합니다.</p>
+  <ul class="list-disc pl-5">
+    <li><b>제외(아니오)</b>: 키워드가 회사명·제품명의 일부인 경우, 지능형 CCTV 등
+      단순 장비 구매로 AI 활용이 부수적인 경우, 명백한 오탐</li>
+    <li><b>애매</b>: 공고명만으로 판단이 어려운 건 — 집계에서 제외하고 별도
+      검토 큐에 보관합니다 (버리지 않음)</li>
+  </ul>
+
+  <h2 class="text-xl font-bold mt-6 mb-2">4. 지자체 매핑</h2>
+  <p>수요기관명을 광역 16개(광주·전남 통합 반영)·기초 228개 지자체에 매핑합니다.
+  교육청·교육지원청과 지방공사·공단은 별도 태그를 달아 소속 지자체에 연결하고,
+  매핑이 불확실한 기관(동명 자치구의 광역 미표기 등)은 '미분류'로 보존해
+  집계표에서 제외하되 데이터는 유지합니다.</p>
+
+  <h2 class="text-xl font-bold mt-6 mb-2">5. 금액 관련 고지</h2>
+  <div class="bg-amber-50 border border-amber-200 rounded p-4">
+    <p class="font-bold">⚠️ 본 집계는 나라장터 발주 공고 기준이며,
+    지자체 예산 편성액과 다릅니다.</p>
+    <ul class="list-disc pl-5 text-sm mt-2">
+      <li>추정가격은 공고에 기재된 값으로, 실제 계약금액과 차이가 날 수 있습니다</li>
+      <li>계약금액은 계약정보 API에서 매칭 가능한 건에만 표기됩니다</li>
+      <li>수의계약·자체 개발 등 나라장터를 거치지 않는 사업은 포함되지 않습니다</li>
+      <li>재공고·차수 변경은 공고번호-차수 기준으로 중복 제거합니다</li>
+    </ul>
+  </div>
+
+  <p class="mt-8"><a href="/ai-tracker" class="underline">← 대시보드로</a></p>
+</div>
+{% endblock %}

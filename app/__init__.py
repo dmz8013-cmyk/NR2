@@ -128,6 +128,13 @@ def create_app(config_name='default'):
     from app.routes.dashboard_routes import dashboard_bp
     app.register_blueprint(dashboard_bp)
 
+    # AI 행정 트래커 — 실패해도 웹앱 기동에 영향 없도록 격리
+    try:
+        from app.routes.ai_tracker import bp as ai_tracker_bp
+        app.register_blueprint(ai_tracker_bp)
+    except Exception as _e:
+        app.logger.warning(f"ai_tracker 블루프린트 등록 실패(무시): {_e}")
+
     from app.routes import shortener
     app.register_blueprint(shortener.bp)
 

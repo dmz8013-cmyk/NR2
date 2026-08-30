@@ -1,0 +1,86 @@
+{% extends "layouts/base.html" %}
+{% block title %}AI 행정 트래커 — 지자체 AI 발주 현황 | NR2{% endblock %}
+{% block content %}
+{% macro won(v) -%}
+  {%- if not v %}—{% elif v >= 100000000 %}{{ '%.1f'|format(v/100000000) }}억{% else %}{{ '{:,}'.format((v/10000)|int) }}만원{% endif -%}
+{%- endmacro %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+  <h1 class="text-3xl font-bold mb-1">🤖 AI 행정 트래커</h1>
+  <p class="text-gray-500 mb-6">전국 지자체 AI 사업 발주 현황 —
+    <a href="/ai-tracker/methodology" class="underline">집계 기준</a> ·
+    나라장터 발주 공고 기준(예산 편성액과 다름)</p>
+
+  <!-- 상단 요약 -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+    <div class="rounded-xl border p-5 bg-white">
+      <div class="text-sm text-gray-500">총 AI 사업 공고</div>
+      <div class="text-3xl font-extrabold">{{ '{:,}'.format(total_count) }}건</div>
+      <div class="text-xs text-gray-400 mt-1">애매 판정 {{ verdicts.get('애매', 0) }}건 별도 검토 중</div>
+    </div>
+    <div class="rounded-xl border p-5 bg-white">
+      <div class="text-sm text-gray-500">추정가격 합계</div>
+      <div class="text-3xl font-extrabold">{{ won(total_amount) }}</div>
+      <div class="text-xs text-gray-400 mt-1">공고 기재 추정가격 기준</div>
+    </div>
+    <div class="rounded-xl border p-5 bg-white">
+      <div class="text-sm text-gray-500">집계 기간</div>
+      <div class="text-xl font-bold">{{ date_from or '—' }} ~ {{ date_to or '—' }}</div>
+      <div class="text-xs text-gray-400 mt-1">매일 07:30 자동 갱신</div>
+    </div>
+  </div>
+
+  <!-- 광역 집계 -->
+  <h2 class="text-xl font-bold mb-3">광역 지자체별 집계</h2>
+  <div class="overflow-x-auto mb-8">
+    <table class="w-full text-sm border rounded-lg overflow-hidden">
+      <thead class="bg-gray-50"><tr>
+        <th class="p-2 text-left">광역</th><th class="p-2 text-right">건수</th>
+        <th class="p-2 text-right">추정금액</th></tr></thead>
+      <tbody>
+      {% for m in metro %}
+        <tr class="border-t"><td class="p-2 font-medium">{{ m[0] }}</td>
+          <td class="p-2 text-right">{{ m[1] }}</td>
+          <td class="p-2 text-right">{{ won(m[2]) }}</td></tr>
+      {% else %}
+        <tr><td colspan="3" class="p-4 text-center text-gray-400">수집 대기 중</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 기초 상위 20 -->
+  <h2 class="text-xl font-bold mb-3">기초 지자체 상위 20</h2>
+  <div class="overflow-x-auto mb-8">
+    <table class="w-full text-sm border rounded-lg overflow-hidden">
+      <thead class="bg-gray-50"><tr>
+        <th class="p-2 text-left">#</th><th class="p-2 text-left">지자체</th>
+        <th class="p-2 text-right">건수</th><th class="p-2 text-right">추정금액</th></tr></thead>
+      <tbody>
+      {% for b in basic %}
+        <tr class="border-t"><td class="p-2 text-gray-400">{{ loop.index }}</td>
+          <td class="p-2 font-medium">{{ b[0] }}</td>
+          <td class="p-2 text-right">{{ b[1] }}</td>
+          <td class="p-2 text-right">{{ won(b[2]) }}</td></tr>
+      {% else %}
+        <tr><td colspan="4" class="p-4 text-center text-gray-400">수집 대기 중</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 최근 공고 30 -->
+  <h2 class="text-xl font-bold mb-3">최근 공고 30건</h2>
+  <div class="space-y-2 mb-8">
+    {% for r in recent %}
+      <div class="rounded-lg border p-3 bg-white">
+        <div class="text-xs text-gray-400">
+          {{ r[0] or '' }} · {{ r[1] }}{% if r[7] and r[7] != '지자체' %} · {{ r[7] }}{% endif %} · {{ r[6] }}</div>
+        <div class="font-medium">{{ r[3] }}</div>
+        <div class="text-sm text-gray-500">{{ r[2] }} — 추정 {{ won(r[4]) }}{% if r[5] %} · 계약 {{ won(r[5]) }}{% endif %}</div>
+      </div>
+    {% else %}
+      <div class="p-4 text-center text-gray-400 border rounded-lg">수집 대기 중</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
