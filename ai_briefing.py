@@ -568,6 +568,16 @@ def send_briefing():
         except Exception as fc_err:
             logger.error(f"[팩트체크] 실행 실패 (브리핑은 그대로 발송): {fc_err}")
 
+        # 3.7) 발행 전 자가 검증 패스 — 고위험 항목만 웹검색 교차 검증.
+        #      run_verify_pass 는 내부에서 모든 예외를 삼키지만, import 실패까지
+        #      포함해 어떤 경우에도 발행을 중단시키지 않도록 이중 방어.
+        try:
+            from verify_pass import run_verify_pass
+            briefing = run_verify_pass(
+                briefing, briefing_type='ai_morning' if '아침' in period else 'ai_evening')
+        except Exception as vp_err:
+            logger.error(f"[자가검증] 패스 실행 실패 — 스킵하고 발행: {vp_err}")
+
         # 4) 텔레그램 전송 (nr2.kr 유입 문구 추가)
         nr2_footer = (
             "\n\n━━━━━━━━━━━━━━━━\n"
