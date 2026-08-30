@@ -115,6 +115,20 @@ def init_db() -> bool:
         cur.execute("ALTER TABLE ai_projects ADD COLUMN IF NOT EXISTS base_no VARCHAR(50)")
         cur.execute("ALTER TABLE ai_projects ADD COLUMN IF NOT EXISTS bid_ord VARCHAR(6)")
         cur.execute("ALTER TABLE ai_projects ADD COLUMN IF NOT EXISTS is_latest BOOLEAN DEFAULT TRUE")
+        cur.execute("ALTER TABLE ai_projects ADD COLUMN IF NOT EXISTS notice_url TEXT")
+        # 지방재정365 예산 편성액 축 — Phase 2 선반영 (스키마만)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS ai_budgets (
+                id           SERIAL PRIMARY KEY,
+                gov_name     VARCHAR(40) NOT NULL,   -- gov_mapping 표기와 동일 ('서울', '경기 수원시')
+                fiscal_year  INT NOT NULL,           -- 회계연도
+                budget_amount BIGINT,                -- AI 관련 편성액(원)
+                category     VARCHAR(60),            -- 세부 분야(선택)
+                source       VARCHAR(200),           -- 출처(지방재정365 URL 등)
+                note         TEXT,
+                collected_at TIMESTAMP DEFAULT NOW(),
+                UNIQUE (gov_name, fiscal_year, category)
+            )""")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_ai_projects_base ON ai_projects (base_no)")
         conn.commit()
         conn.close()
@@ -326,14 +340,15 @@ def upsert_project(row: dict) -> bool:
             INSERT INTO ai_projects
               (bid_no, base_no, bid_ord, bid_name, org_name, gov_level, gov_name,
                org_tag, est_price, notice_date, contract_amount, status,
-               ai_verdict, ai_reason, src_type)
+               ai_verdict, ai_reason, src_type, notice_url)
             VALUES (%(bid_no)s, %(base_no)s, %(bid_ord)s, %(bid_name)s, %(org_name)s,
                     %(gov_level)s, %(gov_name)s, %(org_tag)s, %(est_price)s,
                     %(notice_date)s, %(contract_amount)s, %(status)s, %(ai_verdict)s,
-                    %(ai_reason)s, %(src_type)s)
+                    %(ai_reason)s, %(src_type)s, %(notice_url)s)
             ON CONFLICT (bid_no) DO UPDATE SET
                 contract_amount = COALESCE(EXCLUDED.contract_amount, ai_projects.contract_amount),
-                status = COALESCE(EXCLUDED.status, ai_projects.status)
+                status = COALESCE(EXCLUDED.status, ai_projects.status),
+                notice_url = COALESCE(EXCLUDED.notice_url, ai_projects.notice_url)
         """, row)
         # 같은 공고의 다른 차수 정리: 최신 차수만 is_latest=TRUE
         cur.execute("""

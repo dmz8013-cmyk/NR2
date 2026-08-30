@@ -62,64 +62,96 @@ def collect_yesterday() -> dict:
     return stats
 
 
-def build_summary_card() -> str | None:
-    """오늘 신규 적재분 요약 카드 (▪ 포맷). 신규 0건이면 None."""
+def _fmt_amt(v):
+    if not v:
+        return "금액 미공개"
+    if v >= 100_000_000:
+        return f"{v / 100_000_000:.1f}억"
+    return f"{v // 10_000:,}만원"
+
+
+TRACKER_FOOTER = "📊 전국 244개 지자체 누적 현황 → nr2.kr/ai-tracker"
+
+
+def build_daily_report(contract_updates: list[dict] | None = None) -> str:
+    """일보 카드 — 전일 등록·변경된 지자체 AI 공고 브리핑.
+
+    0건인 날도 '전일 신규 발주 없음'으로 항상 문자열을 반환한다(매일 발송).
+    신규 공고는 광역/기초 구분·금액순 전건 나열 — 발송 측에서 4096자 분할.
+    """
+    y = (datetime.now(KST) - timedelta(days=1)).date()
+    header = f"🤖 지자체 AI 발주 일보 | {y.strftime('%Y.%m.%d')}(전일) 기준"
+
+    new_rows, cancel_rows = [], []
     conn = db_conn()
-    if not conn:
-        return None
-    try:
-        cur = conn.cursor()
-        # 오늘 수집된 '예' 판정 신규 건
-        cur.execute("""
-            SELECT bid_name, gov_name, est_price FROM ai_projects
-            WHERE collected_at::date = CURRENT_DATE AND ai_verdict = '예'
-              AND gov_name <> '미분류' AND is_latest AND status NOT LIKE '%%취소%%'
-            ORDER BY COALESCE(est_price, 0) DESC LIMIT 5""")
-        top5 = cur.fetchall()
-        cur.execute("""SELECT COUNT(*) FROM ai_projects
-                       WHERE collected_at::date = CURRENT_DATE AND ai_verdict='예'
-                         AND gov_name <> '미분류' AND is_latest AND status NOT LIKE '%%취소%%'""")
-        today_n = cur.fetchone()[0]
-        cur.execute("""SELECT COUNT(*), COALESCE(SUM(est_price),0) FROM ai_projects
-                       WHERE ai_verdict='예' AND gov_name <> '미분류' AND is_latest AND status NOT LIKE '%%취소%%'""")
-        total_n, total_amt = cur.fetchone()
-        conn.close()
-    except Exception as ex:
-        logger.warning(f"[데일리] 카드 집계 실패: {ex}")
-        return None
+    if conn:
+        try:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT gov_level, gov_name, bid_name, est_price, org_tag, src_type
+                FROM ai_projects
+                WHERE notice_date = %s AND ai_verdict='예' AND gov_name <> '미분류'
+                  AND is_latest AND status NOT LIKE '%%취소%%'
+                ORDER BY COALESCE(est_price,0) DESC""", (y,))
+            new_rows = cur.fetchall()
+            cur.execute("""
+                SELECT gov_name, bid_name FROM ai_projects
+                WHERE notice_date = %s AND ai_verdict='예' AND gov_name <> '미분류'
+                  AND is_latest AND status LIKE '%%취소%%'""", (y,))
+            cancel_rows = cur.fetchall()
+        except Exception as ex:
+            logger.warning(f"[일보] 집계 실패: {ex}")
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
-    if today_n == 0:
-        return None
+    lines = [header, ""]
+    if new_rows:
+        lines.append(f"▪ 신규 공고 {len(new_rows)}건 (금액순)")
+        for lvl, gov, name, price, tag, src in new_rows:
+            tag_s = f"·{tag}" if tag and tag != "지자체" else ""
+            lines.append(f"[{lvl}{tag_s}] {gov} | {name} | {_fmt_amt(price)}")
+    else:
+        lines.append("▪ 전일 신규 발주 없음")
 
-    def _fmt_amt(v):
-        if not v:
-            return "금액 미공개"
-        if v >= 100_000_000:
-            return f"{v / 100_000_000:.1f}억"
-        return f"{v // 10_000:,}만원"
+    if cancel_rows:
+        lines += ["", f"▪ 취소 공고 {len(cancel_rows)}건"]
+        for gov, name in cancel_rows:
+            lines.append(f"[{gov}] {name[:60]}")
 
-    lines = [f"🤖 오늘의 지자체 AI 발주 {today_n}건", ""]
-    for name, gov, price in top5:
-        lines.append(f"▪ [{gov}] {name[:50]}")
-        lines.append(f"　→ 추정가격 {_fmt_amt(price)}")
-    lines += ["", f"📊 누적 집계: {total_n}건 · 추정 {_fmt_amt(total_amt)}",
-              "(나라장터 발주 공고 기준 — 예산 편성액과 다름)"]
+    if contract_updates:
+        lines += ["", f"▪ 계약 확인 {len(contract_updates)}건"]
+        for c in contract_updates:
+            lines.append(f"[{c['gov_name']}] {c['bid_name'][:50]} — 계약 {_fmt_amt(c['amount'])}")
+
+    lines += ["", TRACKER_FOOTER]
     return "\n".join(lines)
 
 
 def send_card(card: str) -> None:
-    """관리자 미리보기 항상 + 발행 플래그 ON 시에만 정보방 발송."""
+    """관리자 미리보기 항상 + 발행 플래그 ON 시에만 정보방 발송.
+
+    일보가 전건 나열이라 길 수 있음 — 4096자 초과 시 줄 단위 분할 발송.
+    """
     try:
         from app.utils.telegram_notify import send_telegram_message, send_to_admin
+        from ai_briefing import _split_text
         publish = os.environ.get(PUBLISH_FLAG_ENV, "false").lower() == "true"
-        send_to_admin("🔍 <b>[검수용] AI 행정 트래커 카드</b>\n"
-                      f"(정보방 발행: {'ON' if publish else 'OFF — 플래그로 제어'})\n\n" + card)
+
+        preview_head = ("🔍 <b>[검수용] AI 행정 트래커 일보</b>\n"
+                        f"(정보방 발행: {'ON' if publish else 'OFF — 플래그로 제어'})\n\n")
+        chunks = _split_text(preview_head + card, limit=4000)
+        for ch in chunks:
+            send_to_admin(ch)
         if publish:
-            send_telegram_message(card, chat_id=PUBLIC_CHANNEL)
+            for ch in _split_text(card, limit=4000):
+                send_telegram_message(ch, chat_id=PUBLIC_CHANNEL)
             logger.info("[데일리] 정보방 발행 완료")
         else:
-            logger.info(f"[데일리] 발행 플래그 OFF — 관리자 미리보기만 발송 "
-                        f"({PUBLISH_FLAG_ENV}=true 로 활성화)")
+            logger.info(f"[데일리] 발행 플래그 OFF — 관리자 미리보기만 "
+                        f"({len(chunks)}개 메시지, {PUBLISH_FLAG_ENV}=true 로 활성화)")
     except Exception as ex:
         logger.warning(f"[데일리] 텔레그램 발송 실패(무시): {ex}")
 
@@ -134,15 +166,13 @@ def run_daily() -> None:
         stats = collect_yesterday()
         reconcile_duplicates()   # 변경·정정 재공고 차수 정리 (멱등)
         logger.info(f"[데일리] 수집 통계: {stats}")
+        contract_updates = []
         try:
-            match_contracts(limit=30)
+            contract_updates = match_contracts(limit=30)
         except Exception as ex:
             logger.warning(f"[데일리] 계약 매칭 실패(무시): {ex}")
-        card = build_summary_card()
-        if card:
-            send_card(card)
-        else:
-            logger.info("[데일리] 오늘 신규 '예' 판정 없음 — 카드 생략")
+        # 일보는 0건인 날도 항상 발송
+        send_card(build_daily_report(contract_updates))
     except Exception as e:
         logger.error(f"[데일리] 파이프라인 오류(다음 실행에 재시도): {e}", exc_info=True)
 

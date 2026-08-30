@@ -205,6 +205,7 @@ def _process_item(it: dict, src_type: str, stats: dict) -> None:
         "contract_amount": None,
         "status": (it.get("ntceKindNm") or "공고")[:20],
         "ai_verdict": verdict, "ai_reason": reason, "src_type": src_type,
+        "notice_url": (it.get("bidNtceDtlUrl") or it.get("bidNtceUrl") or "")[:500] or None,
     })
     stats["saved"] = stats.get("saved", 0) + 1
 
@@ -212,23 +213,26 @@ def _process_item(it: dict, src_type: str, stats: dict) -> None:
 # ══════════════════════════════════════════════════
 #  계약금액 매칭 (가능한 건만 — 실패 무시)
 # ══════════════════════════════════════════════════
-def match_contracts(limit: int = 100) -> int:
-    """계약금액 미기입 '예' 판정 건에 대해 계약정보 API 조회. 성공 건수 반환."""
+def match_contracts(limit: int = 100) -> list[dict]:
+    """계약금액 미기입 '예' 판정 건에 대해 계약정보 API 조회.
+
+    반환: 이번 실행에서 새로 매칭된 [{bid_no, gov_name, bid_name, amount}] 목록
+    (일보 카드의 '계약 변동' 섹션에 사용)."""
     conn = db_conn()
     if not conn:
         return 0
     try:
         cur = conn.cursor()
-        cur.execute("""SELECT bid_no FROM ai_projects
-                       WHERE contract_amount IS NULL AND ai_verdict='예'
+        cur.execute("""SELECT bid_no, gov_name, bid_name FROM ai_projects
+                       WHERE contract_amount IS NULL AND ai_verdict='예' AND is_latest
                        ORDER BY notice_date DESC LIMIT %s""", (limit,))
-        targets = [r[0] for r in cur.fetchall()]
+        targets = {r[0]: (r[1], r[2]) for r in cur.fetchall()}
         conn.close()
     except Exception:
-        return 0
+        return []
 
-    matched = 0
-    for bid_no in targets:
+    matched = []
+    for bid_no in list(targets):
         if not under_call_limit():
             break
         raw_no = bid_no.split("-")[0]
@@ -252,12 +256,14 @@ def match_contracts(limit: int = 100) -> int:
                                 (amt, bid_no))
                     conn.commit()
                     conn.close()
-                    matched += 1
+                    gov, name = targets[bid_no]
+                    matched.append({"bid_no": bid_no, "gov_name": gov,
+                                    "bid_name": name, "amount": amt})
                 except Exception:
                     pass
             break
         time.sleep(0.3)
-    logger.info(f"[백필] 계약 매칭 {matched}건")
+    logger.info(f"[백필] 계약 매칭 {len(matched)}건")
     return matched
 
 
@@ -311,7 +317,7 @@ def run_backfill(only_month: str | None = None, do_contract: bool = True) -> dic
 
     stats["dedup"] = reconcile_duplicates()   # 차수 중복 소급 정리(멱등)
     if do_contract:
-        stats["contracts"] = match_contracts()
+        stats["contracts"] = len(match_contracts())
     logger.info(f"[백필] 완료: {stats}")
     return stats
 
