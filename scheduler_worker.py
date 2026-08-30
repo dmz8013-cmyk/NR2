@@ -202,6 +202,18 @@ def web_bot_poll():
     logger.info('[Scheduler] 웹봇 명령어 폴링 중...')
     poll_commands(app)
 
+@scheduler.scheduled_job('cron', hour=7, minute=30, id='g2b_ai_tracker_daily', timezone='Asia/Seoul',
+                          misfire_grace_time=300, coalesce=True, max_instances=1)
+def g2b_ai_tracker_daily():
+    """매일 07:30 KST — AI 행정 트래커 전일 공고 수집.
+    lazy import: 모듈 오류가 스케줄러 기동(기존 브리핑·AESA 잡)을 죽이지 않도록."""
+    logger.info('[Scheduler] AI 행정 트래커 일일 수집 중...')
+    try:
+        from g2b_daily import run_daily
+        run_daily()
+    except Exception as e:
+        logger.error(f'[Scheduler] AI 행정 트래커 실패(기존 파이프라인 무영향): {e}')
+
 @scheduler.scheduled_job('cron', hour=8, minute=0, id='youcheck_daily', timezone='Asia/Seoul')
 def youcheck_daily():
     """매일 오전 8시 YouCheck 기사 채널 발송"""
