@@ -51,6 +51,11 @@ def _api_get(base: str, op: str, params: dict) -> dict | None:
     key = os.environ.get(G2B_API_KEY_ENV)
     if not key:
         raise EnvironmentError(f"{G2B_API_KEY_ENV} 환경변수가 없습니다.")
+    # 공공데이터포털 함정: URL인코딩형 키를 params 로 넘기면 requests 가
+    # % → %25 로 재인코딩해 인증 실패. 인코딩형이면 디코딩 후 전달.
+    if "%" in key:
+        from urllib.parse import unquote
+        key = unquote(key)
     if not under_call_limit():
         return {"_limit": True}
     p = {"serviceKey": key, "type": "json", **params}
