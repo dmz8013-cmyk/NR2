@@ -1,0 +1,34 @@
+{% extends "layouts/base.html" %}
+{% block title %}{{ gov }} AI 발주 상세 — AI 행정 트래커 | NR2{% endblock %}
+{% block content %}
+{% macro won(v) -%}
+  {%- if not v %}—{% elif v >= 100000000 %}{{ '%.1f'|format(v/100000000) }}억{% else %}{{ '{:,}'.format((v/10000)|int) }}만원{% endif -%}
+{%- endmacro %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+  <p class="mb-2"><a href="/ai-tracker" class="text-sm text-gray-400 underline">← 244개 대장으로</a></p>
+  <h1 class="text-3xl font-bold mb-1">{{ gov }}</h1>
+  <p class="text-gray-500 mb-6">올해 AI 사업 <b>{{ cnt }}건</b> · 발주총액 <b>{{ won(amt) }}</b>
+    {% if pending %} · 애매 판정 {{ pending }}건 검토 중{% endif %}</p>
+
+  <div class="space-y-3">
+    {% for p in projects %}
+      <div class="rounded-lg border p-4 bg-white {{ 'opacity-50' if '취소' in (p[7] or '') }}">
+        <div class="text-xs text-gray-400 mb-1">
+          {{ p[3] or '공고일 미상' }} · {{ p[4] }} · {{ p[7] }}
+          {% if p[6] and p[6] != '지자체' %} · {{ p[6] }}{% endif %}
+        </div>
+        <div class="font-medium mb-1">{{ p[0] }}</div>
+        <div class="text-sm text-gray-500">
+          수요기관: {{ p[5] }} · 추정 {{ won(p[1]) }}{% if p[2] %} · <b>계약 {{ won(p[2]) }}</b>{% endif %}
+        </div>
+        <div class="text-xs mt-1">
+          {% if p[8] %}<a href="{{ p[8] }}" target="_blank" rel="noopener" class="underline text-blue-600">나라장터 원문 보기 ↗</a>
+          {% else %}<span class="text-gray-400">공고번호 {{ p[9] }} (원문 링크는 신규 수집분부터 제공)</span>{% endif %}
+        </div>
+      </div>
+    {% else %}
+      <div class="p-6 text-center text-gray-400 border rounded-lg">올해 AI 사업 공고가 없습니다.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
