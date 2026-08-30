@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 from g2b_tracker import (
     G2B_API_KEY_ENV, G2B_OPS, init_db, map_org, keyword_hit,
     judge_ai_project, upsert_project, db_conn, under_call_limit, KST,
+    reconcile_duplicates,
 )
 from g2b_backfill import _api_get, _items, match_contracts, G2B_BASE, ROWS_PER_PAGE, _process_item
 
@@ -72,14 +73,15 @@ def build_summary_card() -> str | None:
         cur.execute("""
             SELECT bid_name, gov_name, est_price FROM ai_projects
             WHERE collected_at::date = CURRENT_DATE AND ai_verdict = '예'
-              AND gov_name <> '미분류'
+              AND gov_name <> '미분류' AND is_latest AND status NOT LIKE '%%취소%%'
             ORDER BY COALESCE(est_price, 0) DESC LIMIT 5""")
         top5 = cur.fetchall()
         cur.execute("""SELECT COUNT(*) FROM ai_projects
-                       WHERE collected_at::date = CURRENT_DATE AND ai_verdict='예' AND gov_name <> '미분류'""")
+                       WHERE collected_at::date = CURRENT_DATE AND ai_verdict='예'
+                         AND gov_name <> '미분류' AND is_latest AND status NOT LIKE '%%취소%%'""")
         today_n = cur.fetchone()[0]
         cur.execute("""SELECT COUNT(*), COALESCE(SUM(est_price),0) FROM ai_projects
-                       WHERE ai_verdict='예' AND gov_name <> '미분류'""")
+                       WHERE ai_verdict='예' AND gov_name <> '미분류' AND is_latest AND status NOT LIKE '%%취소%%'""")
         total_n, total_amt = cur.fetchone()
         conn.close()
     except Exception as ex:
@@ -130,6 +132,7 @@ def run_daily() -> None:
             return
         init_db()
         stats = collect_yesterday()
+        reconcile_duplicates()   # 변경·정정 재공고 차수 정리 (멱등)
         logger.info(f"[데일리] 수집 통계: {stats}")
         try:
             match_contracts(limit=30)

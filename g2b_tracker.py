@@ -111,6 +111,11 @@ def init_db() -> bool:
             )""")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_ai_projects_gov ON ai_projects (gov_name)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_ai_projects_date ON ai_projects (notice_date)")
+        # 차수 dedup 체계: base_no(차수 제외 공고번호) + is_latest(최신 차수만 TRUE)
+        cur.execute("ALTER TABLE ai_projects ADD COLUMN IF NOT EXISTS base_no VARCHAR(50)")
+        cur.execute("ALTER TABLE ai_projects ADD COLUMN IF NOT EXISTS bid_ord VARCHAR(6)")
+        cur.execute("ALTER TABLE ai_projects ADD COLUMN IF NOT EXISTS is_latest BOOLEAN DEFAULT TRUE")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_ai_projects_base ON ai_projects (base_no)")
         conn.commit()
         conn.close()
         logger.info("[G2B] DB 스키마 확인/생성 완료")
@@ -300,26 +305,44 @@ def judge_ai_project(bid_name: str, org_name: str = "") -> tuple[str, str]:
 # ══════════════════════════════════════════════════
 #  4. 적재
 # ══════════════════════════════════════════════════
+def _split_bid_no(bid_no: str) -> tuple[str, str]:
+    """'공고번호-차수' → (base_no, 차수). 마지막 '-' 기준 분리."""
+    if "-" in bid_no:
+        base, _, ord_ = bid_no.rpartition("-")
+        return base, ord_ or "00"
+    return bid_no, "00"
+
+
 def upsert_project(row: dict) -> bool:
-    """ai_projects upsert. 이미 있으면 계약금액/상태만 갱신."""
+    """ai_projects upsert + 같은 공고번호(base_no)의 최신 차수만 is_latest 유지."""
     conn = db_conn()
     if not conn:
         return False
+    base_no, bid_ord = _split_bid_no(row["bid_no"])
+    row = {**row, "base_no": base_no, "bid_ord": bid_ord}
     try:
         cur = conn.cursor()
         cur.execute("""
             INSERT INTO ai_projects
-              (bid_no, bid_name, org_name, gov_level, gov_name, org_tag,
-               est_price, notice_date, contract_amount, status,
+              (bid_no, base_no, bid_ord, bid_name, org_name, gov_level, gov_name,
+               org_tag, est_price, notice_date, contract_amount, status,
                ai_verdict, ai_reason, src_type)
-            VALUES (%(bid_no)s, %(bid_name)s, %(org_name)s, %(gov_level)s,
-                    %(gov_name)s, %(org_tag)s, %(est_price)s, %(notice_date)s,
-                    %(contract_amount)s, %(status)s, %(ai_verdict)s,
+            VALUES (%(bid_no)s, %(base_no)s, %(bid_ord)s, %(bid_name)s, %(org_name)s,
+                    %(gov_level)s, %(gov_name)s, %(org_tag)s, %(est_price)s,
+                    %(notice_date)s, %(contract_amount)s, %(status)s, %(ai_verdict)s,
                     %(ai_reason)s, %(src_type)s)
             ON CONFLICT (bid_no) DO UPDATE SET
                 contract_amount = COALESCE(EXCLUDED.contract_amount, ai_projects.contract_amount),
                 status = COALESCE(EXCLUDED.status, ai_projects.status)
         """, row)
+        # 같은 공고의 다른 차수 정리: 최신 차수만 is_latest=TRUE
+        cur.execute("""
+            UPDATE ai_projects a SET is_latest = (a.bid_no = b.latest)
+            FROM (SELECT (ARRAY_AGG(bid_no ORDER BY lpad(bid_ord,6,'0') DESC,
+                                    collected_at DESC))[1] AS latest
+                  FROM ai_projects WHERE base_no = %s) b
+            WHERE a.base_no = %s
+        """, (base_no, base_no))
         conn.commit()
         conn.close()
         return True
@@ -330,6 +353,47 @@ def upsert_project(row: dict) -> bool:
         except Exception:
             pass
         return False
+
+
+def reconcile_duplicates() -> dict:
+    """소급 정리(멱등): base_no 미기입 보정 + base_no별 최신 차수만 is_latest.
+
+    구버전 코드로 적재된 행(백필 러너 등)도 다음 실행 시 자동 정리된다.
+    """
+    conn = db_conn()
+    if not conn:
+        return {}
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE ai_projects
+            SET base_no = regexp_replace(bid_no, '-[^-]*$', ''),
+                bid_ord = regexp_replace(bid_no, '^.*-', '')
+            WHERE base_no IS NULL""")
+        filled = cur.rowcount
+        cur.execute("""
+            UPDATE ai_projects a SET is_latest = (a.bid_no = b.latest)
+            FROM (SELECT base_no,
+                         (ARRAY_AGG(bid_no ORDER BY lpad(bid_ord,6,'0') DESC,
+                                    collected_at DESC))[1] AS latest
+                  FROM ai_projects GROUP BY base_no) b
+            WHERE a.base_no = b.base_no
+              AND a.is_latest IS DISTINCT FROM (a.bid_no = b.latest)""")
+        flipped = cur.rowcount
+        cur.execute("SELECT COUNT(*) FROM ai_projects WHERE NOT is_latest")
+        superseded = cur.fetchone()[0]
+        conn.commit()
+        conn.close()
+        logger.info(f"[G2B] dedup 정리 — base_no 보정 {filled}건, 플래그 변경 {flipped}건, "
+                    f"구차수(무효) 총 {superseded}건")
+        return {"filled": filled, "flipped": flipped, "superseded": superseded}
+    except Exception as e:
+        logger.warning(f"[G2B] dedup 정리 실패(무시): {e}")
+        try:
+            conn.close()
+        except Exception:
+            pass
+        return {}
 
 
 if __name__ == "__main__":

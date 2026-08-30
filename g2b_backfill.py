@@ -31,6 +31,7 @@ from g2b_tracker import (
     G2B_API_KEY_ENV, G2B_BASE, G2B_OPS, CNTRCT_BASE, CNTRCT_OP,
     init_db, state_get, state_set, bump_api_calls, under_call_limit,
     map_org, keyword_hit, judge_ai_project, upsert_project, db_conn, KST,
+    reconcile_duplicates,
 )
 
 logging.basicConfig(
@@ -152,25 +153,36 @@ def _process_item(it: dict, src_type: str, stats: dict) -> None:
         return
     stats["keyword_hit"] = stats.get("keyword_hit", 0) + 1
 
-    bid_no = f"{it.get('bidNtceNo', '')}-{it.get('bidNtceOrd', '00')}"
+    raw_no = str(it.get("bidNtceNo", ""))
+    bid_no = f"{raw_no}-{it.get('bidNtceOrd', '00')}"
     org_name = (it.get("dminsttNm") or it.get("ntceInsttNm") or "").strip()
 
-    # 이미 적재된 건은 판정 재호출 생략
+    # 중복 체크: 같은 차수 → 스킵 / 같은 공고 다른 차수(변경·정정 재공고)
+    # → 기존 판정 재사용(재판정 비용 절약)하고 적재만 (upsert가 최신 차수만 유효 처리)
+    prev_verdict = prev_reason = None
     conn = db_conn()
     if conn:
         try:
             cur = conn.cursor()
-            cur.execute("SELECT 1 FROM ai_projects WHERE bid_no=%s", (bid_no,))
-            exists = cur.fetchone()
+            cur.execute("""SELECT bid_no, ai_verdict, ai_reason FROM ai_projects
+                           WHERE bid_no = %s OR bid_no LIKE %s LIMIT 5""",
+                        (bid_no, raw_no + "-%"))
+            rows = cur.fetchall()
             conn.close()
-            if exists:
+            if any(r[0] == bid_no for r in rows):
                 stats["dup"] = stats.get("dup", 0) + 1
                 return
+            if rows:
+                prev_verdict, prev_reason = rows[0][1], rows[0][2]
+                stats["revision"] = stats.get("revision", 0) + 1
         except Exception:
             pass
 
     gov = map_org(org_name)
-    verdict, reason = judge_ai_project(bid_name, org_name)
+    if prev_verdict:
+        verdict, reason = prev_verdict, prev_reason
+    else:
+        verdict, reason = judge_ai_project(bid_name, org_name)
     stats[f"verdict_{verdict}"] = stats.get(f"verdict_{verdict}", 0) + 1
 
     def _num(v):
@@ -297,6 +309,7 @@ def run_backfill(only_month: str | None = None, do_contract: bool = True) -> dic
     if not only_month:
         state_set(CHECKPOINT_KEY, "null")
 
+    stats["dedup"] = reconcile_duplicates()   # 차수 중복 소급 정리(멱등)
     if do_contract:
         stats["contracts"] = match_contracts()
     logger.info(f"[백필] 완료: {stats}")
