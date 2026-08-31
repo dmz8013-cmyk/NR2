@@ -118,8 +118,10 @@ def tag_item(text: str, known_names: set) -> list[str]:
     hit = next((v for v in STATE_VERBS if v in text), None)
     if hit:
         reasons.append(f"상태변화 동사: {hit}")
-    # (c) 구체 수치 + 단정 종결
-    if NUMBER_RE.search(text) and text.endswith("다.") and not any(s in text for s in SOFTENERS):
+    # (c) 구체 수치 + 단정 종결 — '다.'체와 명사형·음슴체('~음/됨/임.') 모두 대응
+    if (NUMBER_RE.search(text)
+            and text.endswith(("다.", "음.", "됨.", "임.", "함."))
+            and not any(s in text for s in SOFTENERS)):
         reasons.append("수치+단정 종결")
     return reasons
 
