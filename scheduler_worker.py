@@ -202,6 +202,44 @@ def web_bot_poll():
     logger.info('[Scheduler] 웹봇 명령어 폴링 중...')
     poll_commands(app)
 
+# ── AI 거두 워치 Phase 2 (전 잡 lazy import — 워커 기동 보호) ──
+def _leaders_safe(fn_name, *args):
+    try:
+        import collector
+        getattr(collector, fn_name)(*args)
+    except Exception as e:
+        logger.error(f'[Scheduler] 거두워치 {fn_name} 실패(기존 파이프라인 무영향): {e}')
+
+@scheduler.scheduled_job('cron', hour='6-23', minute=0, id='leaders_collect_t1',
+                          timezone='Asia/Seoul', misfire_grace_time=300, coalesce=True, max_instances=1)
+def leaders_collect_t1():
+    logger.info('[Scheduler] 거두워치 T1 수집...')
+    _leaders_safe('collect_tier', 1)
+
+@scheduler.scheduled_job('cron', hour='6,18', minute=3, id='leaders_collect_t2',
+                          timezone='Asia/Seoul', misfire_grace_time=300, coalesce=True, max_instances=1)
+def leaders_collect_t2():
+    logger.info('[Scheduler] 거두워치 T2 수집...')
+    _leaders_safe('collect_tier', 2)
+
+@scheduler.scheduled_job('cron', hour=6, minute=6, id='leaders_collect_t3',
+                          timezone='Asia/Seoul', misfire_grace_time=300, coalesce=True, max_instances=1)
+def leaders_collect_t3():
+    logger.info('[Scheduler] 거두워치 T3 수집...')
+    _leaders_safe('collect_tier', 3)
+
+@scheduler.scheduled_job('cron', hour=7, minute=0, id='leaders_daily_edit',
+                          timezone='Asia/Seoul', misfire_grace_time=300, coalesce=True, max_instances=1)
+def leaders_daily_edit():
+    logger.info('[Scheduler] 거두워치 07시 편집...')
+    _leaders_safe('daily_edit')
+
+@scheduler.scheduled_job('cron', day=1, hour=7, minute=30, id='leaders_monthly_report',
+                          timezone='Asia/Seoul', misfire_grace_time=3600, coalesce=True)
+def leaders_monthly_report():
+    logger.info('[Scheduler] 거두워치 월간 리포트...')
+    _leaders_safe('monthly_report')
+
 @scheduler.scheduled_job('cron', hour=7, minute=30, id='g2b_ai_tracker_daily', timezone='Asia/Seoul',
                           misfire_grace_time=300, coalesce=True, max_instances=1)
 def g2b_ai_tracker_daily():

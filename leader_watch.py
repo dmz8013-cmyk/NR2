@@ -84,6 +84,9 @@ def init_leader_db() -> bool:
                 created_at  TIMESTAMP DEFAULT NOW()
             )""")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_leader_posts_date ON leader_posts (date)")
+        # Phase 2 수집기용: 원문 보관(요약과 분리) + 파급 지표(월간 리포트 근거)
+        cur.execute("ALTER TABLE leader_posts ADD COLUMN IF NOT EXISTS raw_text TEXT")
+        cur.execute("ALTER TABLE leader_posts ADD COLUMN IF NOT EXISTS metrics_json TEXT")
         conn.commit()
         conn.close()
         return True
