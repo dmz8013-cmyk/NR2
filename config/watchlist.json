@@ -1,28 +1,1557 @@
 {
-  "_meta": {
-    "updated": "2026-09-01",
-    "note": "AI 거두 워치 워치리스트 — 시드본(사용자 첨부본 미전달로 공지 인물 기준 작성, 자유 교체·추가). tier: 1=매시 2=하루2회 3=하루1회(Phase2 수집 주기). needs_verify: 발행 전 verify_pass 웹검색 검증 강제. bias_label: [관영]/[편향] 표기."
+  "version": "2026-09",
+  "created": "2026-09-03",
+  "next_renewal": "2026-10-01",
+  "schedule": {
+    "T1": "hourly",
+    "T2": [
+      "06:00",
+      "18:00"
+    ],
+    "T3": [
+      "06:00"
+    ]
   },
+  "query_mode": "batched_from_or",
+  "rules": {
+    "require_link": true,
+    "drop_reposts": true,
+    "drop_emoji_only_replies": true,
+    "drop_congrats": true,
+    "silence_days_to_drop": 45,
+    "verify_personal_handles": true,
+    "window_hours": {
+      "T1": 2,
+      "T2": 12,
+      "T3": 24
+    }
+  },
+  "bias_label": [
+    "globaltimesnews",
+    "XHNews",
+    "CGTNOfficial",
+    "RT_com",
+    "HuXijin_GT",
+    "mfa_russia",
+    "MedvedevRussiaE",
+    "IRIMFA_EN"
+  ],
+  "candidates": [
+    {
+      "name": "댄 헨드릭스",
+      "handle": "DanHendrycks",
+      "category": "AI 안전",
+      "needs_verify": false,
+      "note": "CAIS"
+    },
+    {
+      "name": "헬렌 토너",
+      "handle": "hlntnr",
+      "category": "AI 정책",
+      "needs_verify": false,
+      "note": "전 OpenAI 이사"
+    },
+    {
+      "name": "다니엘라 아모데이",
+      "handle": "daniela_amodei",
+      "category": "Anthropic 사장",
+      "needs_verify": true,
+      "note": "⚠️ 핸들 확인"
+    },
+    {
+      "name": "EU AI Office",
+      "handle": "EU_Commission",
+      "category": "기관",
+      "needs_verify": false,
+      "note": "집행위 계정으로 대체"
+    },
+    {
+      "name": "UK AI Security Institute",
+      "handle": "AISecurityInst",
+      "category": "기관",
+      "needs_verify": true,
+      "note": "⚠️ 핸들 확인"
+    },
+    {
+      "name": "NIST",
+      "handle": "NIST",
+      "category": "기관",
+      "needs_verify": false,
+      "note": "AI 표준"
+    },
+    {
+      "name": "크렘린(영문)",
+      "handle": "KremlinRussia_E",
+      "category": "러시아",
+      "needs_verify": false,
+      "note": "푸틴 공식 채널"
+    },
+    {
+      "name": "이스라엘군 IDF",
+      "handle": "IDF",
+      "category": "중동",
+      "needs_verify": false,
+      "note": "전황 1차"
+    },
+    {
+      "name": "IMF",
+      "handle": "IMFNews",
+      "category": "국제기구",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "미 전쟁부",
+      "handle": "DeptofWar",
+      "category": "미국",
+      "needs_verify": true,
+      "note": "⚠️ 개칭 후 핸들 확인"
+    },
+    {
+      "name": "우크라이나 총참모부",
+      "handle": "GeneralStaffUA",
+      "category": "우크라",
+      "needs_verify": true,
+      "note": "⚠️ 핸들 확인"
+    },
+    {
+      "name": "RT",
+      "handle": "RT_com",
+      "category": "러시아 관영",
+      "needs_verify": false,
+      "note": "편향 라벨 필수"
+    },
+    {
+      "name": "CSIS",
+      "handle": "CSIS",
+      "category": "싱크탱크",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "CFR",
+      "handle": "CFR_org",
+      "category": "싱크탱크",
+      "needs_verify": false,
+      "note": ""
+    }
+  ],
   "ai": [
-    {"handle": "sama", "name": "샘 올트먼", "affil": "오픈AI CEO", "tier": 1, "needs_verify": false, "bias_label": null},
-    {"handle": "elonmusk", "name": "일론 머스크", "affil": "xAI·테슬라 CEO", "tier": 1, "needs_verify": true, "bias_label": "편향"},
-    {"handle": "demishassabis", "name": "데미스 허사비스", "affil": "구글 딥마인드 CEO", "tier": 1, "needs_verify": false, "bias_label": null},
-    {"handle": "DarioAmodei", "name": "다리오 아모데이", "affil": "앤스로픽 CEO", "tier": 1, "needs_verify": false, "bias_label": null},
-    {"handle": "JensenHuangNV", "name": "젠슨 황", "affil": "엔비디아 CEO", "tier": 1, "needs_verify": true, "bias_label": null},
-    {"handle": "satyanadella", "name": "사티아 나델라", "affil": "마이크로소프트 CEO", "tier": 2, "needs_verify": false, "bias_label": null},
-    {"handle": "sundarpichai", "name": "순다르 피차이", "affil": "구글 CEO", "tier": 2, "needs_verify": false, "bias_label": null},
-    {"handle": "ylecun", "name": "얀 르쿤", "affil": "메타 수석 AI 과학자", "tier": 2, "needs_verify": false, "bias_label": null},
-    {"handle": "karpathy", "name": "안드레 카파시", "affil": "前 오픈AI·테슬라", "tier": 2, "needs_verify": false, "bias_label": null},
-    {"handle": "AndrewYNg", "name": "앤드루 응", "affil": "딥러닝AI 창립자", "tier": 3, "needs_verify": false, "bias_label": null},
-    {"handle": "emollick", "name": "이선 몰릭", "affil": "와튼스쿨 교수", "tier": 3, "needs_verify": false, "bias_label": null}
+    {
+      "name": "일론 머스크",
+      "handle": "elonmusk",
+      "org": "xAI·테슬라 CEO",
+      "tier": 1,
+      "reason": "파급 최대, 제품 예고를 X로 직접",
+      "needs_verify": false,
+      "note": "머스크 4탄 후속 라인"
+    },
+    {
+      "name": "샘 알트만",
+      "handle": "sama",
+      "org": "OpenAI CEO",
+      "tier": 1,
+      "reason": "모델·안전 페이스 발언 1차 소스",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "다리오 아모데이",
+      "handle": "DarioAmodei",
+      "org": "Anthropic CEO",
+      "tier": 1,
+      "reason": "저빈도·고밀도, 정책 영향 큼",
+      "needs_verify": false,
+      "note": "게시 적음"
+    },
+    {
+      "name": "데미스 하사비스",
+      "handle": "demishassabis",
+      "org": "Google DeepMind CEO",
+      "tier": 1,
+      "reason": "제품 발표 인용 빈도 높음",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "그렉 브록먼",
+      "handle": "gdb",
+      "org": "OpenAI 사장",
+      "tier": 1,
+      "reason": "OpenAI 출시·데모 실시간",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "일리야 수츠케버",
+      "handle": "ilyasut",
+      "org": "SSI 창업자",
+      "tier": 1,
+      "reason": "저빈도, 한 줄이 시장 흔듦",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "미라 무라티",
+      "handle": "miramurati",
+      "org": "Thinking Machines CEO",
+      "tier": 2,
+      "reason": "신규 랩 동향",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "무스타파 술레이만",
+      "handle": "mustafasuleyman",
+      "org": "Microsoft AI CEO",
+      "tier": 2,
+      "reason": "MS 소비자 AI 방향",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "아서 멘슈",
+      "handle": "arthurmensch",
+      "org": "Mistral CEO",
+      "tier": 2,
+      "reason": "유럽 프론티어·EU 규제 반응",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "알렉산더 왕",
+      "handle": "alexandr_wang",
+      "org": "Meta 초지능랩",
+      "tier": 2,
+      "reason": "메타 인재·모델 동향",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "잭 클라크",
+      "handle": "jackclarkSF",
+      "org": "Anthropic 정책총괄",
+      "tier": 2,
+      "reason": "AI 정책·수출통제 논평",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "마크 첸",
+      "handle": "markchen90",
+      "org": "OpenAI 연구총괄",
+      "tier": 2,
+      "reason": "모델 성능 발표",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "케빈 웨일",
+      "handle": "kevinweil",
+      "org": "OpenAI CPO",
+      "tier": 3,
+      "reason": "제품 로드맵",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "OpenAI",
+      "handle": "OpenAI",
+      "org": "조직",
+      "tier": 1,
+      "reason": "공식 발표",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Anthropic",
+      "handle": "AnthropicAI",
+      "org": "조직",
+      "tier": 1,
+      "reason": "공식 발표",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Google DeepMind",
+      "handle": "GoogleDeepMind",
+      "org": "조직",
+      "tier": 1,
+      "reason": "공식 발표",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "xAI",
+      "handle": "xai",
+      "org": "조직",
+      "tier": 1,
+      "reason": "그록 출시·요금",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Meta AI",
+      "handle": "AIatMeta",
+      "org": "조직",
+      "tier": 2,
+      "reason": "라마·오픈소스",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Mistral AI",
+      "handle": "MistralAI",
+      "org": "조직",
+      "tier": 2,
+      "reason": "유럽 오픈모델",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Thinking Machines",
+      "handle": "thinkymachines",
+      "org": "조직",
+      "tier": 3,
+      "reason": "신규 랩",
+      "needs_verify": true,
+      "note": "⚠️ 핸들 확인"
+    },
+    {
+      "name": "순다 피차이",
+      "handle": "sundarpichai",
+      "org": "Alphabet CEO",
+      "tier": 1,
+      "reason": "제미나이 발표 1차 소스",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "사티아 나델라",
+      "handle": "satyanadella",
+      "org": "Microsoft CEO",
+      "tier": 1,
+      "reason": "코파일럿·OpenAI 관계",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "마크 저커버그",
+      "handle": "finkd",
+      "org": "Meta CEO",
+      "tier": 2,
+      "reason": "X 저활동, Threads가 주",
+      "needs_verify": true,
+      "note": "⚠️ Threads 병행 필요"
+    },
+    {
+      "name": "팀 쿡",
+      "handle": "tim_cook",
+      "org": "Apple CEO",
+      "tier": 2,
+      "reason": "애플 AI 발표",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "앤디 재시",
+      "handle": "ajassy",
+      "org": "Amazon CEO",
+      "tier": 2,
+      "reason": "AWS·AI 투자",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "제프 베이조스",
+      "handle": "JeffBezos",
+      "org": "Amazon 창업자",
+      "tier": 3,
+      "reason": "우주·AI 거시 발언",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "리사 수",
+      "handle": "LisaSu",
+      "org": "AMD CEO",
+      "tier": 2,
+      "reason": "GPU 경쟁·한국 반도체 연동",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "크리스티아노 아몬",
+      "handle": "cristianoamon",
+      "org": "Qualcomm CEO",
+      "tier": 3,
+      "reason": "온디바이스 AI",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "NVIDIA",
+      "handle": "nvidia",
+      "org": "조직(젠슨 황 개인 X 없음)",
+      "tier": 1,
+      "reason": "GTC·실적·수출통제",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Google",
+      "handle": "Google",
+      "org": "조직",
+      "tier": 3,
+      "reason": "제품 공지",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Microsoft",
+      "handle": "Microsoft",
+      "org": "조직",
+      "tier": 3,
+      "reason": "제품 공지",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Apple",
+      "handle": "Apple",
+      "org": "조직",
+      "tier": 3,
+      "reason": "제품 공지",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "AWS",
+      "handle": "awscloud",
+      "org": "조직",
+      "tier": 3,
+      "reason": "인프라 공지",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "삼성전자",
+      "handle": "Samsung",
+      "org": "조직",
+      "tier": 2,
+      "reason": "한국 관련성·HBM",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "SK하이닉스",
+      "handle": "SKhynix",
+      "org": "조직",
+      "tier": 2,
+      "reason": "HBM·엔비디아 공급",
+      "needs_verify": true,
+      "note": "⚠️ 핸들 확인"
+    },
+    {
+      "name": "TSMC",
+      "handle": "TSMC",
+      "org": "조직",
+      "tier": 2,
+      "reason": "파운드리·대만 리스크",
+      "needs_verify": true,
+      "note": "⚠️ 핸들 확인"
+    },
+    {
+      "name": "안드레이 카파시",
+      "handle": "karpathy",
+      "org": "독립 연구자",
+      "tier": 1,
+      "reason": "기술 해설 파급 최대",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "얀 르쿤",
+      "handle": "ylecun",
+      "org": "Meta 수석과학자",
+      "tier": 1,
+      "reason": "LLM 회의론·논쟁 촉발",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "제프 딘",
+      "handle": "JeffDean",
+      "org": "Google 수석과학자",
+      "tier": 2,
+      "reason": "제미나이 기술 상세",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "제프리 힌턴",
+      "handle": "geoffreyhinton",
+      "org": "노벨상·안전론",
+      "tier": 2,
+      "reason": "위험 경고 발언",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "요슈아 벤지오",
+      "handle": "Yoshua_Bengio",
+      "org": "Mila·안전론",
+      "tier": 2,
+      "reason": "규제·안전 보고서",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "페이페이 리",
+      "handle": "drfeifei",
+      "org": "World Labs·스탠퍼드",
+      "tier": 2,
+      "reason": "공간지능·정책",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "앤드루 응",
+      "handle": "AndrewYNg",
+      "org": "DeepLearning.AI",
+      "tier": 2,
+      "reason": "교육·산업 적용",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "짐 팬",
+      "handle": "DrJimFan",
+      "org": "NVIDIA 로보틱스",
+      "tier": 2,
+      "reason": "피지컬 AI",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "노엄 브라운",
+      "handle": "polynoamial",
+      "org": "OpenAI 추론",
+      "tier": 3,
+      "reason": "추론 모델 기술",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "제이슨 웨이",
+      "handle": "_jasonwei",
+      "org": "OpenAI",
+      "tier": 3,
+      "reason": "모델 기술 논평",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "크리스 올라",
+      "handle": "ch402",
+      "org": "Anthropic 해석가능성",
+      "tier": 3,
+      "reason": "해석가능성 연구",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "얀 라이케",
+      "handle": "janleike",
+      "org": "Anthropic 정렬",
+      "tier": 3,
+      "reason": "정렬·안전",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "아만다 애스켈",
+      "handle": "AmandaAskell",
+      "org": "Anthropic",
+      "tier": 3,
+      "reason": "모델 성격·철학",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "오리올 비냘스",
+      "handle": "OriolVinyalsML",
+      "org": "DeepMind",
+      "tier": 3,
+      "reason": "제미나이 기술",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "로건 킬패트릭",
+      "handle": "OfficialLoganK",
+      "org": "Google AI Studio",
+      "tier": 2,
+      "reason": "제미나이 API·개발자 소식 최속",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "게리 마커스",
+      "handle": "GaryMarcus",
+      "org": "비판론자",
+      "tier": 3,
+      "reason": "반대 논거 확보용",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "엘리에저 유드코프스키",
+      "handle": "ESYudkowsky",
+      "org": "MIRI",
+      "tier": 3,
+      "reason": "극단 안전론",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "맥스 테그마크",
+      "handle": "tegmark",
+      "org": "FLI",
+      "tier": 3,
+      "reason": "규제 운동",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "마크 앤드리슨",
+      "handle": "pmarca",
+      "org": "a16z",
+      "tier": 2,
+      "reason": "가속주의·정책 로비",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "리드 호프먼",
+      "handle": "reidhoffman",
+      "org": "Greylock",
+      "tier": 3,
+      "reason": "AI·정치 교차",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "비노드 코슬라",
+      "handle": "vkhosla",
+      "org": "Khosla Ventures",
+      "tier": 3,
+      "reason": "OpenAI 초기 투자자",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "빌 게이츠",
+      "handle": "BillGates",
+      "org": "게이츠재단",
+      "tier": 2,
+      "reason": "AI 거시 전망",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "에릭 슈밋",
+      "handle": "ericschmidt",
+      "org": "전 Google CEO",
+      "tier": 2,
+      "reason": "AI·안보 정책",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "데이비드 색스",
+      "handle": "DavidSacks",
+      "org": "백악관 AI·크립토 차르",
+      "tier": 1,
+      "reason": "미 AI 정책 실무 최고위",
+      "needs_verify": true,
+      "note": "⚠️ 현직 여부 월간 확인"
+    },
+    {
+      "name": "마이클 크라시오스",
+      "handle": "mkratsios47",
+      "org": "OSTP 국장",
+      "tier": 2,
+      "reason": "미 과학기술 정책",
+      "needs_verify": true,
+      "note": "⚠️ 현직 확인"
+    },
+    {
+      "name": "개리 탄",
+      "handle": "garrytan",
+      "org": "YC CEO",
+      "tier": 3,
+      "reason": "스타트업 트렌드",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "폴 그레이엄",
+      "handle": "paulg",
+      "org": "YC 창업자",
+      "tier": 3,
+      "reason": "창업 담론",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "발라지 스리니바산",
+      "handle": "balajis",
+      "org": "투자자",
+      "tier": 3,
+      "reason": "기술·지정학 교차",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "나발 라비칸트",
+      "handle": "naval",
+      "org": "투자자",
+      "tier": 3,
+      "reason": "거시 담론",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "차마스 팔리하피티야",
+      "handle": "chamath",
+      "org": "Social Capital",
+      "tier": 3,
+      "reason": "All-In 팟캐스트",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "DeepSeek",
+      "handle": "deepseek_ai",
+      "org": "조직",
+      "tier": 1,
+      "reason": "중국 프론티어 1순위",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Qwen(알리바바)",
+      "handle": "Alibaba_Qwen",
+      "org": "조직",
+      "tier": 1,
+      "reason": "오픈모델 최다 출시",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Kimi(문샷)",
+      "handle": "Kimi_Moonshot",
+      "org": "조직",
+      "tier": 2,
+      "reason": "장문맥·에이전트",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Z.ai(즈푸)",
+      "handle": "Zai_org",
+      "org": "조직",
+      "tier": 2,
+      "reason": "GLM 시리즈",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "MiniMax",
+      "handle": "MiniMax__AI",
+      "org": "조직",
+      "tier": 2,
+      "reason": "영상·음성 모델",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Tencent Hunyuan",
+      "handle": "TencentHunyuan",
+      "org": "조직",
+      "tier": 2,
+      "reason": "텐센트 모델",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Baidu",
+      "handle": "Baidu_Inc",
+      "org": "조직",
+      "tier": 3,
+      "reason": "어니(리옌훙 개인 X 없음)",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Manus",
+      "handle": "ManusAI_HQ",
+      "org": "조직",
+      "tier": 3,
+      "reason": "에이전트 제품",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "레이쥔",
+      "handle": "leijun",
+      "org": "샤오미 CEO",
+      "tier": 2,
+      "reason": "중국 빅테크 중 X 활동 예외",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "리카이푸",
+      "handle": "kaifulee",
+      "org": "01.AI·시노베이션",
+      "tier": 2,
+      "reason": "중국 AI 해설 영문",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "ByteDance Seed",
+      "handle": "ByteDanceOSS",
+      "org": "조직",
+      "tier": 3,
+      "reason": "두바오·시드 모델",
+      "needs_verify": true,
+      "note": "⚠️ 핸들 확인"
+    },
+    {
+      "name": "StepFun",
+      "handle": "StepFun_ai",
+      "org": "조직",
+      "tier": 3,
+      "reason": "멀티모달",
+      "needs_verify": true,
+      "note": "⚠️ 핸들 확인"
+    },
+    {
+      "name": "Unitree",
+      "handle": "UnitreeRobotics",
+      "org": "조직",
+      "tier": 2,
+      "reason": "휴머노이드 가격 파괴",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "소프트뱅크그룹",
+      "handle": "SoftBank_Group",
+      "org": "조직",
+      "tier": 3,
+      "reason": "스타게이트·OpenAI 투자(손정의 개인 X 없음)",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "LG AI연구원",
+      "handle": "LG_AI_Research",
+      "org": "조직",
+      "tier": 3,
+      "reason": "엑사원·한국 관련성",
+      "needs_verify": true,
+      "note": "⚠️ 핸들 확인"
+    },
+    {
+      "name": "Sakana AI",
+      "handle": "SakanaAILabs",
+      "org": "조직",
+      "tier": 3,
+      "reason": "일본 프론티어",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "아라빈드 스리니바스",
+      "handle": "AravSrinivas",
+      "org": "Perplexity CEO",
+      "tier": 2,
+      "reason": "검색 AI·구글 대립",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Perplexity",
+      "handle": "perplexity_ai",
+      "org": "조직",
+      "tier": 3,
+      "reason": "제품 공지",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Cursor",
+      "handle": "cursor_ai",
+      "org": "조직",
+      "tier": 3,
+      "reason": "AI 코딩 시장 지표",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "클레망 들랑그",
+      "handle": "ClementDelangue",
+      "org": "Hugging Face CEO",
+      "tier": 2,
+      "reason": "오픈소스 생태계",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Hugging Face",
+      "handle": "huggingface",
+      "org": "조직",
+      "tier": 2,
+      "reason": "모델 출시 허브",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Tesla AI",
+      "handle": "Tesla_AI",
+      "org": "조직",
+      "tier": 2,
+      "reason": "옵티머스·FSD",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "브렛 애드콕",
+      "handle": "adcock_brett",
+      "org": "Figure CEO",
+      "tier": 3,
+      "reason": "휴머노이드",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Figure",
+      "handle": "Figure_robot",
+      "org": "조직",
+      "tier": 3,
+      "reason": "휴머노이드",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "팔머 러키",
+      "handle": "PalmerLuckey",
+      "org": "Anduril 창업자",
+      "tier": 2,
+      "reason": "방산 AI",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Palantir",
+      "handle": "PalantirTech",
+      "org": "조직(알렉스 카프 개인 X 없음)",
+      "tier": 3,
+      "reason": "정부·방산 AI",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "ElevenLabs",
+      "handle": "elevenlabsio",
+      "org": "조직",
+      "tier": 3,
+      "reason": "음성 AI",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "Runway",
+      "handle": "runwayml",
+      "org": "조직",
+      "tier": 3,
+      "reason": "영상 생성(힉스필드 경쟁)",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "딜런 파텔",
+      "handle": "dylan522p",
+      "org": "SemiAnalysis",
+      "tier": 1,
+      "reason": "반도체·GPU 공급망 최속 분석, 한국 관련성 최고",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "벤 톰슨",
+      "handle": "benthompson",
+      "org": "Stratechery",
+      "tier": 2,
+      "reason": "빅테크 전략 분석",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "이선 몰릭",
+      "handle": "emollick",
+      "org": "와튼",
+      "tier": 2,
+      "reason": "AI 업무 적용 실증",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "드워케시 파텔",
+      "handle": "dwarkesh_sp",
+      "org": "팟캐스트",
+      "tier": 2,
+      "reason": "거두 인터뷰 예고",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "케이시 뉴턴",
+      "handle": "CaseyNewton",
+      "org": "Platformer",
+      "tier": 3,
+      "reason": "실리콘밸리 내부 취재",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "The Information",
+      "handle": "theinformation",
+      "org": "매체",
+      "tier": 2,
+      "reason": "빅테크 단독 보도",
+      "needs_verify": false,
+      "note": ""
+    }
   ],
   "geo": [
-    {"handle": "SecRubio", "name": "마코 루비오", "affil": "미 국무장관", "tier": 1, "needs_verify": false, "bias_label": null},
-    {"handle": "KremlinRussia_E", "name": "크렘린(공식)", "affil": "러시아 대통령실", "tier": 2, "needs_verify": true, "bias_label": "관영"},
-    {"handle": "MFA_China", "name": "중국 외교부(공식)", "affil": "중국 외교부", "tier": 2, "needs_verify": true, "bias_label": "관영"},
-    {"handle": "HuXijin_GT", "name": "후시진", "affil": "환구시보 前 총편집인", "tier": 2, "needs_verify": true, "bias_label": "관영"},
-    {"handle": "IAPonomarenko", "name": "일리아 포노마렌코", "affil": "우크라이나 안보 저널리스트", "tier": 3, "needs_verify": true, "bias_label": "편향"},
-    {"handle": "ianbremmer", "name": "이언 브레머", "affil": "유라시아그룹 회장", "tier": 2, "needs_verify": false, "bias_label": null},
-    {"handle": "profklaas", "name": "브라이언 클라스", "affil": "UCL 정치학자", "tier": 3, "needs_verify": false, "bias_label": null}
+    {
+      "name": "도널드 트럼프",
+      "handle": "realDonaldTrump",
+      "org": "미국 대통령",
+      "tier": 1,
+      "reason": "관세·전쟁·AI 행정명령",
+      "needs_verify": true,
+      "note": "⚠️ 주 채널 Truth Social — 별도 수집기"
+    },
+    {
+      "name": "백악관",
+      "handle": "WhiteHouse",
+      "org": "조직",
+      "tier": 1,
+      "reason": "공식 발표",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "JD 밴스",
+      "handle": "JDVance",
+      "org": "부통령",
+      "tier": 1,
+      "reason": "대외 강경 발언",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "마코 루비오",
+      "handle": "SecRubio",
+      "org": "국무장관",
+      "tier": 1,
+      "reason": "한미·대중 외교",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "국무부",
+      "handle": "StateDept",
+      "org": "조직",
+      "tier": 2,
+      "reason": "공식 성명",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "스콧 베센트",
+      "handle": "SecScottBessent",
+      "org": "재무장관",
+      "tier": 1,
+      "reason": "관세·환율·한미 협상",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "하워드 러트닉",
+      "handle": "howardlutnick",
+      "org": "상무장관",
+      "tier": 2,
+      "reason": "반도체 관세·수출통제",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "제이미슨 그리어",
+      "handle": "USTradeRep",
+      "org": "USTR",
+      "tier": 2,
+      "reason": "무역협상",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "피트 헤그세스",
+      "handle": "PeteHegseth",
+      "org": "전쟁장관",
+      "tier": 2,
+      "reason": "주한미군·방위비",
+      "needs_verify": true,
+      "note": "⚠️ 공식 핸들 확인"
+    },
+    {
+      "name": "연준",
+      "handle": "federalreserve",
+      "org": "조직(파월 개인 X 없음)",
+      "tier": 2,
+      "reason": "금리 결정",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "미 재무부",
+      "handle": "USTreasury",
+      "org": "조직",
+      "tier": 3,
+      "reason": "제재·환율보고서",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "미 상무부",
+      "handle": "CommerceGov",
+      "org": "조직",
+      "tier": 3,
+      "reason": "수출통제 고시",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "중국 외교부",
+      "handle": "MFA_China",
+      "org": "조직",
+      "tier": 1,
+      "reason": "공식 입장",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "화춘잉",
+      "handle": "SpokespersonCHN",
+      "org": "외교부 부부장",
+      "tier": 1,
+      "reason": "대미·대한 메시지",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "외교부 대변인(마오닝·린젠)",
+      "handle": "MaoNing",
+      "org": "개인",
+      "tier": 2,
+      "reason": "일일 브리핑 발언",
+      "needs_verify": true,
+      "note": "⚠️ 핸들 확인"
+    },
+    {
+      "name": "주미중국대사관",
+      "handle": "ChineseEmbinUS",
+      "org": "조직",
+      "tier": 2,
+      "reason": "미중 갈등 1차 반응",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "후시진",
+      "handle": "HuXijin_GT",
+      "org": "전 환구시보 편집장",
+      "tier": 2,
+      "reason": "중국 여론 온도계",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "글로벌타임스",
+      "handle": "globaltimesnews",
+      "org": "관영",
+      "tier": 2,
+      "reason": "대외 강경 논조",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "신화통신",
+      "handle": "XHNews",
+      "org": "관영",
+      "tier": 2,
+      "reason": "공식 보도",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "CGTN",
+      "handle": "CGTNOfficial",
+      "org": "관영",
+      "tier": 3,
+      "reason": "영문 선전",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "주한중국대사관",
+      "handle": "ChinaEmb_Korea",
+      "org": "조직",
+      "tier": 3,
+      "reason": "한중 현안",
+      "needs_verify": true,
+      "note": "⚠️ 핸들 확인"
+    },
+    {
+      "name": "이재명 대통령",
+      "handle": "Jaemyung_Lee",
+      "org": "대한민국 대통령",
+      "tier": 1,
+      "reason": "국내 최우선",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "대한민국 외교부",
+      "handle": "mofa_kr",
+      "org": "조직",
+      "tier": 2,
+      "reason": "공식 입장",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "대한민국 대통령실",
+      "handle": "sunnykorea",
+      "org": "조직",
+      "tier": 2,
+      "reason": "공식 발표",
+      "needs_verify": true,
+      "note": "⚠️ 핸들 확인"
+    },
+    {
+      "name": "일본 총리관저",
+      "handle": "JPN_PMO",
+      "org": "조직",
+      "tier": 2,
+      "reason": "한일·미일",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "일본 외무성",
+      "handle": "MofaJapan_en",
+      "org": "조직",
+      "tier": 3,
+      "reason": "공식 입장",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "라이칭더",
+      "handle": "ChingteLai",
+      "org": "대만 총통",
+      "tier": 1,
+      "reason": "양안·TSMC 리스크",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "나렌드라 모디",
+      "handle": "narendramodi",
+      "org": "인도 총리",
+      "tier": 2,
+      "reason": "인도 외교·기술",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "인도 외교부",
+      "handle": "MEAIndia",
+      "org": "조직",
+      "tier": 3,
+      "reason": "공식 입장",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "우르줄라 폰데어라이엔",
+      "handle": "vonderleyen",
+      "org": "EU 집행위원장",
+      "tier": 1,
+      "reason": "EU AI법·대미 관세",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "EU 집행위",
+      "handle": "EU_Commission",
+      "org": "조직",
+      "tier": 3,
+      "reason": "규제 공지",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "카야 칼라스",
+      "handle": "kajakallas",
+      "org": "EU 외교안보 대표",
+      "tier": 2,
+      "reason": "대러·대중 정책",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "에마뉘엘 마크롱",
+      "handle": "EmmanuelMacron",
+      "org": "프랑스 대통령",
+      "tier": 2,
+      "reason": "유럽 주권 AI·우크라",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "프리드리히 메르츠",
+      "handle": "_FriedrichMerz",
+      "org": "독일 총리",
+      "tier": 2,
+      "reason": "유럽 재무장",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "키어 스타머",
+      "handle": "Keir_Starmer",
+      "org": "영국 총리",
+      "tier": 2,
+      "reason": "영미 AI 협력",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "마르크 뤼터",
+      "handle": "SecGenNATO",
+      "org": "NATO 사무총장",
+      "tier": 1,
+      "reason": "동맹·방위비",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "NATO",
+      "handle": "NATO",
+      "org": "조직",
+      "tier": 3,
+      "reason": "공식 성명",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "조르자 멜로니",
+      "handle": "GiorgiaMeloni",
+      "org": "이탈리아 총리",
+      "tier": 3,
+      "reason": "트럼프-EU 가교",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "볼로디미르 젤렌스키",
+      "handle": "ZelenskyyUa",
+      "org": "우크라이나 대통령",
+      "tier": 1,
+      "reason": "전쟁·협상 1차 소스",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "러시아 외교부",
+      "handle": "mfa_russia",
+      "org": "조직",
+      "tier": 2,
+      "reason": "공식 입장",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "드미트리 메드베데프",
+      "handle": "MedvedevRussiaE",
+      "org": "러 안보회의 부의장",
+      "tier": 2,
+      "reason": "핵 위협 발언",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "베냐민 네타냐후",
+      "handle": "netanyahu",
+      "org": "이스라엘 총리",
+      "tier": 1,
+      "reason": "중동 전황",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "압바스 아락치",
+      "handle": "araghchi",
+      "org": "이란 외교장관",
+      "tier": 2,
+      "reason": "핵협상·중동",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "이란 외교부",
+      "handle": "IRIMFA_EN",
+      "org": "조직",
+      "tier": 3,
+      "reason": "공식 입장",
+      "needs_verify": true,
+      "note": "⚠️ 핸들 확인"
+    },
+    {
+      "name": "레제프 에르도안",
+      "handle": "RTErdogan",
+      "org": "튀르키예 대통령",
+      "tier": 3,
+      "reason": "중재·NATO 변수",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "사우디 외교부",
+      "handle": "KSAmofaEN",
+      "org": "조직",
+      "tier": 3,
+      "reason": "유가·중동",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "안토니우 구테흐스",
+      "handle": "antonioguterres",
+      "org": "UN 사무총장",
+      "tier": 2,
+      "reason": "국제 규범",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "라파엘 그로시",
+      "handle": "rafaelmgrossi",
+      "org": "IAEA 사무총장",
+      "tier": 2,
+      "reason": "이란·북핵",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "이언 브레머",
+      "handle": "ianbremmer",
+      "org": "Eurasia Group",
+      "tier": 1,
+      "reason": "지정학 리스크 해설 최속",
+      "needs_verify": false,
+      "note": ""
+    },
+    {
+      "name": "ISW",
+      "handle": "TheStudyofWar",
+      "org": "전쟁연구소",
+      "tier": 2,
+      "reason": "전황 일일 평가",
+      "needs_verify": false,
+      "note": ""
+    }
+  ],
+  "aux": [
+    {
+      "name": "Reuters",
+      "handle": "Reuters"
+    },
+    {
+      "name": "Bloomberg",
+      "handle": "business"
+    },
+    {
+      "name": "Financial Times",
+      "handle": "FT"
+    },
+    {
+      "name": "Nikkei Asia",
+      "handle": "NikkeiAsia"
+    },
+    {
+      "name": "SCMP",
+      "handle": "SCMPNews"
+    },
+    {
+      "name": "Kyiv Independent",
+      "handle": "KyivIndependent"
+    },
+    {
+      "name": "Al Jazeera English",
+      "handle": "AJEnglish"
+    },
+    {
+      "name": "빌 비숍(Sinocism)",
+      "handle": "niubi"
+    },
+    {
+      "name": "마이클 코프만",
+      "handle": "KofmanMichael"
+    },
+    {
+      "name": "왕즈천(Pekingnology)",
+      "handle": "zichenwanghere"
+    }
+  ],
+  "cn_pipe": [
+    {
+      "name": "36Kr",
+      "url": "https://36kr.com",
+      "desc": "AI·빅테크 속보, RSS 가능"
+    },
+    {
+      "name": "机器之心",
+      "url": "https://www.jiqizhixin.com",
+      "desc": "중국 AI 연구·출시"
+    },
+    {
+      "name": "量子位",
+      "url": "https://www.qbitai.com",
+      "desc": "중국 AI 산업 동향"
+    },
+    {
+      "name": "중국 외교부 기자회견 영문 트랜스크립트",
+      "url": "https://www.fmprc.gov.cn/eng/",
+      "desc": "매일 게시 — 대변인 발언 원문"
+    }
   ]
 }

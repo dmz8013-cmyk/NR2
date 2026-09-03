@@ -103,12 +103,31 @@ _wl_cache = None
 
 
 def load_watchlist() -> list[dict]:
-    """ai/geo 배열 통합 목록 (handle 소문자 키 포함)."""
+    """ai/geo 배열 통합 목록 (v2026-09 스키마 정규화).
+
+    - 소속 키: v2026-09는 'org', 구버전은 'affil' → affil 로 통일
+    - 편향 라벨: 최상위 bias_label 핸들 목록 기준 부여
+      (org 가 관영·조직·매체면 [관영], 개인이면 [편향])
+    - candidates(후보 풀)·aux·cn_pipe 는 활성 150에 미포함
+    """
     global _wl_cache
     if _wl_cache is None:
         with open(WATCHLIST_PATH, encoding="utf-8") as f:
             data = json.load(f)
-        _wl_cache = [{**p, "group": g} for g in ("ai", "geo") for p in data.get(g, [])]
+        bias_handles = {h.lower() for h in data.get("bias_label", [])}
+        out = []
+        for g in ("ai", "geo"):
+            for p in data.get(g, []):
+                e = dict(p)
+                e["group"] = g
+                e["affil"] = e.get("org") or e.get("affil") or ""
+                if e.get("handle", "").lower() in bias_handles:
+                    org = e["affil"]
+                    e["bias_label"] = "관영" if any(k in org for k in ("관영", "조직", "매체")) else "편향"
+                else:
+                    e.setdefault("bias_label", None)
+                out.append(e)
+        _wl_cache = out
     return _wl_cache
 
 
