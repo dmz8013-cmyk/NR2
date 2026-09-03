@@ -38,8 +38,10 @@ logging.basicConfig(
 logger = logging.getLogger("leader_collector")
 
 KST = ZoneInfo("Asia/Seoul")
-XAI_URL = "https://api.x.ai/v1/chat/completions"
-XAI_MODEL = os.environ.get("XAI_MODEL", "grok-4-fast")
+# 2026-09: Live Search(chat/completions+search_parameters) 폐기(HTTP 410) →
+# Agent Tools API(/v1/responses + x_search 도구)로 전환
+XAI_URL = "https://api.x.ai/v1/responses"
+XAI_MODEL = os.environ.get("XAI_MODEL", "grok-4.6")
 BATCH_SIZE = 20                                   # 쿼리당 핸들 상한 (스펙)
 CALLS_KEY_PREFIX = "leaders_api_calls_"
 LIMIT_ALERT_PREFIX = "leaders_limit_alert_"
@@ -111,28 +113,48 @@ def _xai_search(handles: list[str], window_hours: int) -> list[dict] | None:
     if not _check_budget():
         return None
     now = datetime.now(KST)
-    payload = {
-        "model": XAI_MODEL,
-        "messages": [{"role": "user", "content": COLLECT_PROMPT.format(
-            hours=window_hours, handles=", ".join("@" + h for h in handles))}],
-        "search_parameters": {
-            "mode": "on",
-            "sources": [{"type": "x", "x_handles": handles}],
-            "from_date": (now - timedelta(hours=window_hours)).strftime("%Y-%m-%d"),
-            "to_date": now.strftime("%Y-%m-%d"),
-            "max_search_results": int(os.environ.get("LEADERS_MAX_SOURCES", "10")),
-            "return_citations": False,
-        },
-        "temperature": 0,
-    }
+    frm = (now - timedelta(hours=window_hours)).astimezone(ZoneInfo("UTC"))
+    to = now.astimezone(ZoneInfo("UTC"))
+
+    def _payload(date_only: bool) -> dict:
+        tool = {"type": "x_search", "allowed_x_handles": handles}
+        if date_only:
+            tool["from_date"] = frm.strftime("%Y-%m-%d")
+            tool["to_date"] = to.strftime("%Y-%m-%d")
+        else:
+            tool["from_date"] = frm.strftime("%Y-%m-%dT%H:%M:%SZ")
+            tool["to_date"] = to.strftime("%Y-%m-%dT%H:%M:%SZ")
+        return {
+            "model": XAI_MODEL,
+            "input": [{"role": "user", "content": COLLECT_PROMPT.format(
+                hours=window_hours, handles=", ".join("@" + h for h in handles))}],
+            "tools": [tool],
+        }
+
+    def _extract_text(data: dict) -> str:
+        parts = []
+        for item in data.get("output", []) or []:
+            for c in (item.get("content") or []):
+                if isinstance(c, dict) and c.get("type") in ("output_text", "text"):
+                    parts.append(c.get("text", ""))
+        return "\n".join(parts) or str(data.get("output_text") or "")
+
     try:
         _bump_calls()
-        r = requests.post(XAI_URL, json=payload, timeout=90,
+        r = requests.post(XAI_URL, json=_payload(date_only=False), timeout=180,
                           headers={"Authorization": f"Bearer {key}"})
+        if r.status_code == 400:
+            # 날짜 형식 미수용 폴백: date-only ISO8601
+            r = requests.post(XAI_URL, json=_payload(date_only=True), timeout=180,
+                              headers={"Authorization": f"Bearer {key}"})
         if r.status_code != 200:
-            logger.warning(f"[수집] xAI HTTP {r.status_code}: {r.text[:200]}")
+            logger.warning(f"[수집] xAI HTTP {r.status_code}: {r.text[:300]}")
             return None
-        content = r.json()["choices"][0]["message"]["content"]
+        data = r.json()
+        usage = data.get("usage")
+        if usage:
+            logger.info(f"[수집] usage: {json.dumps(usage, ensure_ascii=False)[:300]}")
+        content = _extract_text(data)
         s, e = content.find("["), content.rfind("]")
         if s == -1 or e <= s:
             return []
