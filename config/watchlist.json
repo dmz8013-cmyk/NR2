@@ -1,0 +1,28 @@
+{
+  "_meta": {
+    "updated": "2026-09-01",
+    "note": "AI 거두 워치 워치리스트 — 시드본(사용자 첨부본 미전달로 공지 인물 기준 작성, 자유 교체·추가). tier: 1=매시 2=하루2회 3=하루1회(Phase2 수집 주기). needs_verify: 발행 전 verify_pass 웹검색 검증 강제. bias_label: [관영]/[편향] 표기."
+  },
+  "ai": [
+    {"handle": "sama", "name": "샘 올트먼", "affil": "오픈AI CEO", "tier": 1, "needs_verify": false, "bias_label": null},
+    {"handle": "elonmusk", "name": "일론 머스크", "affil": "xAI·테슬라 CEO", "tier": 1, "needs_verify": true, "bias_label": "편향"},
+    {"handle": "demishassabis", "name": "데미스 허사비스", "affil": "구글 딥마인드 CEO", "tier": 1, "needs_verify": false, "bias_label": null},
+    {"handle": "DarioAmodei", "name": "다리오 아모데이", "affil": "앤스로픽 CEO", "tier": 1, "needs_verify": false, "bias_label": null},
+    {"handle": "JensenHuangNV", "name": "젠슨 황", "affil": "엔비디아 CEO", "tier": 1, "needs_verify": true, "bias_label": null},
+    {"handle": "satyanadella", "name": "사티아 나델라", "affil": "마이크로소프트 CEO", "tier": 2, "needs_verify": false, "bias_label": null},
+    {"handle": "sundarpichai", "name": "순다르 피차이", "affil": "구글 CEO", "tier": 2, "needs_verify": false, "bias_label": null},
+    {"handle": "ylecun", "name": "얀 르쿤", "affil": "메타 수석 AI 과학자", "tier": 2, "needs_verify": false, "bias_label": null},
+    {"handle": "karpathy", "name": "안드레 카파시", "affil": "前 오픈AI·테슬라", "tier": 2, "needs_verify": false, "bias_label": null},
+    {"handle": "AndrewYNg", "name": "앤드루 응", "affil": "딥러닝AI 창립자", "tier": 3, "needs_verify": false, "bias_label": null},
+    {"handle": "emollick", "name": "이선 몰릭", "affil": "와튼스쿨 교수", "tier": 3, "needs_verify": false, "bias_label": null}
+  ],
+  "geo": [
+    {"handle": "SecRubio", "name": "마코 루비오", "affil": "미 국무장관", "tier": 1, "needs_verify": false, "bias_label": null},
+    {"handle": "KremlinRussia_E", "name": "크렘린(공식)", "affil": "러시아 대통령실", "tier": 2, "needs_verify": true, "bias_label": "관영"},
+    {"handle": "MFA_China", "name": "중국 외교부(공식)", "affil": "중국 외교부", "tier": 2, "needs_verify": true, "bias_label": "관영"},
+    {"handle": "HuXijin_GT", "name": "후시진", "affil": "환구시보 前 총편집인", "tier": 2, "needs_verify": true, "bias_label": "관영"},
+    {"handle": "IAPonomarenko", "name": "일리아 포노마렌코", "affil": "우크라이나 안보 저널리스트", "tier": 3, "needs_verify": true, "bias_label": "편향"},
+    {"handle": "ianbremmer", "name": "이언 브레머", "affil": "유라시아그룹 회장", "tier": 2, "needs_verify": false, "bias_label": null},
+    {"handle": "profklaas", "name": "브라이언 클라스", "affil": "UCL 정치학자", "tier": 3, "needs_verify": false, "bias_label": null}
+  ]
+}

@@ -285,6 +285,40 @@ def handle_fact_command(chat_id, args):
 
 
 # ──────────────────────────────────────────────
+# /leaders_* — AI 거두 워치 (관리자 전용)
+# ──────────────────────────────────────────────
+
+def _is_leaders_admin(chat_id) -> bool:
+    from leader_watch import admin_chat_id
+    return str(chat_id) == str(admin_chat_id())
+
+
+def handle_leaders_in(chat_id, args):
+    """/leaders_in [텍스트] — 텍스트 동봉 시 즉시 처리, 없으면 다음 메시지 대기."""
+    if not _is_leaders_admin(chat_id):
+        tg_send(chat_id, "⚠️ 관리자 전용 명령입니다.")
+        return
+    from leader_watch import process_manual_input
+    from g2b_tracker import state_set
+    if args and args.strip():
+        tg_send(chat_id, "⏳ 파싱·채점 중… (1~2분)")
+        tg_send(chat_id, process_manual_input(args))
+    else:
+        state_set('leaders_await', '1')
+        tg_send(chat_id, "📥 다음 메시지에 그록 수집 텍스트를 붙여넣으세요.\n"
+                         "형식: <code>인물|시각|요약|링크</code> (줄 단위)")
+
+
+def handle_leaders_text(chat_id, text):
+    """/leaders_in 대기 상태에서 도착한 본문 처리."""
+    from leader_watch import process_manual_input
+    from g2b_tracker import state_set
+    state_set('leaders_await', '0')
+    tg_send(chat_id, "⏳ 파싱·채점 중… (1~2분)")
+    tg_send(chat_id, process_manual_input(text))
+
+
+# ──────────────────────────────────────────────
 # 폴링 — 모든 명령어 통합 처리
 # ──────────────────────────────────────────────
 
@@ -346,6 +380,31 @@ def poll_commands(app):
             elif cmd in ('/fact', '/fact@nr2_bot'):
                 logger.info(f'[WebBot] /fact 수신: chat_id={chat_id}')
                 handle_fact_command(chat_id, args)
+
+            elif cmd in ('/leaders_in', '/leaders_in@nr2_bot'):
+                logger.info(f'[WebBot] /leaders_in 수신: chat_id={chat_id}')
+                handle_leaders_in(chat_id, args)
+
+            elif cmd in ('/leaders_ok', '/leaders_ok@nr2_bot'):
+                logger.info(f'[WebBot] /leaders_ok 수신: chat_id={chat_id}')
+                if _is_leaders_admin(chat_id):
+                    from leader_watch import publish_draft
+                    tg_send(chat_id, publish_draft())
+
+            elif cmd in ('/leaders_no', '/leaders_no@nr2_bot'):
+                logger.info(f'[WebBot] /leaders_no 수신: chat_id={chat_id}')
+                if _is_leaders_admin(chat_id):
+                    from leader_watch import discard_draft
+                    tg_send(chat_id, discard_draft())
+
+            elif not cmd.startswith('/'):
+                # 비명령 메시지: /leaders_in 대기 상태의 관리자 본문 수신
+                try:
+                    from g2b_tracker import state_get
+                    if _is_leaders_admin(chat_id) and state_get('leaders_await') == '1':
+                        handle_leaders_text(chat_id, text)
+                except Exception as le:
+                    logger.error(f'[WebBot] leaders 본문 처리 오류: {le}')
 
         except Exception as e:
             logger.error(f'[WebBot] 명령어 처리 오류: {cmd} → {e}')

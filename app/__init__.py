@@ -135,6 +135,13 @@ def create_app(config_name='default'):
     except Exception as _e:
         app.logger.warning(f"ai_tracker 블루프린트 등록 실패(무시): {_e}")
 
+    # AI 거두 워치 공개 페이지 — 동일 격리
+    try:
+        from app.routes.ai_leaders import bp as ai_leaders_bp
+        app.register_blueprint(ai_leaders_bp)
+    except Exception as _e:
+        app.logger.warning(f"ai_leaders 블루프린트 등록 실패(무시): {_e}")
+
     from app.routes import shortener
     app.register_blueprint(shortener.bp)
 
