@@ -9,6 +9,8 @@ Claude Haiku API로 4개 분야 요약 후 텔레그램 전송.
 """
 
 import os
+import re
+import json
 import logging
 import feedparser
 import requests
@@ -301,7 +303,10 @@ def _recent_briefings_block(days: int = 7, max_items: int = 7,
 
     if not lines:
         return ""
-    return "[최근 브리핑 이력 — 최신순. 아래와 모순되는 서술 금지]\n" + "\n".join(lines)
+    return ("[최근 브리핑 이력 — 최신순. 아래와 모순되는 서술 금지.\n"
+            "팩트 정합성 대조용으로만 사용 — 아래 이력의 문체·문장 구조·항목 길이는\n"
+            "절대 모방하지 말 것(작성 규칙의 고밀도 1줄 형식이 항상 우선)]\n"
+            + "\n".join(lines))
 
 
 def build_briefing_system_prompt() -> str:
@@ -414,6 +419,7 @@ def generate_briefing_with_ai(
 12. [팩트 정확도] 헤드라인에 명시된 내용만 요약하세요. 헤드라인에 없는 감정, 반응, 발언을 지어내지 마세요. 예: "OO 열애설" 헤드라인 → "열애설이 보도됐다"까지만. "심기불편", "분노" 등 추측성 표현 절대 금지.
 13. [시의성] 제공된 헤드라인은 모두 오늘자입니다. "최근", "지난달" 등 모호한 시점 대신 "오늘", "금일" 기준으로 작성하세요.
 14. [수치·날짜 임의생성 금지] 팩트 컨텍스트와 [시세 데이터]로 제공된 값 외에는 구체적 수치(가격·지수·통계·퍼센트), 날짜, 인과관계('~때문에', 'A가 B를 초래')를 지어내지 마세요. 헤드라인에 숫자가 없으면 숫자를 쓰지 말고, 제공되지 않은 시세·지표는 언급하지 마세요.
+15. [섹션 고정] 암호화폐·코인 관련 항목(시세·ETF·규제·거래소 포함)은 예외 없이 💰 경제/산업 섹션에만 배치하세요. AI/기술·기타 섹션에 두지 마세요.
 
 {crypto_context}[오늘의 뉴스 헤드라인]
 {news_block}"""
@@ -438,8 +444,102 @@ def generate_briefing_with_ai(
     )
 
     text = _normalize_bullet_spacing(response.content[0].text.strip())
+    # 문체·길이 회귀 방어: 해설 술어·200자 초과 항목만 1회 재작성 (실패 시 원문 유지)
+    text = _enforce_density(text, client, system_prompt)
+    # 시세 줄 경제 섹션 고정 (결정론 후처리 — 모델이 다른 섹션에 둬도 교정)
+    text = _pin_crypto_line(text, crypto_line)
     logger.info(f"AI 브리핑 생성 완료 — {len(text)}자")
     return text
+
+
+# 해설·전망성 술어 회귀 감지 (전 활용형) — 프롬프트 금지 목록과 동일 범위.
+# '되/돼/된/됨/될'을 별도 나열: '됨'(U+B428) 등 합성 음절은 '되' 부분 문자열 매칭 불가
+BANNED_PREDICATE_RE = re.compile(
+    r"(?:풀이|해석|기대|예상|평가|전망)(?:되|돼|된|됨|될)|것으로 보|주목|관심사")
+MAX_ITEM_CHARS = 200
+
+REWRITE_PROMPT = """다음 뉴스 브리핑 항목들이 문체 규칙을 위반했다. 각 항목을 규칙에 맞게 다시 써라.
+
+[규칙]
+- 1~3문장, 공백 포함 120~200자. 통신사 데스크 톤 — 명사형·음슴체 종결.
+- 해설·전망성 술어는 전 활용형 금지: '풀이되-', '해석되-', '기대되-', '예상되-',
+  '평가되-', '전망되-', '~것으로 보임/보인다', '~ 주목', '~ 관심사'.
+  해당 표현은 삭제하거나, 발화 주체가 명시된 인용으로만 전환할 것.
+- 원문에 없는 사실·수치 추가 금지. 길이 초과분은 해설·부차 정보 삭제로 해결.
+- 큰따옴표(") 사용 금지.
+
+[위반 항목]
+{items}
+
+JSON 배열만 출력: [{{"i": 항목번호, "text": "수정문"}}]"""
+
+
+def _enforce_density(text: str, client, system_prompt: str) -> str:
+    """해설 술어·200자 초과 ▪ 항목만 골라 1회 재작성 요청 후 치환.
+
+    어떤 실패도 발행을 막지 않음 — 예외·파싱 실패·줄 불일치 시 원문 반환.
+    """
+    try:
+        lines = text.split("\n")
+        bad = []  # (줄번호, 본문)
+        for i, line in enumerate(lines):
+            s = line.strip()
+            if not s.startswith("▪"):
+                continue
+            body = s.lstrip("▪").strip()
+            if BANNED_PREDICATE_RE.search(body) or len(body) > MAX_ITEM_CHARS:
+                bad.append((i, body))
+        if not bad:
+            return text
+        logger.warning(f"[문체강제] 위반 항목 {len(bad)}건 재작성 요청 "
+                       f"(해설 술어/{MAX_ITEM_CHARS}자 초과)")
+        listing = "\n".join(f"{n}. {b}" for n, (_, b) in enumerate(bad, 1))
+        kwargs = {"system": system_prompt} if system_prompt else {}
+        resp = client.messages.create(
+            model=HAIKU_MODEL, max_tokens=3000,
+            messages=[{"role": "user",
+                       "content": REWRITE_PROMPT.format(items=listing)}],
+            **kwargs)
+        raw = resp.content[0].text
+        data = json.loads(raw[raw.find("["):raw.rfind("]") + 1])
+        fixed = 0
+        for entry in data:
+            try:
+                idx = int(entry["i"]) - 1
+                new_body = (entry.get("text") or "").strip()
+                if 0 <= idx < len(bad) and new_body \
+                        and not BANNED_PREDICATE_RE.search(new_body):
+                    lines[bad[idx][0]] = "▪ " + new_body
+                    fixed += 1
+            except Exception:
+                continue
+        logger.info(f"[문체강제] 재작성 반영 {fixed}/{len(bad)}건")
+        return "\n".join(lines)
+    except Exception as e:
+        logger.warning(f"[문체강제] 실패 — 원문 유지: {e}")
+        return text
+
+
+def _pin_crypto_line(text: str, crypto_line: str | None) -> str:
+    """시세 줄을 💰 경제/산업 섹션 마지막 줄로 결정론 이동/삽입.
+
+    crypto_line 없으면(수집 실패 폴백) 원문 그대로.
+    """
+    if not crypto_line:
+        return text
+    try:
+        lines = [ln for ln in text.split("\n") if "📈 시세" not in ln]
+        econ = next((i for i, ln in enumerate(lines) if ln.strip().startswith("💰")), None)
+        if econ is None:
+            return text
+        end = econ + 1
+        while end < len(lines) and lines[end].strip():
+            end += 1
+        lines.insert(end, crypto_line)
+        return "\n".join(lines)
+    except Exception as e:
+        logger.warning(f"[시세고정] 실패 — 원문 유지: {e}")
+        return text
 
 
 def _normalize_bullet_spacing(text: str) -> str:

@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-08-29",
+  "last_updated": "2026-09-04",
   "president": {
     "current": "이재명",
     "order": "제21대",
@@ -27,6 +27,16 @@
       "name": "한덕수",
       "correct_title": "전 국무총리 (내란 혐의 징역 23년 선고·법정구속)",
       "wrong_titles": ["대통령", "총리"]
+    },
+    {
+      "name": "김정관",
+      "correct_title": "산업통상부 장관",
+      "wrong_titles": ["산업통상자원부 장관"]
+    },
+    {
+      "name": "윤호중",
+      "correct_title": "행정안전부 장관",
+      "wrong_titles": []
     }
   ]
 }

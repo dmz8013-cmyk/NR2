@@ -9,6 +9,7 @@ verify_pass.py — 브리핑 발행 전 자가 검증 패스 (2차 팩트체크 
      (a) config/facts.json 에 없는 인명+직함 조합
      (b) 상태변화 동사(가결/부결/구형/선고/사망/지명/출범/체결/확정/돌파) 포함
      (c) 구체 수치 + 단정 종결(완곡 표현 없음)
+     (d) 외화 금액(천/만/억/조 + 달러·엔 등) — 단위 자릿수 대조
   3) 태깅 항목만 Claude(haiku-4-5 + web_search)로 검증 — 회당 상한 8건
      · 일치     → 통과
      · 불일치   → 수정문으로 교체
@@ -70,8 +71,13 @@ NAME_TITLE_RE = re.compile(
 NUMBER_RE = re.compile(r"[0-9][0-9,.]*\s*(?:%|퍼센트|조|억|만|천|달러|원|명|건|배|년|개월|일|포인트|p|도|㎜|mm|km|㎞)")
 SOFTENERS = ["전해", "알려", "보인다", "보이", "전망", "예정", "추정", "관측", "가능성", "예상", "계획", "논의", "검토"]
 
+# (d) 외화 금액 — 천/만 단위 자릿수 오역이 잦아 완곡 여부와 무관하게 검증 대상
+CURRENCY_RE = re.compile(r"[0-9][0-9,.]*\s*(?:조|억|만|천)\s*[0-9,.]*\s*(?:달러|엔|유로|위안|파운드)")
+
 VERIFY_PROMPT = """다음 문장이 최근 보도와 일치하는지 검색해 판정하라.
 일치/불일치(수정문 제시)/확인불가 중 하나로만 응답.
+문장에 외화 금액이 있으면 통화 단위와 자릿수(천/만/억/조)가 원보도와 일치하는지
+최우선으로 대조하라 — 천/만 단위 환산 오류(예: 8,890억↔8조8,900억)가 잦다.
 
 오늘 날짜: {today}
 검증 대상 문장: "{sentence}"
@@ -123,6 +129,10 @@ def tag_item(text: str, known_names: set) -> list[str]:
             and text.endswith(("다.", "음.", "됨.", "임.", "함."))
             and not any(s in text for s in SOFTENERS)):
         reasons.append("수치+단정 종결")
+    # (d) 외화 금액 — 단위 자릿수 대조
+    m = CURRENCY_RE.search(text)
+    if m:
+        reasons.append(f"외화 금액 단위: {m.group(0)}")
     return reasons
 
 
