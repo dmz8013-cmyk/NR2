@@ -210,7 +210,7 @@ def _leaders_safe(fn_name, *args):
     except Exception as e:
         logger.error(f'[Scheduler] 거두워치 {fn_name} 실패(기존 파이프라인 무영향): {e}')
 
-@scheduler.scheduled_job('cron', hour='6-23', minute=0, id='leaders_collect_t1',
+@scheduler.scheduled_job('cron', hour='6,12,18,22', minute=0, id='leaders_collect_t1',
                           timezone='Asia/Seoul', misfire_grace_time=300, coalesce=True, max_instances=1)
 def leaders_collect_t1():
     logger.info('[Scheduler] 거두워치 T1 수집...')

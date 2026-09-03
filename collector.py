@@ -44,6 +44,7 @@ XAI_URL = "https://api.x.ai/v1/responses"
 XAI_MODEL = os.environ.get("XAI_MODEL", "grok-4.6")
 BATCH_SIZE = 20                                   # 쿼리당 핸들 상한 (스펙)
 CALLS_KEY_PREFIX = "leaders_api_calls_"
+COST_KEY_PREFIX = "leaders_cost_ticks_"        # 일별 / 월별(YYYY-MM) usd_ticks 누적
 LIMIT_ALERT_PREFIX = "leaders_limit_alert_"
 
 CONGRATS_RE = re.compile(r"congrat|축하|🎉\s*$|happy\s+(birthday|anniversary)", re.I)
@@ -51,10 +52,11 @@ EMOJI_ONLY_RE = re.compile(r"^[\W\s\U0001F000-\U0001FAFF]+$")
 
 
 def _max_calls() -> int:
+    # 기본 20: T1 4회×2배치 + T2 2회×4배치 + T3 1회×3배치 = 19회/일
     try:
-        return int(os.environ.get("LEADERS_MAX_CALLS", "40"))
+        return int(os.environ.get("LEADERS_MAX_CALLS", "20"))
     except ValueError:
-        return 40
+        return 20
 
 
 def _calls_today() -> int:
@@ -94,15 +96,13 @@ def _watch_rules() -> dict:
 # ══════════════════════════════════════════════════
 #  1. xAI Live Search 호출
 # ══════════════════════════════════════════════════
-COLLECT_PROMPT = """다음 X(트위터) 계정들의 최근 {hours}시간 내 '본인 작성' 게시물을 검색해 수집하라.
-대상 핸들: {handles}
-
-반드시 아래 JSON 배열만 출력 (설명·마크다운 금지, 게시물 없으면 []):
-[{{"handle":"계정명(@ 제외)","ts":"게시시각 ISO8601","text":"게시물 전문",
-  "url":"게시물 고유 URL(https://x.com/...)","metrics":{{"views":정수 또는 null,"likes":정수 또는 null,"reposts":정수 또는 null}},
-  "is_reply":true/false,"is_repost":true/false}}]
-
-규칙: 단순 리포스트 제외, 다른 글 인용 시 본인 코멘트만 text로, URL 없는 항목 제외."""
+COLLECT_PROMPT = """TASK: X posts by {handles} in last {hours}h.
+OUTPUT: JSON array ONLY. No prose, no markdown, no explanation. Empty -> []
+Schema per item:
+{{"handle":"no @","ts":"ISO8601","text":"full post text","url":"https://x.com/...",
+  "metrics":{{"views":int|null,"likes":int|null,"reposts":int|null}},
+  "is_reply":bool,"is_repost":bool}}
+Exclude: pure reposts, items without URL. Quote-posts: own comment only as text."""
 
 
 def _xai_search(handles: list[str], window_hours: int) -> list[dict] | None:
@@ -124,12 +124,17 @@ def _xai_search(handles: list[str], window_hours: int) -> list[dict] | None:
         else:
             tool["from_date"] = frm.strftime("%Y-%m-%dT%H:%M:%SZ")
             tool["to_date"] = to.strftime("%Y-%m-%dT%H:%M:%SZ")
-        return {
+        p = {
             "model": XAI_MODEL,
             "input": [{"role": "user", "content": COLLECT_PROMPT.format(
                 hours=window_hours, handles=", ".join("@" + h for h in handles))}],
             "tools": [tool],
         }
+        if not date_only:
+            # 실측: effort low 로 추론 토큰 41%·도구 호출 절반 감소, 결과 동일
+            # (400 폴백 경로에서는 제거 — 비추론 모델 오버라이드 대비)
+            p["reasoning"] = {"effort": "low"}
+        return p
 
     def _extract_text(data: dict) -> str:
         parts = []
@@ -154,6 +159,13 @@ def _xai_search(handles: list[str], window_hours: int) -> list[dict] | None:
         usage = data.get("usage")
         if usage:
             logger.info(f"[수집] usage: {json.dumps(usage, ensure_ascii=False)[:300]}")
+            try:
+                ticks = int(usage.get("cost_in_usd_ticks") or 0)
+                for k in (COST_KEY_PREFIX + date.today().isoformat(),
+                          COST_KEY_PREFIX + date.today().strftime("%Y-%m")):
+                    state_set(k, str(int(state_get(k) or 0) + ticks))
+            except Exception:
+                pass
         content = _extract_text(data)
         s, e = content.find("["), content.rfind("]")
         if s == -1 or e <= s:
@@ -244,6 +256,18 @@ def collect_tier(tier: int) -> None:
         logger.error(f"[수집] T{tier} 오류(다음 회차 재시도): {e}", exc_info=True)
 
 
+def _cost_line() -> str:
+    """전일 호출·비용 + 이달 누적 한 줄 (1 tick = 1e-10 USD)."""
+    try:
+        y = (date.today() - timedelta(days=1)).isoformat()
+        calls = int(state_get(CALLS_KEY_PREFIX + y) or 0)
+        d_usd = int(state_get(COST_KEY_PREFIX + y) or 0) * 1e-10
+        m_usd = int(state_get(COST_KEY_PREFIX + date.today().strftime("%Y-%m")) or 0) * 1e-10
+        return f"💸 전일 호출 {calls}회 · ${d_usd:.2f} / 이달 누적 ${m_usd:.2f}"
+    except Exception:
+        return ""
+
+
 # ══════════════════════════════════════════════════
 #  3. 07:00 일일 편집 — Phase 1 파이프라인으로 인계
 # ══════════════════════════════════════════════════
@@ -295,7 +319,7 @@ def daily_edit() -> None:
                         key=lambda x: -x["score"])[:MAX_ITEMS]
         if not passed:
             _send_admin(f"ℹ️ 거두 워치 07시 편집 — 수집 {len(rows)}건 중 "
-                        f"{MIN_SCORE}점 이상 0건. 오늘 발행 없음.")
+                        f"{MIN_SCORE}점 이상 0건. 오늘 발행 없음.\n" + _cost_line())
             return
 
         today = datetime.now(KST).strftime("%Y-%m-%d")
@@ -310,6 +334,7 @@ def daily_edit() -> None:
             {"date": today, "card": card, "items": passed}, ensure_ascii=False))
         _send_admin("🔍 <b>[미리보기] AI 거두 워치 (자동 수집)</b>\n"
                     f"(수집 {len(rows)} → 통과 {len(passed)})\n"
+                    + _cost_line() + "\n"
                     "승인: /leaders_ok · 폐기: /leaders_no\n\n" + card)
         logger.info(f"[편집] 미리보기 발송 — 통과 {len(passed)}/{len(rows)}")
     except Exception as e:
