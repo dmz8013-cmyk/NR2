@@ -1,9 +1,9 @@
 """
-collector.py — AI 거두 워치 Phase 2: xAI 자동 수집기
+collector.py — 누렁이 시그널 Phase 2: xAI 자동 수집기
 
 xAI Live Search(X 소스)로 워치리스트 150명의 게시물을 티어별 주기로 수집:
-  T1 매시 정각(06~23시) · T2 06/18시 · T3 06시  (창: watchlist rules.window_hours)
-  → 필터(리포스트·이모지 답글·Congrats·링크 없음 제거) → post_url 중복 스킵
+  T1 06/12/18/22시 · T2 06/18시 · T3 06시  (창: watchlist rules.window_hours)
+  → 필터(리포스트·이모지 답글·Congrats·X status 링크 아닌 항목 제거) → post_url 중복 스킵
   → leader_posts 에 pending(published=FALSE, score NULL) 적재
 07:00 daily_edit: 전일 07시 이후 누적분을 Phase 1 편집 파이프라인(채점→카드→
   verify_pass→관리자 미리보기)으로 — 발행은 /leaders_ok 수동 승인 그대로.
@@ -27,8 +27,8 @@ import requests
 
 from g2b_tracker import db_conn, state_get, state_set
 from leader_watch import (
-    load_watchlist, init_leader_db, score_items, build_card,
-    _send_admin, admin_chat_id, DRAFT_STATE_KEY, MIN_SCORE, MAX_ITEMS, WATCHLIST_PATH,
+    load_watchlist, init_leader_db, score_items, finalize_and_preview,
+    valid_post_url, _send_admin, admin_chat_id, MIN_SCORE, WATCHLIST_PATH,
 )
 
 logging.basicConfig(
@@ -79,7 +79,7 @@ def _check_budget() -> bool:
     alert_key = LIMIT_ALERT_PREFIX + date.today().isoformat()
     if state_get(alert_key) != "1":
         state_set(alert_key, "1")
-        _send_admin(f"⚠️ <b>거두 워치 수집 중단</b>\n"
+        _send_admin(f"⚠️ <b>누렁이 시그널 수집 중단</b>\n"
                     f"일일 xAI 호출 상한({_max_calls()}) 도달 — 내일 자정 리셋.\n"
                     f"상한 조정: LEADERS_MAX_CALLS 환경변수")
     return False
@@ -183,7 +183,9 @@ def _xai_search(handles: list[str], window_hours: int) -> list[dict] | None:
 def _passes_filters(p: dict, rules: dict) -> bool:
     text = (p.get("text") or "").strip()
     url = (p.get("url") or "").strip()
-    if rules.get("require_link", True) and not url.startswith("http"):
+    # 실제 X status 링크만 인정 — 모델이 스키마 예시를 그대로 반향한
+    # 'https://x.com/...' 자리표시자·지어낸 URL 차단
+    if rules.get("require_link", True) and not valid_post_url(url):
         return False
     if rules.get("drop_reposts", True) and (p.get("is_repost") or text.startswith("RT @")):
         return False
@@ -268,6 +270,15 @@ def _cost_line() -> str:
         return ""
 
 
+def input_reminder() -> None:
+    """06:50 — 07:00 자동 편집 전 수동 항목 입력 리마인드."""
+    try:
+        _send_admin("📥 <b>누렁이 시그널 입력 대기</b>\n"
+                    "수동 추가는 /leaders_in (07:00 자동 편집 전까지)")
+    except Exception as e:
+        logger.warning(f"[리마인드] 실패(무시): {e}")
+
+
 # ══════════════════════════════════════════════════
 #  3. 07:00 일일 편집 — Phase 1 파이프라인으로 인계
 # ══════════════════════════════════════════════════
@@ -315,31 +326,16 @@ def daily_edit() -> None:
             except Exception:
                 pass
 
-        passed = sorted([i for i in scored if i.get("score", 0) >= MIN_SCORE],
-                        key=lambda x: -x["score"])[:MAX_ITEMS]
-        if not passed:
-            _send_admin(f"ℹ️ 거두 워치 07시 편집 — 수집 {len(rows)}건 중 "
-                        f"{MIN_SCORE}점 이상 0건. 오늘 발행 없음.\n" + _cost_line())
-            return
-
-        today = datetime.now(KST).strftime("%Y-%m-%d")
-        card = build_card(passed, datetime.now(KST).strftime("%m/%d"))
-        try:
-            from verify_pass import run_verify_pass
-            card = run_verify_pass(card, briefing_type="leader_watch")
-        except Exception as ve:
-            logger.warning(f"[편집] verify_pass 스킵: {ve}")
-
-        state_set(DRAFT_STATE_KEY, json.dumps(
-            {"date": today, "card": card, "items": passed}, ensure_ascii=False))
-        _send_admin("🔍 <b>[미리보기] AI 거두 워치 (자동 수집)</b>\n"
-                    f"(수집 {len(rows)} → 통과 {len(passed)})\n"
-                    + _cost_line() + "\n"
-                    "승인: /leaders_ok · 폐기: /leaders_no\n\n" + card)
-        logger.info(f"[편집] 미리보기 발송 — 통과 {len(passed)}/{len(rows)}")
+        # 링크 강제·점수 컷·클러스터·verify·텍스트 카드·미리보기 — 수동 모드와 공용
+        result = finalize_and_preview(
+            scored, [f"(자동 수집 {len(rows)}건 편집)", _cost_line()])
+        if result.startswith("⚠️"):
+            _send_admin(f"ℹ️ 누렁이 시그널 07시 편집 — 오늘 발행 없음.\n{result}\n"
+                        + _cost_line())
+        logger.info(f"[편집] {result}")
     except Exception as e:
         logger.error(f"[편집] 실패: {e}", exc_info=True)
-        _send_admin(f"❌ <b>거두 워치 07시 편집 실패</b>\n{str(e)[:300]}")
+        _send_admin(f"❌ <b>누렁이 시그널 07시 편집 실패</b>\n{str(e)[:300]}")
 
 
 # ══════════════════════════════════════════════════
@@ -363,7 +359,7 @@ def monthly_report() -> None:
         rows = cur.fetchall()
         conn.close()
         if not rows:
-            _send_admin("ℹ️ 거두 워치 월간 리포트 — 지난 30일 수집 데이터 없음.")
+            _send_admin("ℹ️ 누렁이 시그널 월간 리포트 — 지난 30일 수집 데이터 없음.")
             return
 
         import csv
@@ -376,7 +372,7 @@ def monthly_report() -> None:
                             int(r[5]) if r[5] else ""])
 
         top = "\n".join(f"· @{r[0]} 게시 {r[2]} / 통과 {r[3]}" for r in rows[:10])
-        _send_admin("📊 <b>거두 워치 월간 리뉴얼 리포트</b>\n"
+        _send_admin("📊 <b>누렁이 시그널 월간 리뉴얼 리포트</b>\n"
                     f"활성 핸들 {len(rows)}개 (상위 10)\n{top}\n\n"
                     "강등·승격 기준은 watchlist_2026-09.md §5 — CSV 첨부 전송 중")
         # CSV 파일 전송
@@ -389,7 +385,7 @@ def monthly_report() -> None:
                               timeout=60)
     except Exception as e:
         logger.error(f"[월간] 리포트 실패: {e}", exc_info=True)
-        _send_admin(f"❌ 거두 워치 월간 리포트 실패\n{str(e)[:200]}")
+        _send_admin(f"❌ 누렁이 시그널 월간 리포트 실패\n{str(e)[:200]}")
 
 
 if __name__ == "__main__":

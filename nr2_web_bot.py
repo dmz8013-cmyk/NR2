@@ -285,7 +285,7 @@ def handle_fact_command(chat_id, args):
 
 
 # ──────────────────────────────────────────────
-# /leaders_* — AI 거두 워치 (관리자 전용)
+# /leaders_* — 누렁이 시그널 (관리자 전용)
 # ──────────────────────────────────────────────
 
 def _is_leaders_admin(chat_id) -> bool:

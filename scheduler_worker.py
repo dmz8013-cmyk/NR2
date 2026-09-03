@@ -228,6 +228,12 @@ def leaders_collect_t3():
     logger.info('[Scheduler] 거두워치 T3 수집...')
     _leaders_safe('collect_tier', 3)
 
+@scheduler.scheduled_job('cron', hour=6, minute=50, id='leaders_input_reminder',
+                          timezone='Asia/Seoul', misfire_grace_time=300, coalesce=True, max_instances=1)
+def leaders_input_reminder():
+    logger.info('[Scheduler] 누렁이 시그널 입력 대기 리마인드...')
+    _leaders_safe('input_reminder')
+
 @scheduler.scheduled_job('cron', hour=7, minute=0, id='leaders_daily_edit',
                           timezone='Asia/Seoul', misfire_grace_time=300, coalesce=True, max_instances=1)
 def leaders_daily_edit():

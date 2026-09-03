@@ -1,19 +1,19 @@
 {% extends "layouts/base.html" %}
 {% set first_sum = posts[0][4][:40] if posts else '' %}
-{% block title %}AI 거두 워치 {{ md }} | NR2{% endblock %}
-{% block og_title %}AI 거두 워치 {{ md }} — {{ first_sum }}{% endblock %}
-{% block og_desc %}{{ posts|length }}인의 AI·지정학 거두 발언 큐레이션{% endblock %}
+{% block title %}누렁이 시그널 {{ md }} | NR2{% endblock %}
+{% block og_title %}누렁이 시그널 {{ md }} — {{ first_sum }}{% endblock %}
+{% block og_desc %}세계를 움직이는 150인의 오늘 — {{ posts|length }}건 큐레이션{% endblock %}
 {% block content %}
 <div class="max-w-2xl mx-auto px-4 py-8">
-  <h1 class="text-2xl sm:text-3xl font-bold mb-1">🎙️ AI 거두 워치
+  <h1 class="text-2xl sm:text-3xl font-bold mb-1">📡 누렁이 시그널
     {% if date %}<span class="text-gray-400 font-normal">{{ date }}</span>{% endif %}</h1>
   <div class="flex items-center gap-3 mb-6">
-    <p class="text-gray-500 text-sm">AI·지정학 거물들의 오늘 발언 — 요약+원문 링크</p>
+    <p class="text-gray-500 text-sm">세계를 움직이는 150인의 오늘</p>
     <button onclick="navigator.clipboard.writeText(location.href).then(()=>{this.textContent='✅ 복사됨'})"
             class="ml-auto text-xs border rounded-full px-3 py-1 text-gray-600">🔗 링크 복사</button>
   </div>
 
-  <!-- 모바일 1열 카드 -->
+  <!-- 모바일 1열 카드 — 텍스트 버전과 동일 본문 + 원문 X 링크 병기 -->
   <div class="space-y-3">
     {% for p in posts %}
       <div class="rounded-xl border p-4 bg-white">
@@ -31,22 +31,33 @@
     {% endfor %}
   </div>
 
+  {% if related %}
+    <h2 class="text-base font-bold mt-8 mb-2">관련 링크</h2>
+    <ul class="text-sm space-y-1">
+      {% for p in related %}
+        <li>· {{ p[0] }} —
+          <a href="{{ p[3] }}" target="_blank" rel="noopener"
+             class="text-blue-600 underline break-all">원문 보기 ↗</a></li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
   <!-- 고정 CTA 2줄 -->
   <div class="mt-8 rounded-xl bg-gray-50 border p-4 text-sm">
-    <div>💬 누렁이 정보방(카톡) → <a href="{{ kakao }}" class="underline">{{ kakao }}</a></div>
-    <div>📡 AESA 텔레 → <a href="{{ tele }}" class="underline">{{ tele }}</a></div>
+    <div>누렁이 정보방(카카오톡) → <a href="{{ kakao }}" class="underline">{{ kakao }}</a></div>
+    <div>누렁이 정보방(텔레그램) → <a href="{{ tele }}" class="underline">{{ tele }}</a></div>
   </div>
 
   {% if is_index and dates %}
     <h2 class="text-lg font-bold mt-10 mb-3">지난 발행</h2>
     <div class="flex flex-wrap gap-2">
       {% for d in dates %}
-        <a href="/ai-leaders/{{ d[0] }}" class="text-sm border rounded-full px-3 py-1
+        <a href="/signal/{{ d[0] }}" class="text-sm border rounded-full px-3 py-1
            {{ 'bg-gray-900 text-white' if loop.first else 'text-gray-600' }}">{{ d[0] }} ({{ d[1] }})</a>
       {% endfor %}
     </div>
   {% elif not is_index %}
-    <p class="mt-8"><a href="/ai-leaders/" class="text-sm text-gray-400 underline">← 전체 발행 목록</a></p>
+    <p class="mt-8"><a href="/signal/" class="text-sm text-gray-400 underline">← 전체 발행 목록</a></p>
   {% endif %}
 </div>
 {% endblock %}
