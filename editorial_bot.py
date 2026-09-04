@@ -4,9 +4,11 @@
 - RSS 지원 언론사: 경향·동아·조선·한겨레·한국경제
 - HTML 크롤링: 서울신문 (공식 사설 섹션에 [사설] 태그 직접 노출)
 - 기타 언론사는 공개 RSS가 없어 네이버 사설 페이지 Playwright 보완 수집
+- 폴백 규칙: 어떤 매체든 1차 수집 0건이면 네이버 보완으로 자동 전환,
+  RSS/HTML 매체의 0건 폴백은 관리자 DM 한 줄 로그
 - 발행은 PAPERS 화이트리스트에 있는 매체만 (목록 밖 매체는 수집돼도 미발행)
-- 2026-09-04: 석간지 제외 원칙으로 내일신문·헤럴드경제·아시아경제 제거
-  (문화일보도 석간지지만 지시로 유지 — 원칙 적용 시 별도 결정 필요)
+- 2026-09-04: 석간지 제외 원칙으로 내일신문·헤럴드경제·아시아경제·문화일보 제거,
+  석간 잡(14시) 폐지 — 아침 잡만 운영. 확정 목록: 종합지 9 + 경제지 7 = 16
 """
 import os
 import re
@@ -56,7 +58,6 @@ PAPERS = {
         {'name': '경향신문', 'kind': 'rss', 'url': 'https://www.khan.co.kr/rss/rssdata/opinion_news.xml'},
         {'name': '국민일보', 'kind': 'none'},
         {'name': '동아일보', 'kind': 'rss', 'url': 'https://rss.donga.com/editorials.xml'},
-        {'name': '문화일보', 'kind': 'none'},
         {'name': '서울신문', 'kind': 'html',
          'url': 'https://www.seoul.co.kr/news/newsList.php?section=editorial'},
         {'name': '세계일보', 'kind': 'none'},
@@ -79,10 +80,6 @@ PAPERS = {
 
 # 발행 화이트리스트 — 목록 밖 매체는 수집돼도 발행하지 않음 (format_message 최종 게이트)
 ALLOWED_PAPERS = {p['name'] for _cat in PAPERS.values() for p in _cat}
-
-# 석간 전용 대상 — send_editorial_afternoon() 필터
-# (석간지 제외 원칙으로 내일신문·헤럴드경제·아시아경제 제거. 문화일보만 잔존)
-EVENING_PAPERS = {'문화일보'}
 
 
 
@@ -262,210 +259,31 @@ def format_message(editorials, header=None):
     return '\n'.join(lines)
 
 
-def send_editorial():
-    logger.info('=== 사설봇 시작 ===')
-    print('사설봇 시작...')
-
-    editorials = {}
-    total = 0
-    papers_to_fallback = []
-    
-    # RSS 성공하는 언론사 목록 (이들은 Playwright 보완에서 제외)
-    rss_success_papers = ['경향신문', '동아일보', '서울신문', '조선일보', '한겨레', '한국경제']
-
-    for category, papers in PAPERS.items():
-        rows = []
-        for p in papers:
-            name = p['name']
-            try:
-                titles = fetch_titles(p)
-            except Exception as e:
-                logger.error(f'{name} 수집 실패: {e}')
-                titles, note = [], f'수집 실패 ({type(e).__name__})'
-            else:
-                note = None
-                if titles is None or len(titles) == 0:
-                    if p['kind'] in ('rss', 'html'):
-                        note = 'RSS/HTML 결과 0건'
-                    else:
-                        titles, note = [], '수집 미지원'
-            
-            rows.append((name, titles, note))
-            total += len(titles or [])
-            
-            # 수집된 기사가 없고, 제외 대상이 아닌 10개 언론사면 fallback 대상에 추가
-            if not titles and name not in rss_success_papers:
-                papers_to_fallback.append((category, name, p))
-                
-            print(f'  {name} (v1): {len(titles or [])}개' + (f' | {note}' if note else ''))
-            for t in (titles or []):
-                print(f'    - {t}')
-                
-        editorials[category] = rows
-
-    # Playwright 보완 수집 실행
-    if papers_to_fallback:
-        target_names = [name for _, name, _ in papers_to_fallback]
-        print(f"\n[Playwright] 네이버 사설 페이지 보완 수집 시작: {target_names}")
-        fallback_res = _run_async(fetch_naver_editorials(target_names))
-
-        for category, name, p in papers_to_fallback:
-            added_titles = fallback_res.get(name, [])
-            rows = editorials[category]
-            for idx, r in enumerate(rows):
-                if r[0] == name:
-                    if added_titles:
-                        rows[idx] = (name, added_titles, None)
-                        total += len(added_titles)
-                        print(f"  [Playwright] {name}: {len(added_titles)}개 보완 완료")
-                        for t in added_titles:
-                            print(f'    - {t}')
-                    else:
-                        rows[idx] = (name, [], '네이버 크롤링 실패')
-                    break
-                    
-    print(f'\n총 수집: {total}건')
-
-    message = format_message(editorials)
-
-    # 4096자 초과 시 분할
-    if len(message) > 4000:
-        parts = []
-        current = ''
-        for line in message.split('\n'):
-            if len(current) + len(line) + 1 > 4000:
-                parts.append(current)
-                current = line
-            else:
-                current += '\n' + line if current else line
-        if current:
-            parts.append(current)
-    else:
-        parts = [message]
-
+def _notify_admin(text):
+    """관리자 DM 한 줄 로그 (SOB Scrap 봇 → 관리자 챗). 실패해도 파이프라인 계속."""
     if not BOT_TOKEN:
-        print('SCRAP_BOT_TOKEN 없음 — 전송 생략')
+        print(f'[관리자DM 생략] {text}')
         return
-
-    url = f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage'
-    for part in parts:
-        try:
-            resp = requests.post(url, json={
-                'chat_id': CHAT_ID,
-                'text': part,
-                'parse_mode': 'HTML',
-                'disable_web_page_preview': True,
-            }, timeout=10)
-            if resp.status_code == 200:
-                print(f'전송 완료 ({len(part)}자)')
-            else:
-                print(f'전송 실패: {resp.text}')
-        except Exception as e:
-            logger.error(f'전송 오류: {e}')
-            print(f'오류: {e}')
-
-    logger.info('=== 사설봇 완료 ===')
-    print('사설봇 완료 ✅')
+    try:
+        requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage',
+                      json={'chat_id': CHAT_ID, 'text': text}, timeout=10)
+    except Exception as e:
+        logger.warning(f'관리자 DM 실패(무시): {e}')
 
 
-def send_editorial_nureongi():
-    """누렁이 정보방용 사설 브리핑 - 오전 7시 발송"""
-    
-    NUREONGI_TOKEN = os.environ.get('NUREONGI_NEWS_BOT_TOKEN')
-    NUREONGI_CHAT = '@gazzzza2025'
-    
-    if not NUREONGI_TOKEN:
-        print('NUREONGI_NEWS_BOT_TOKEN 없음')
-        return
-    
-    # 수집 로직은 send_editorial()과 동일
-    # (기존 수집 코드 그대로 재사용)
-    editorials = {}
-    total = 0
-    papers_to_fallback = []
-    rss_success_papers = ['경향신문', '동아일보', '서울신문', 
-                          '조선일보', '한겨레', '한국경제']
+def _collect_editorials():
+    """전 매체 수집 + 폴백. 반환: (editorials dict, total).
 
-    for category, papers in PAPERS.items():
-        rows = []
-        for p in papers:
-            name = p['name']
-            try:
-                titles = fetch_titles(p)
-            except Exception as e:
-                titles, note = [], f'수집 실패'
-            else:
-                note = None
-                if titles is None or len(titles) == 0:
-                    titles, note = [], '수집 미지원'
-            rows.append((name, titles, note))
-            total += len(titles or [])
-            if not titles and name not in rss_success_papers:
-                papers_to_fallback.append((category, name, p))
-        editorials[category] = rows
-
-    if papers_to_fallback:
-        target_names = [name for _, name, _ in papers_to_fallback]
-        fallback_res = _run_async(fetch_naver_editorials(target_names))
-        for category, name, p in papers_to_fallback:
-            added_titles = fallback_res.get(name, [])
-            rows = editorials[category]
-            for idx, r in enumerate(rows):
-                if r[0] == name:
-                    if added_titles:
-                        rows[idx] = (name, added_titles, None)
-                        total += len(added_titles)
-                    else:
-                        rows[idx] = (name, [], '크롤링 실패')
-                    break
-
-    message = format_message(editorials)
-    
-    # 분할 발송
-    if len(message) > 4000:
-        parts = []
-        current = ''
-        for line in message.split('\n'):
-            if len(current) + len(line) + 1 > 4000:
-                parts.append(current)
-                current = line
-            else:
-                current += '\n' + line if current else line
-        if current:
-            parts.append(current)
-    else:
-        parts = [message]
-
-    url = f'https://api.telegram.org/bot{NUREONGI_TOKEN}/sendMessage'
-    for part in parts:
-        resp = requests.post(url, json={
-            'chat_id': NUREONGI_CHAT,
-            'text': part,
-            'parse_mode': 'HTML',
-            'disable_web_page_preview': True,
-        }, timeout=10)
-        if resp.status_code == 200:
-            print(f'누렁이 정보방 전송 완료 ({len(part)}자)')
-        else:
-            print(f'누렁이 정보방 전송 실패: {resp.text}')
-
-
-def _collect_evening_editorials():
-    """석간 대상(EVENING_PAPERS) 수집 + 실패분 네이버 fallback.
-
-    반환: (editorials dict, total count)
-    editorials = {'종합지': [(name, titles, note), ...], ...}
+    폴백 규칙: 매체 불문 1차 수집 0건이면 네이버 사설 페이지 보완 수집으로 전환.
+    RSS/HTML 매체가 0건으로 폴백되면 관리자 DM에 '매체명 RSS 0건 → 보완' 로그.
     """
-    editorials = {}
-    total = 0
-    papers_to_fallback = []
+    editorials, total = {}, 0
+    papers_to_fallback, rss_zero = [], []
 
     for category, papers in PAPERS.items():
         rows = []
         for p in papers:
             name = p['name']
-            if name not in EVENING_PAPERS:
-                continue
             try:
                 titles = fetch_titles(p)
             except Exception as e:
@@ -473,27 +291,27 @@ def _collect_evening_editorials():
                 titles, note = [], f'수집 실패 ({type(e).__name__})'
             else:
                 note = None
-                if titles is None or len(titles) == 0:
-                    if p['kind'] in ('rss', 'html'):
-                        note = '수집 실패'
-                    else:
-                        titles, note = [], '수집 미지원'
+                if not titles:
+                    titles = []
+                    note = 'RSS/HTML 결과 0건' if p['kind'] in ('rss', 'html') else '수집 미지원'
 
             rows.append((name, titles, note))
-            total += len(titles or [])
-
+            total += len(titles)
             if not titles:
                 papers_to_fallback.append((category, name, p))
+                if p['kind'] in ('rss', 'html'):
+                    rss_zero.append(name)
 
-            print(f'  {name} (v1): {len(titles or [])}개' + (f' | {note}' if note else ''))
-            for t in (titles or []):
+            print(f'  {name} (v1): {len(titles)}개' + (f' | {note}' if note else ''))
+            for t in titles:
                 print(f'    - {t}')
+        editorials[category] = rows
 
-        if rows:
-            editorials[category] = rows
+    if rss_zero:
+        _notify_admin('⚠️ 사설봇 폴백: ' + ' · '.join(f'{n} RSS 0건 → 보완' for n in rss_zero))
 
     if papers_to_fallback:
-        target_names = [name for _, name, _ in papers_to_fallback]
+        target_names = [n for _, n, _ in papers_to_fallback]
         print(f'\n[Playwright] 네이버 사설 페이지 보완 수집 시작: {target_names}')
         fallback_res = _run_async(fetch_naver_editorials(target_names))
         for category, name, p in papers_to_fallback:
@@ -508,13 +326,14 @@ def _collect_evening_editorials():
                         for t in added:
                             print(f'    - {t}')
                     else:
-                        rows[idx] = (name, [], '크롤링 실패')
+                        rows[idx] = (name, [], '네이버 크롤링 실패')
                     break
 
     return editorials, total
 
 
-def _send_evening(message, token, chat_id, label):
+def _send_split(message, token, chat_id, label):
+    """4,096자 제한 대응 분할 전송. 토큰 없으면 생략(드라이런 안전)."""
     if not token:
         print(f'[{label}] 토큰 없음 — 전송 생략')
         return
@@ -548,44 +367,33 @@ def _send_evening(message, token, chat_id, label):
             logger.error(f'[{label}] 전송 오류: {e}')
 
 
-def send_editorial_afternoon():
-    """석간 사설 — SOB Scrap 채널. 문화일보(EVENING_PAPERS)만."""
-    logger.info('=== 석간 사설봇 시작 (SOB Scrap) ===')
-    print('석간 사설봇 시작 (SOB Scrap)...')
-
-    editorials, total = _collect_evening_editorials()
+def send_editorial():
+    """아침 사설 — SOB Scrap 채널 (06:00)."""
+    logger.info('=== 사설봇 시작 ===')
+    print('사설봇 시작...')
+    editorials, total = _collect_editorials()
     print(f'\n총 수집: {total}건')
-
-    today = datetime.now().strftime('%Y.%m.%d')
-    message = format_message(editorials, header=f'🗞️석간 신문 사설({today})🗞️')
-    _send_evening(message, BOT_TOKEN, CHAT_ID, 'SOB Scrap')
-
-    logger.info('=== 석간 사설봇 완료 (SOB Scrap) ===')
+    _send_split(format_message(editorials), BOT_TOKEN, CHAT_ID, 'SOB Scrap')
+    logger.info('=== 사설봇 완료 ===')
+    print('사설봇 완료 ✅')
 
 
-def send_editorial_afternoon_nureongi():
-    """석간 사설 — 누렁이 정보방. 문화일보(EVENING_PAPERS)만."""
-    logger.info('=== 석간 사설봇 시작 (누렁이) ===')
+def send_editorial_nureongi():
+    """아침 사설 — 누렁이 정보방 (07:00)."""
     NUREONGI_TOKEN = os.environ.get('NUREONGI_NEWS_BOT_TOKEN')
     NUREONGI_CHAT = '@gazzzza2025'
-
-    editorials, total = _collect_evening_editorials()
+    if not NUREONGI_TOKEN:
+        print('NUREONGI_NEWS_BOT_TOKEN 없음')
+        return
+    editorials, total = _collect_editorials()
     print(f'\n총 수집: {total}건')
+    _send_split(format_message(editorials), NUREONGI_TOKEN, NUREONGI_CHAT, '누렁이 정보방')
 
-    today = datetime.now().strftime('%Y.%m.%d')
-    message = format_message(editorials, header=f'🗞️석간 신문 사설({today})🗞️')
-    _send_evening(message, NUREONGI_TOKEN, NUREONGI_CHAT, '누렁이 정보방')
 
-    logger.info('=== 석간 사설봇 완료 (누렁이) ===')
+# 석간 잡(send_editorial_afternoon / send_editorial_afternoon_nureongi)은
+# 2026-09-04 석간지 전면 제외로 폐지 — 스케줄러 등록도 해제됨.
 
 
 if __name__ == '__main__':
-    import sys
     logging.basicConfig(level=logging.INFO)
-    mode = sys.argv[1] if len(sys.argv) > 1 else 'morning'
-    if mode == 'afternoon':
-        send_editorial_afternoon()
-    elif mode == 'afternoon_nureongi':
-        send_editorial_afternoon_nureongi()
-    else:
-        send_editorial()
+    send_editorial()
