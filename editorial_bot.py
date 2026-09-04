@@ -3,7 +3,10 @@
 데이터 소스
 - RSS 지원 언론사: 경향·동아·조선·한겨레·한국경제
 - HTML 크롤링: 서울신문 (공식 사설 섹션에 [사설] 태그 직접 노출)
-- 기타 언론사는 공개 RSS가 없어 현재 수집 미지원
+- 기타 언론사는 공개 RSS가 없어 네이버 사설 페이지 Playwright 보완 수집
+- 발행은 PAPERS 화이트리스트에 있는 매체만 (목록 밖 매체는 수집돼도 미발행)
+- 2026-09-04: 석간지 제외 원칙으로 내일신문·헤럴드경제·아시아경제 제거
+  (문화일보도 석간지지만 지시로 유지 — 원칙 적용 시 별도 결정 필요)
 """
 import os
 import re
@@ -62,7 +65,6 @@ PAPERS = {
         {'name': '중앙일보', 'kind': 'none'},
         {'name': '한겨레', 'kind': 'rss', 'url': 'https://www.hani.co.kr/rss/opinion/'},
         {'name': '한국일보', 'kind': 'none'},
-        {'name': '내일신문', 'kind': 'direct'},
     ],
     '경제지': [
         {'name': '디지털타임스', 'kind': 'none'},
@@ -72,13 +74,15 @@ PAPERS = {
         {'name': '이데일리', 'kind': 'none'},
         {'name': '파이낸셜뉴스', 'kind': 'none'},
         {'name': '한국경제', 'kind': 'rss', 'url': 'https://www.hankyung.com/feed/opinion'},
-        {'name': '헤럴드경제', 'kind': 'none'},
-        {'name': '아시아경제', 'kind': 'direct'},
     ],
 }
 
+# 발행 화이트리스트 — 목록 밖 매체는 수집돼도 발행하지 않음 (format_message 최종 게이트)
+ALLOWED_PAPERS = {p['name'] for _cat in PAPERS.values() for p in _cat}
+
 # 석간 전용 대상 — send_editorial_afternoon() 필터
-EVENING_PAPERS = {'문화일보', '헤럴드경제', '내일신문', '아시아경제'}
+# (석간지 제외 원칙으로 내일신문·헤럴드경제·아시아경제 제거. 문화일보만 잔존)
+EVENING_PAPERS = {'문화일보'}
 
 
 
@@ -111,6 +115,9 @@ def _is_editorial(title):
 def fetch_rss(url, limit=3):
     """RSS 피드에서 [사설] 태그 제목 추출"""
     r = requests.get(url, headers=REQ_HEADERS, timeout=10)
+    if r.status_code == 403:
+        # 한국경제 WAF가 브라우저형 풀 UA를 403 차단(짧은 UA는 통과) — 최소 UA로 1회 재시도
+        r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
     r.encoding = r.apparent_encoding or r.encoding
     if r.status_code != 200:
         raise RuntimeError(f'HTTP {r.status_code}')
@@ -201,82 +208,6 @@ async def fetch_naver_editorials(target_papers):
     return results
 
 
-NAEIL_TAG = '[내일시론]'  # 내일신문은 사설 대신 '내일시론' 섹션을 사설격으로 운영
-
-
-async def fetch_asiae_siron(limit=3):
-    """아시아경제 '시론' 섹션 Playwright 수집.
-
-    아시아경제는 공식 사설 섹션 부재. '시론'이 사설격 컨텐츠.
-    HTML SSR에 기사 미노출이라 Playwright로 렌더링 후 article.component_bx 추출.
-    """
-    from playwright.async_api import async_playwright
-
-    url = 'https://www.asiae.co.kr/list/opinion-column/column15/'
-    items = []
-    try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            try:
-                page = await browser.new_page(
-                    user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
-                               'AppleWebKit/537.36 Chrome/120.0 Safari/537.36'
-                )
-                await page.goto(url, wait_until='networkidle', timeout=20000)
-                await page.wait_for_timeout(2000)
-                items = await page.eval_on_selector_all(
-                    'article.component_bx a[href*="/article/"]',
-                    'els => els.map(e => e.innerText.trim())'
-                )
-            finally:
-                await browser.close()
-    except Exception as e:
-        logger.warning(f'아시아경제 Playwright 실패: {e}')
-        return []
-
-    seen = set()
-    titles = []
-    for t in items:
-        if not t or len(t) < 10 or t in seen:
-            continue
-        seen.add(t)
-        titles.append(t)
-        if len(titles) >= limit:
-            break
-    return titles
-
-
-def fetch_naeil_direct(limit=3):
-    """내일신문 /opinion/editorial 페이지에서 [내일시론] prefix 제목 추출."""
-    url = 'https://www.naeil.com/opinion/editorial'
-    try:
-        r = requests.get(url, headers=REQ_HEADERS, timeout=8)
-        r.encoding = r.apparent_encoding or r.encoding
-        if r.status_code != 200:
-            return []
-        soup = BeautifulSoup(r.text, 'html.parser')
-    except Exception as e:
-        logger.warning(f'내일신문 크롤링 실패: {e}')
-        return []
-
-    seen = set()
-    titles = []
-    for a in soup.find_all('a', href=True):
-        if '/news/read/' not in a['href']:
-            continue
-        text = a.get_text(strip=True)
-        if not text.startswith(NAEIL_TAG):
-            continue
-        clean = unescape(text[len(NAEIL_TAG):]).strip()
-        clean = re.sub(r'<[^>]+>', '', clean)
-        if clean and len(clean) > 5 and clean not in seen:
-            seen.add(clean)
-            titles.append(clean)
-            if len(titles) >= limit:
-                break
-    return titles
-
-
 def fetch_titles(paper):
     """언론사 정의를 보고 적절한 fetcher 호출"""
     kind = paper.get('kind')
@@ -284,12 +215,6 @@ def fetch_titles(paper):
         return fetch_rss(paper['url'])
     if kind == 'html':
         return fetch_html(paper['url'])
-    if kind == 'direct':
-        name = paper.get('name')
-        if name == '내일신문':
-            return fetch_naeil_direct()
-        if name == '아시아경제':
-            return _run_async(fetch_asiae_siron())
     return None  # 미지원
 
 
@@ -313,6 +238,10 @@ def format_message(editorials, header=None):
         
         first_paper = True
         for name, titles, note in rows:
+            if name not in ALLOWED_PAPERS:
+                # 화이트리스트 최종 게이트 — 목록 밖 매체는 수집돼도 발행 금지
+                logger.warning(f'화이트리스트 밖 매체 발행 차단: {name}')
+                continue
             if not titles:
                 continue
             if not first_paper:
@@ -545,7 +474,7 @@ def _collect_evening_editorials():
             else:
                 note = None
                 if titles is None or len(titles) == 0:
-                    if p['kind'] in ('rss', 'html', 'direct'):
+                    if p['kind'] in ('rss', 'html'):
                         note = '수집 실패'
                     else:
                         titles, note = [], '수집 미지원'
@@ -620,7 +549,7 @@ def _send_evening(message, token, chat_id, label):
 
 
 def send_editorial_afternoon():
-    """석간 사설 — SOB Scrap 채널. 문화일보 + 헤럴드경제 + 내일신문."""
+    """석간 사설 — SOB Scrap 채널. 문화일보(EVENING_PAPERS)만."""
     logger.info('=== 석간 사설봇 시작 (SOB Scrap) ===')
     print('석간 사설봇 시작 (SOB Scrap)...')
 
@@ -635,7 +564,7 @@ def send_editorial_afternoon():
 
 
 def send_editorial_afternoon_nureongi():
-    """석간 사설 — 누렁이 정보방. 문화일보 + 헤럴드경제 + 내일신문."""
+    """석간 사설 — 누렁이 정보방. 문화일보(EVENING_PAPERS)만."""
     logger.info('=== 석간 사설봇 시작 (누렁이) ===')
     NUREONGI_TOKEN = os.environ.get('NUREONGI_NEWS_BOT_TOKEN')
     NUREONGI_CHAT = '@gazzzza2025'
