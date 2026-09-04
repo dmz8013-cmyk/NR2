@@ -455,10 +455,32 @@ def _evening_header():
     return f'📰 석간 사설 | {datetime.now().strftime("%m/%d")} 13:30'
 
 
+def _evening_sent_today(key):
+    """당일 발송 여부 (g2b_state KV) — 수동 발송 후 13:30 자동분 중복 차단.
+    DB 불가 시 False(발송 우선)."""
+    try:
+        from g2b_tracker import state_get
+        return state_get(key) == datetime.now().strftime('%Y-%m-%d')
+    except Exception:
+        return False
+
+
+def _mark_evening_sent(key):
+    try:
+        from g2b_tracker import state_set
+        state_set(key, datetime.now().strftime('%Y-%m-%d'))
+    except Exception as e:
+        logger.warning(f'[석간] 발송 기록 실패(무시): {e}')
+
+
 def send_editorial_afternoon():
     """석간 사설 — SOB Scrap 채널 (13:30). 문화일보·내일신문·헤럴드경제만."""
     logger.info('=== 석간 사설봇 시작 (SOB Scrap) ===')
     print('석간 사설봇 시작 (SOB Scrap)...')
+    if _evening_sent_today('evening_editorial_sent_sob'):
+        logger.warning('[석간] 오늘 이미 발송됨(수동 실행 등) — 중복 발송 방지 스킵')
+        print('[SKIP] 오늘 이미 발송됨 — 중복 방지')
+        return
     editorials, total = _collect_editorials(EVENING_PAPERS)
     print(f'\n총 수집: {total}건')
     if total == 0:
@@ -467,6 +489,7 @@ def send_editorial_afternoon():
         return
     _send_split(format_message(editorials, header=_evening_header(), allowed=EVENING_ALLOWED),
                 BOT_TOKEN, CHAT_ID, 'SOB Scrap 석간')
+    _mark_evening_sent('evening_editorial_sent_sob')
     logger.info('=== 석간 사설봇 완료 (SOB Scrap) ===')
 
 
@@ -478,6 +501,10 @@ def send_editorial_afternoon_nureongi():
     if not NUREONGI_TOKEN:
         print('NUREONGI_NEWS_BOT_TOKEN 없음')
         return
+    if _evening_sent_today('evening_editorial_sent_nureongi'):
+        logger.warning('[석간·누렁이] 오늘 이미 발송됨 — 중복 발송 방지 스킵')
+        print('[SKIP] 오늘 이미 발송됨 — 중복 방지')
+        return
     editorials, total = _collect_editorials(EVENING_PAPERS)
     print(f'\n총 수집: {total}건')
     if total == 0:
@@ -485,6 +512,7 @@ def send_editorial_afternoon_nureongi():
         return
     _send_split(format_message(editorials, header=_evening_header(), allowed=EVENING_ALLOWED),
                 NUREONGI_TOKEN, NUREONGI_CHAT, '누렁이 정보방 석간')
+    _mark_evening_sent('evening_editorial_sent_nureongi')
     logger.info('=== 석간 사설봇 완료 (누렁이) ===')
 
 
