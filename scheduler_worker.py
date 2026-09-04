@@ -6,7 +6,9 @@ import logging
 import threading
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
-from apscheduler.events import EVENT_JOB_SUBMITTED, EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
+from apscheduler.events import (
+    EVENT_JOB_SUBMITTED, EVENT_JOB_EXECUTED, EVENT_JOB_ERROR, EVENT_JOB_MISSED,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,7 +44,13 @@ from candidate_tracker import check_candidate_changes
 executors = {
     'default': ThreadPoolExecutor(max_workers=3)
 }
-scheduler = BlockingScheduler(executors=executors, timezone='Asia/Seoul')
+# misfire_grace_time 기본 600초: APScheduler 기본값(1초)이면 재배포·스케줄러
+# 지연(~5초)·장시간 잡 점유만으로 정각 잡이 조용히 스킵됨 — 9/4 단독 오후판
+# 17:00 미발송 원인. 10분 내 워커가 살아나면 놓친 잡을 1회(coalesce) 실행.
+scheduler = BlockingScheduler(
+    executors=executors, timezone='Asia/Seoul',
+    job_defaults={'misfire_grace_time': 600, 'coalesce': True},
+)
 INTERVAL_MINUTES = int(os.environ.get('YOUTUBE_CHECK_INTERVAL', 10))
 
 # ─── 스케줄러 하드닝: 진단 로그 + 하트비트 자가복구 (telegram NetworkError: can't start new thread 대응) ───
@@ -73,6 +81,41 @@ def _diag_on_done(event):
 
 scheduler.add_listener(_diag_on_submitted, EVENT_JOB_SUBMITTED)
 scheduler.add_listener(_diag_on_done, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
+
+# ─── 미발송·에러 관리자 DM: 잡이 조용히 스킵/실패하면 즉시 한 줄 통보 ───
+# (9/4 단독 오후판 17:00 misfire를 관리자가 채널 미도착으로 직접 발견한 사고 대응)
+_ALERT_SKIP_IDS = {'heartbeat', 'web_bot_poll'}   # 고빈도 interval 잡 — DM 소음 방지
+
+
+def _alert_admin(text):
+    try:
+        import requests
+        token = os.environ.get('TELEGRAM_BOT_TOKEN')
+        chat = os.environ.get('TELEGRAM_ADMIN_CHAT_ID', '5132309076')
+        if token:
+            requests.post(f'https://api.telegram.org/bot{token}/sendMessage',
+                          json={'chat_id': chat, 'text': text}, timeout=10)
+    except Exception as e:
+        logger.warning(f'[알림] 관리자 DM 실패(무시): {e}')
+
+
+def _on_job_missed(event):
+    logger.warning(f'[MISSED] {event.job_id} (예정 {event.scheduled_run_time})')
+    if event.job_id in _ALERT_SKIP_IDS:
+        return
+    _alert_admin(f'⚠️ 잡 미발송: {event.job_id} · misfire'
+                 f'(예정 {event.scheduled_run_time.strftime("%H:%M")}, 유예 10분 초과)')
+
+
+def _on_job_error(event):
+    logger.error(f'[JOB ERROR] {event.job_id}: {event.exception}')
+    if event.job_id in _ALERT_SKIP_IDS:
+        return
+    _alert_admin(f'⚠️ 잡 오류: {event.job_id} · {str(event.exception)[:150]}')
+
+
+scheduler.add_listener(_on_job_missed, EVENT_JOB_MISSED)
+scheduler.add_listener(_on_job_error, EVENT_JOB_ERROR)
 
 @scheduler.scheduled_job('interval', minutes=5, id='heartbeat', coalesce=True, max_instances=1)
 def heartbeat_job():
@@ -105,51 +148,51 @@ def news_job():
     run_news_bot()
 
 @scheduler.scheduled_job('cron', hour=6, minute=0, id='morning_briefing', timezone='Asia/Seoul',
-                          misfire_grace_time=300, coalesce=True)
+                          misfire_grace_time=600, coalesce=True)
 def morning_briefing():
     logger.info('[Scheduler] 아침 AI 브리핑 생성 중...')
     send_briefing()
 
 @scheduler.scheduled_job('cron', hour=18, minute=0, id='evening_briefing', timezone='Asia/Seoul',
-                          misfire_grace_time=300, coalesce=True)
+                          misfire_grace_time=600, coalesce=True)
 def evening_briefing():
     logger.info('[Scheduler] 저녁 AI 브리핑 생성 중...')
     send_briefing()
 
 @scheduler.scheduled_job('cron', hour=13, minute=0, id='afternoon_political', timezone='Asia/Seoul',
-                          misfire_grace_time=300, coalesce=True)
+                          misfire_grace_time=600, coalesce=True)
 def afternoon_political():
     logger.info('[Scheduler] 오후 정치 브리핑 생성 중...')
     afternoon_political_briefing()
 
 @scheduler.scheduled_job('cron', hour=22, minute=0, id='evening_political', timezone='Asia/Seoul',
-                          misfire_grace_time=300, coalesce=True)
+                          misfire_grace_time=600, coalesce=True)
 def evening_political():
     logger.info('[Scheduler] 저녁 정치 브리핑 생성 중...')
     evening_political_briefing()
 
 @scheduler.scheduled_job('cron', hour=6, minute=0, id='editorial_morning_brief', timezone='Asia/Seoul',
-                          misfire_grace_time=300, coalesce=True)
+                          misfire_grace_time=600, coalesce=True)
 def editorial_job():
     logger.info('[Scheduler] 사설봇 실행 중...')
     send_editorial()
 
 @scheduler.scheduled_job('cron', hour=7, minute=0, id='editorial_nureongi_brief', timezone='Asia/Seoul',
-                          misfire_grace_time=300, coalesce=True)
+                          misfire_grace_time=600, coalesce=True)
 def editorial_nureongi_job():
     logger.info('[Scheduler] 누렁이 정보방 사설봇 실행 중 (07:00)...')
     send_editorial_nureongi()
 
 @scheduler.scheduled_job('cron', hour=13, minute=30, id='evening_editorial_scrap_job',
                           timezone='Asia/Seoul', coalesce=True, max_instances=1,
-                          misfire_grace_time=300)
+                          misfire_grace_time=600)
 def evening_editorial_scrap_job():
     logger.info('[Scheduler] 석간 사설봇 실행 중 (SOB Scrap, 13:30)...')
     send_editorial_afternoon()
 
 @scheduler.scheduled_job('cron', hour=13, minute=31, id='evening_editorial_nureongi_job',
                           timezone='Asia/Seoul', coalesce=True, max_instances=1,
-                          misfire_grace_time=300)
+                          misfire_grace_time=600)
 def evening_editorial_nureongi_job():
     logger.info('[Scheduler] 석간 사설봇 실행 중 (누렁이, 13:31)...')
     send_editorial_afternoon_nureongi()
@@ -165,7 +208,7 @@ def schedule_nureongi_job():
     send_schedule_nureongi()
 
 
-@scheduler.scheduled_job('interval', minutes=15, id='vip_alert', misfire_grace_time=300)
+@scheduler.scheduled_job('interval', minutes=15, id='vip_alert', misfire_grace_time=600)
 def vip_alert_job():
     logger.info('[Scheduler] VIP 알림봇 실행 중...')
     run_vip_alert()
@@ -211,31 +254,31 @@ def _leaders_safe(fn_name, *args):
         logger.error(f'[Scheduler] 거두워치 {fn_name} 실패(기존 파이프라인 무영향): {e}')
 
 @scheduler.scheduled_job('cron', hour='6,12,18,22', minute=0, id='leaders_collect_t1',
-                          timezone='Asia/Seoul', misfire_grace_time=300, coalesce=True, max_instances=1)
+                          timezone='Asia/Seoul', misfire_grace_time=600, coalesce=True, max_instances=1)
 def leaders_collect_t1():
     logger.info('[Scheduler] 거두워치 T1 수집...')
     _leaders_safe('collect_tier', 1)
 
 @scheduler.scheduled_job('cron', hour='6,18', minute=3, id='leaders_collect_t2',
-                          timezone='Asia/Seoul', misfire_grace_time=300, coalesce=True, max_instances=1)
+                          timezone='Asia/Seoul', misfire_grace_time=600, coalesce=True, max_instances=1)
 def leaders_collect_t2():
     logger.info('[Scheduler] 거두워치 T2 수집...')
     _leaders_safe('collect_tier', 2)
 
 @scheduler.scheduled_job('cron', hour=6, minute=6, id='leaders_collect_t3',
-                          timezone='Asia/Seoul', misfire_grace_time=300, coalesce=True, max_instances=1)
+                          timezone='Asia/Seoul', misfire_grace_time=600, coalesce=True, max_instances=1)
 def leaders_collect_t3():
     logger.info('[Scheduler] 거두워치 T3 수집...')
     _leaders_safe('collect_tier', 3)
 
 @scheduler.scheduled_job('cron', hour=6, minute=50, id='leaders_input_reminder',
-                          timezone='Asia/Seoul', misfire_grace_time=300, coalesce=True, max_instances=1)
+                          timezone='Asia/Seoul', misfire_grace_time=600, coalesce=True, max_instances=1)
 def leaders_input_reminder():
     logger.info('[Scheduler] 누렁이 시그널 입력 대기 리마인드...')
     _leaders_safe('input_reminder')
 
 @scheduler.scheduled_job('cron', hour=7, minute=0, id='leaders_daily_edit',
-                          timezone='Asia/Seoul', misfire_grace_time=300, coalesce=True, max_instances=1)
+                          timezone='Asia/Seoul', misfire_grace_time=600, coalesce=True, max_instances=1)
 def leaders_daily_edit():
     logger.info('[Scheduler] 거두워치 07시 편집...')
     _leaders_safe('daily_edit')
@@ -247,7 +290,7 @@ def leaders_monthly_report():
     _leaders_safe('monthly_report')
 
 @scheduler.scheduled_job('cron', hour=7, minute=30, id='g2b_ai_tracker_daily', timezone='Asia/Seoul',
-                          misfire_grace_time=300, coalesce=True, max_instances=1)
+                          misfire_grace_time=600, coalesce=True, max_instances=1)
 def g2b_ai_tracker_daily():
     """매일 07:30 KST — AI 행정 트래커 전일 공고 수집.
     lazy import: 모듈 오류가 스케줄러 기동(기존 브리핑·AESA 잡)을 죽이지 않도록."""
@@ -266,7 +309,7 @@ def youcheck_daily():
 
 @scheduler.scheduled_job('cron', day_of_week='sun', hour=20, minute=0,
                           id='weekly_briefing', timezone='Asia/Seoul',
-                          misfire_grace_time=300, coalesce=True)
+                          misfire_grace_time=600, coalesce=True)
 def weekly_briefing_job():
     """매주 일요일 20:00 KST — 주간 TOP5 브리핑"""
     logger.info('[Scheduler] 주간 TOP5 브리핑 생성 중...')
