@@ -26,6 +26,8 @@ from political_briefing import afternoon_political_briefing, evening_political_b
 from editorial_bot import (
     send_editorial,
     send_editorial_nureongi,
+    send_editorial_afternoon,
+    send_editorial_afternoon_nureongi,
 )
 from schedule_bot import send_schedule, send_schedule_nureongi
 from vip_alert_bot import run_vip_alert
@@ -138,7 +140,19 @@ def editorial_nureongi_job():
     logger.info('[Scheduler] 누렁이 정보방 사설봇 실행 중 (07:00)...')
     send_editorial_nureongi()
 
-# 석간 사설 잡(14:00/14:01)은 2026-09-04 석간지 전면 제외로 폐지됨.
+@scheduler.scheduled_job('cron', hour=13, minute=30, id='evening_editorial_scrap_job',
+                          timezone='Asia/Seoul', coalesce=True, max_instances=1,
+                          misfire_grace_time=300)
+def evening_editorial_scrap_job():
+    logger.info('[Scheduler] 석간 사설봇 실행 중 (SOB Scrap, 13:30)...')
+    send_editorial_afternoon()
+
+@scheduler.scheduled_job('cron', hour=13, minute=31, id='evening_editorial_nureongi_job',
+                          timezone='Asia/Seoul', coalesce=True, max_instances=1,
+                          misfire_grace_time=300)
+def evening_editorial_nureongi_job():
+    logger.info('[Scheduler] 석간 사설봇 실행 중 (누렁이, 13:31)...')
+    send_editorial_afternoon_nureongi()
 
 @scheduler.scheduled_job('cron', hour=6, minute=30, id='schedule_bot', timezone='Asia/Seoul')
 def schedule_job():

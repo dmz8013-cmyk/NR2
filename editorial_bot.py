@@ -6,9 +6,10 @@
 - 기타 언론사는 공개 RSS가 없어 네이버 사설 페이지 Playwright 보완 수집
 - 폴백 규칙: 어떤 매체든 1차 수집 0건이면 네이버 보완으로 자동 전환,
   RSS/HTML 매체의 0건 폴백은 관리자 DM 한 줄 로그
-- 발행은 PAPERS 화이트리스트에 있는 매체만 (목록 밖 매체는 수집돼도 미발행)
-- 2026-09-04: 석간지 제외 원칙으로 내일신문·헤럴드경제·아시아경제·문화일보 제거,
-  석간 잡(14시) 폐지 — 아침 잡만 운영. 확정 목록: 종합지 9 + 경제지 7 = 16
+- 발행은 잡별 화이트리스트에 있는 매체만 (목록 밖 매체는 수집돼도 미발행)
+- 2026-09-04: 아침(PAPERS 16개, 06:00/07:00)과 석간(EVENING_PAPERS 3개,
+  13:30/13:31)을 완전 분리 — 문화일보·내일신문·헤럴드경제는 석간 전용,
+  아시아경제는 제외 유지. 두 목록은 교차 발행 금지(화이트리스트 게이트가 차단).
 """
 import os
 import re
@@ -78,8 +79,21 @@ PAPERS = {
     ],
 }
 
-# 발행 화이트리스트 — 목록 밖 매체는 수집돼도 발행하지 않음 (format_message 최종 게이트)
+# 석간 전용 목록 (13:30/13:31 잡) — 아침 PAPERS와 완전 분리, 교차 발행 금지.
+# 문화일보·헤럴드경제는 자체 수집 경로가 없어 네이버 보완, 내일신문은 전용 파서.
+# 아시아경제는 제외 유지 (2026-09-04 결정).
+EVENING_PAPERS = {
+    '석간지': [
+        {'name': '문화일보', 'kind': 'none'},
+        {'name': '내일신문', 'kind': 'direct'},
+        {'name': '헤럴드경제', 'kind': 'none'},
+    ],
+}
+
+# 잡별 발행 화이트리스트 — 목록 밖 매체는 수집돼도 발행하지 않음 (format_message 최종 게이트).
+# 아침 16개 / 석간 3개, 서로 교차 발행 금지.
 ALLOWED_PAPERS = {p['name'] for _cat in PAPERS.values() for p in _cat}
+EVENING_ALLOWED = {p['name'] for _cat in EVENING_PAPERS.values() for p in _cat}
 
 
 
@@ -205,6 +219,40 @@ async def fetch_naver_editorials(target_papers):
     return results
 
 
+NAEIL_TAG = '[내일시론]'  # 내일신문은 사설 대신 '내일시론' 섹션을 사설격으로 운영
+
+
+def fetch_naeil_direct(limit=3):
+    """내일신문 /opinion/editorial 페이지에서 [내일시론] prefix 제목 추출."""
+    url = 'https://www.naeil.com/opinion/editorial'
+    try:
+        r = requests.get(url, headers=REQ_HEADERS, timeout=8)
+        r.encoding = r.apparent_encoding or r.encoding
+        if r.status_code != 200:
+            return []
+        soup = BeautifulSoup(r.text, 'html.parser')
+    except Exception as e:
+        logger.warning(f'내일신문 크롤링 실패: {e}')
+        return []
+
+    seen = set()
+    titles = []
+    for a in soup.find_all('a', href=True):
+        if '/news/read/' not in a['href']:
+            continue
+        text = a.get_text(strip=True)
+        if not text.startswith(NAEIL_TAG):
+            continue
+        clean = unescape(text[len(NAEIL_TAG):]).strip()
+        clean = re.sub(r'<[^>]+>', '', clean)
+        if clean and len(clean) > 5 and clean not in seen:
+            seen.add(clean)
+            titles.append(clean)
+            if len(titles) >= limit:
+                break
+    return titles
+
+
 def fetch_titles(paper):
     """언론사 정의를 보고 적절한 fetcher 호출"""
     kind = paper.get('kind')
@@ -212,10 +260,19 @@ def fetch_titles(paper):
         return fetch_rss(paper['url'])
     if kind == 'html':
         return fetch_html(paper['url'])
+    if kind == 'direct' and paper.get('name') == '내일신문':
+        return fetch_naeil_direct()
     return None  # 미지원
 
 
-def format_message(editorials, header=None):
+def format_message(editorials, header=None, allowed=None):
+    """allowed = 이 잡의 발행 화이트리스트 (기본: 아침 16개).
+
+    교차 발행 금지: 석간 3사가 아침 메시지에, 아침 매체가 석간 메시지에
+    섞이면 여기서 차단 + 경고 로그.
+    """
+    if allowed is None:
+        allowed = ALLOWED_PAPERS
     today = datetime.now().strftime('%Y.%m.%d')
     lines = []
 
@@ -225,19 +282,19 @@ def format_message(editorials, header=None):
     lines.append('')
     lines.append('출처 : https://buly.kr/7mBN720')
     lines.append('')
-    
+
     first_category = True
     for category, rows in editorials.items():
         if not first_category:
             lines.append('')
         lines.append(f'<b>{category}</b>')
         first_category = False
-        
+
         first_paper = True
         for name, titles, note in rows:
-            if name not in ALLOWED_PAPERS:
-                # 화이트리스트 최종 게이트 — 목록 밖 매체는 수집돼도 발행 금지
-                logger.warning(f'화이트리스트 밖 매체 발행 차단: {name}')
+            if name not in allowed:
+                # 화이트리스트 최종 게이트 — 목록 밖/교차 매체는 수집돼도 발행 금지
+                logger.warning(f'화이트리스트 밖 매체 발행 차단(교차 발행 금지): {name}')
                 continue
             if not titles:
                 continue
@@ -271,16 +328,20 @@ def _notify_admin(text):
         logger.warning(f'관리자 DM 실패(무시): {e}')
 
 
-def _collect_editorials():
-    """전 매체 수집 + 폴백. 반환: (editorials dict, total).
+def _collect_editorials(papers_def=None):
+    """papers_def(기본: 아침 PAPERS, 석간은 EVENING_PAPERS) 수집 + 폴백.
+    반환: (editorials dict, total).
 
-    폴백 규칙: 매체 불문 1차 수집 0건이면 네이버 사설 페이지 보완 수집으로 전환.
-    RSS/HTML 매체가 0건으로 폴백되면 관리자 DM에 '매체명 RSS 0건 → 보완' 로그.
+    폴백 규칙(아침·석간 동일): 매체 불문 1차 수집 0건이면 네이버 사설 페이지
+    보완 수집으로 전환. 수집 경로가 있는 매체(rss/html/direct)가 0건으로
+    폴백되면 관리자 DM에 '매체명 RSS 0건 → 보완' 로그.
     """
+    if papers_def is None:
+        papers_def = PAPERS
     editorials, total = {}, 0
     papers_to_fallback, rss_zero = [], []
 
-    for category, papers in PAPERS.items():
+    for category, papers in papers_def.items():
         rows = []
         for p in papers:
             name = p['name']
@@ -293,13 +354,13 @@ def _collect_editorials():
                 note = None
                 if not titles:
                     titles = []
-                    note = 'RSS/HTML 결과 0건' if p['kind'] in ('rss', 'html') else '수집 미지원'
+                    note = 'RSS/HTML 결과 0건' if p['kind'] in ('rss', 'html', 'direct') else '수집 미지원'
 
             rows.append((name, titles, note))
             total += len(titles)
             if not titles:
                 papers_to_fallback.append((category, name, p))
-                if p['kind'] in ('rss', 'html'):
+                if p['kind'] in ('rss', 'html', 'direct'):
                     rss_zero.append(name)
 
             print(f'  {name} (v1): {len(titles)}개' + (f' | {note}' if note else ''))
@@ -390,10 +451,50 @@ def send_editorial_nureongi():
     _send_split(format_message(editorials), NUREONGI_TOKEN, NUREONGI_CHAT, '누렁이 정보방')
 
 
-# 석간 잡(send_editorial_afternoon / send_editorial_afternoon_nureongi)은
-# 2026-09-04 석간지 전면 제외로 폐지 — 스케줄러 등록도 해제됨.
+def _evening_header():
+    return f'📰 석간 사설 | {datetime.now().strftime("%m/%d")} 13:30'
+
+
+def send_editorial_afternoon():
+    """석간 사설 — SOB Scrap 채널 (13:30). 문화일보·내일신문·헤럴드경제만."""
+    logger.info('=== 석간 사설봇 시작 (SOB Scrap) ===')
+    print('석간 사설봇 시작 (SOB Scrap)...')
+    editorials, total = _collect_editorials(EVENING_PAPERS)
+    print(f'\n총 수집: {total}건')
+    if total == 0:
+        logger.warning('[석간] 수집 0건 — 발송 생략')
+        _notify_admin('⚠️ 석간 사설 수집 0건 — 발송 생략')
+        return
+    _send_split(format_message(editorials, header=_evening_header(), allowed=EVENING_ALLOWED),
+                BOT_TOKEN, CHAT_ID, 'SOB Scrap 석간')
+    logger.info('=== 석간 사설봇 완료 (SOB Scrap) ===')
+
+
+def send_editorial_afternoon_nureongi():
+    """석간 사설 — 누렁이 정보방 (13:31). 문화일보·내일신문·헤럴드경제만."""
+    logger.info('=== 석간 사설봇 시작 (누렁이) ===')
+    NUREONGI_TOKEN = os.environ.get('NUREONGI_NEWS_BOT_TOKEN')
+    NUREONGI_CHAT = '@gazzzza2025'
+    if not NUREONGI_TOKEN:
+        print('NUREONGI_NEWS_BOT_TOKEN 없음')
+        return
+    editorials, total = _collect_editorials(EVENING_PAPERS)
+    print(f'\n총 수집: {total}건')
+    if total == 0:
+        logger.warning('[석간·누렁이] 수집 0건 — 발송 생략')
+        return
+    _send_split(format_message(editorials, header=_evening_header(), allowed=EVENING_ALLOWED),
+                NUREONGI_TOKEN, NUREONGI_CHAT, '누렁이 정보방 석간')
+    logger.info('=== 석간 사설봇 완료 (누렁이) ===')
 
 
 if __name__ == '__main__':
+    import sys
     logging.basicConfig(level=logging.INFO)
-    send_editorial()
+    mode = sys.argv[1] if len(sys.argv) > 1 else 'morning'
+    if mode == 'afternoon':
+        send_editorial_afternoon()
+    elif mode == 'afternoon_nureongi':
+        send_editorial_afternoon_nureongi()
+    else:
+        send_editorial()
