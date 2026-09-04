@@ -4,7 +4,7 @@ import asyncio
 import html
 import requests
 import urllib.parse
-from datetime import datetime, date
+from datetime import datetime
 import logging
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
@@ -80,6 +80,59 @@ def fetch_news1_schedule_url():
     logger.warning("모든 쿼리에서 뉴스1 주요일정 기사를 찾지 못했습니다.")
     return None
 
+def _extract_sections(raw_text, targets):
+    """raw_text(여러 줄)를 타겟 섹션별로 분류. Playwright 없이 단위 테스트 가능.
+
+    헤더(◇/◆/[ 시작)는 타겟과 정확/접두 일치로 매칭하고, 헤더 뒤 같은 줄에
+    붙어 온 내용은 해당 섹션의 첫 항목으로 보존한다(청와대 누락 방지).
+    """
+    results = {t: [] for t in targets}
+    current_section = None
+
+    # 모든 ◇ 헤더가 줄 맨 앞에 오도록 정규화 — 앞 본문과 붙어 추출된 헤더
+    # (예: "...주요일정◇청와대")도 별도 줄로 분리해 섹션 인식에서 누락 방지.
+    raw_text = re.sub(r'(?<=[^\n])◇', '\n◇', raw_text)
+
+    for line in raw_text.split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+
+        # 체크: 헤더 라인인가?
+        if line.startswith('◇') or line.startswith('◆') or line.startswith('['):
+            normalized_line = line.replace(' ', '')
+            current_section = None
+            inline_rest = ''
+            # 정확 일치 → 접두(startswith) 매칭으로 완화.
+            # '◇청와대 △대통령' 처럼 헤더 뒤에 내용이 붙거나 앞 본문과
+            # 붙어 추출돼도 섹션을 놓치지 않는다. 긴 타겟 우선(접두 충돌 방지).
+            for t in sorted(targets, key=len, reverse=True):
+                tnorm = t.replace(' ', '')
+                if normalized_line == tnorm:
+                    current_section = t
+                    break
+                if normalized_line.startswith(tnorm):
+                    current_section = t
+                    # 헤더와 같은 줄에 붙어 온 내용은 첫 항목으로 보존
+                    inline_rest = (line[len(t):] if line.startswith(t)
+                                   else normalized_line[len(tnorm):]).strip()
+                    break
+            if current_section and inline_rest and not EMAIL_PATTERN.search(inline_rest):
+                results[current_section].append(inline_rest)
+        elif current_section:
+            # 예외 정리
+            if line.startswith('※') or '상기 일정은' in line or '받아보실 수 있습니다' in line or '무단 전재' in line or '기사제보 및' in line:
+                continue
+            # 이메일 주소 포함 라인 제거
+            if EMAIL_PATTERN.search(line):
+                continue
+            if 'mailto:' in line:
+                continue
+            results[current_section].append(line)
+
+    return results
+
+
 async def parse_schedule_text(url, locator_selector_primary, targets):
     """Playwright로 해당 URL의 특정 영역 텍스트를 추출해 타겟 섹션만 파싱"""
     results = {t: [] for t in targets}
@@ -119,32 +172,7 @@ async def parse_schedule_text(url, locator_selector_primary, targets):
                             break
             
             if raw_text:
-                lines = raw_text.split('\n')
-                current_section = None
-                
-                for line in lines:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    
-                    # 체크: 헤더 라인인가?
-                    if line.startswith('◇') or line.startswith('◆') or line.startswith('['):
-                        normalized_line = line.replace(' ', '')
-                        current_section = None
-                        for t in targets:
-                            if t.replace(' ', '') == normalized_line or t == line:
-                                current_section = t
-                                break
-                    elif current_section:
-                        # 예외 정리
-                        if line.startswith('※') or '상기 일정은' in line or '받아보실 수 있습니다' in line or '무단 전재' in line or '기사제보 및' in line:
-                            continue
-                        # 이메일 주소 포함 라인 제거
-                        if EMAIL_PATTERN.search(line):
-                            continue
-                        if 'mailto:' in line:
-                            continue
-                        results[current_section].append(line)
+                results = _extract_sections(raw_text, targets)
         except Exception as e:
             logger.error(f"Playwright error on {url}: {e}")
         finally:
@@ -153,34 +181,17 @@ async def parse_schedule_text(url, locator_selector_primary, targets):
     return results
 
 def format_schedule_message(news1_data, assembly_data):
+    """메시지는 '📌 주요 일정' 헤더 줄부터 바로 시작.
+
+    [규칙] 날짜 기반 카운트다운(선거 D-day 등)을 재도입할 경우, 기준일이
+    지나면(D-0 경과) 해당 블록 전체를 자동 비표시할 것 — 2026-09까지
+    '6.3 지방선거 D--93 / ✅완료' 블록이 계속 발송된 사고의 재발 방지 규칙.
+    (지금은 카운트다운 기능 자체가 없음 — 규칙만 유지)
+    """
     today_dt = datetime.now()
-    today_date = date.today()
     date_str = today_dt.strftime('%Y.%m.%d')
     lines = []
-    
-    election_day = date(2026, 6, 3)
-    dday = (election_day - today_date).days
 
-    schedule_items = [
-        ("예비후보 등록 마감", date(2026, 4, 30)),
-        ("본후보 등록", date(2026, 5, 15)),
-        ("공식 선거운동 시작", date(2026, 5, 20)),
-        ("사전투표", date(2026, 5, 29)),
-        ("선거일", date(2026, 6, 3)),
-    ]
-
-    lines.append(f'⏳ 6.3 지방선거까지 D-{dday}')
-    for name, item_date in schedule_items:
-        diff = (item_date - today_date).days
-        if diff > 0:
-            status = f"D-{diff}"
-        elif diff == 0:
-            status = "오늘!"
-        else:
-            status = "✅완료"
-        lines.append(f"- {name}: {status}")
-    lines.append('')
-    
     # 헤더
     lines.append(f'📌📌📌주요 일정({date_str})📌📌📌')
     lines.append('')
