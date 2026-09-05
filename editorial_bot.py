@@ -13,6 +13,7 @@
 """
 import os
 import re
+import json
 import requests
 import logging
 import urllib.parse
@@ -451,6 +452,29 @@ def send_editorial_nureongi():
     _send_split(format_message(editorials), NUREONGI_TOKEN, NUREONGI_CHAT, '누렁이 정보방')
 
 
+HOLIDAYS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             'config', 'holidays_kr.json')
+
+
+def _evening_skip_reason(dt=None):
+    """석간 비발행일 판정 — 'weekend' / 'holiday' / None(발행일).
+
+    석간지는 토·일·공휴일 미발행. 공휴일은 config/holidays_kr.json(연도별 목록)
+    기준이며, 파일이 없거나 해당 날짜가 없으면 평일 규칙만 적용.
+    """
+    dt = dt or datetime.now()
+    if dt.weekday() >= 5:
+        return 'weekend'
+    try:
+        with open(HOLIDAYS_PATH, encoding='utf-8') as f:
+            days = json.load(f).get(str(dt.year), [])
+        if dt.strftime('%Y-%m-%d') in days:
+            return 'holiday'
+    except Exception:
+        pass
+    return None
+
+
 def _evening_header():
     return f'📰 석간 사설 | {datetime.now().strftime("%m/%d")} 13:30'
 
@@ -477,6 +501,11 @@ def send_editorial_afternoon():
     """석간 사설 — SOB Scrap 채널 (13:30). 문화일보·내일신문·헤럴드경제만."""
     logger.info('=== 석간 사설봇 시작 (SOB Scrap) ===')
     print('석간 사설봇 시작 (SOB Scrap)...')
+    reason = _evening_skip_reason()
+    if reason:
+        logger.info(f'[석간] 스킵({reason}) — 석간지 비발행일, 수집·발송 안 함')
+        print(f'[SKIP] 석간 비발행일({reason})')
+        return
     if _evening_sent_today('evening_editorial_sent_sob'):
         logger.warning('[석간] 오늘 이미 발송됨(수동 실행 등) — 중복 발송 방지 스킵')
         print('[SKIP] 오늘 이미 발송됨 — 중복 방지')
@@ -500,6 +529,11 @@ def send_editorial_afternoon_nureongi():
     NUREONGI_CHAT = '@gazzzza2025'
     if not NUREONGI_TOKEN:
         print('NUREONGI_NEWS_BOT_TOKEN 없음')
+        return
+    reason = _evening_skip_reason()
+    if reason:
+        logger.info(f'[석간·누렁이] 스킵({reason}) — 석간지 비발행일, 수집·발송 안 함')
+        print(f'[SKIP] 석간 비발행일({reason})')
         return
     if _evening_sent_today('evening_editorial_sent_nureongi'):
         logger.warning('[석간·누렁이] 오늘 이미 발송됨 — 중복 발송 방지 스킵')

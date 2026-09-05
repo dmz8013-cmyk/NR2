@@ -99,10 +99,23 @@ def _alert_admin(text):
         logger.warning(f'[알림] 관리자 DM 실패(무시): {e}')
 
 
+_EVENING_EDITORIAL_IDS = {'evening_editorial_scrap_job', 'evening_editorial_nureongi_job'}
+
+
 def _on_job_missed(event):
     logger.warning(f'[MISSED] {event.job_id} (예정 {event.scheduled_run_time})')
     if event.job_id in _ALERT_SKIP_IDS:
         return
+    # 석간 잡의 주말·공휴일 미실행은 정상 — DM 없이 사유 로그만
+    if event.job_id in _EVENING_EDITORIAL_IDS:
+        try:
+            from editorial_bot import _evening_skip_reason
+            reason = _evening_skip_reason(event.scheduled_run_time)
+        except Exception:
+            reason = 'weekend' if event.scheduled_run_time.weekday() >= 5 else None
+        if reason:
+            logger.info(f'[MISSED-정상] {event.job_id} 석간 비발행일 스킵({reason})')
+            return
     _alert_admin(f'⚠️ 잡 미발송: {event.job_id} · misfire'
                  f'(예정 {event.scheduled_run_time.strftime("%H:%M")}, 유예 10분 초과)')
 
@@ -183,14 +196,18 @@ def editorial_nureongi_job():
     logger.info('[Scheduler] 누렁이 정보방 사설봇 실행 중 (07:00)...')
     send_editorial_nureongi()
 
-@scheduler.scheduled_job('cron', hour=13, minute=30, id='evening_editorial_scrap_job',
+# 석간지는 토·일·공휴일 미발행 — 주말은 트리거(mon-fri)로, 공휴일은
+# editorial_bot._evening_skip_reason()이 잡 내부에서 스킵(로그만, DM 없음).
+@scheduler.scheduled_job('cron', day_of_week='mon-fri', hour=13, minute=30,
+                          id='evening_editorial_scrap_job',
                           timezone='Asia/Seoul', coalesce=True, max_instances=1,
                           misfire_grace_time=600)
 def evening_editorial_scrap_job():
     logger.info('[Scheduler] 석간 사설봇 실행 중 (SOB Scrap, 13:30)...')
     send_editorial_afternoon()
 
-@scheduler.scheduled_job('cron', hour=13, minute=31, id='evening_editorial_nureongi_job',
+@scheduler.scheduled_job('cron', day_of_week='mon-fri', hour=13, minute=31,
+                          id='evening_editorial_nureongi_job',
                           timezone='Asia/Seoul', coalesce=True, max_instances=1,
                           misfire_grace_time=600)
 def evening_editorial_nureongi_job():
