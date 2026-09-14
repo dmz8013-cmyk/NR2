@@ -328,7 +328,7 @@ def fetch_regional_exclusive_news(edition='morning'):
     return results
 
 
-def format_exclusive_message(items, edition='morning'):
+def format_exclusive_message(items, edition='morning', removed=0):
     now = datetime.now(KST)
     today = now.strftime('%m/%d')
 
@@ -376,7 +376,8 @@ def format_exclusive_message(items, edition='morning'):
             lines.append(f'🔗 {item["short_link"]}')
             lines.append('')  # 기사 사이 빈 줄
 
-    lines.append(f'총 {len(items)}건 | NR2 단독 스크랩봇')
+    dup_note = f' (중복 {removed}건 제거)' if removed else ''
+    lines.append(f'총 {len(items)}건{dup_note} | NR2 단독 스크랩봇')
     lines.append('')
     lines.append('출처: https://t.me/gazzzza2025')
     lines.append('(실시간 텔레그램 정보방)')
@@ -450,9 +451,26 @@ def send_exclusive_news(edition='morning'):
     items.sort(key=lambda x: x['pub_dt'], reverse=True)
     logger.info(f'지역지 신규 {len(added)}건 → 총 {len(items)}건')
 
-    message = format_exclusive_message(items, edition)
+    # 발송 직전 중복 제거 — 기사 ID 변경 재수집·잘린 제목·실행 간 재발송 차단.
+    # 이 단계의 어떤 실패도 발송을 막지 않음(원본 그대로 발송).
+    removed = 0
+    try:
+        from scrap_dedup import dedup_pipeline
+        items, removed = dedup_pipeline(items)
+    except Exception as e:
+        logger.error(f'[dedup] 단계 실패 — 원본 그대로 발송: {e}')
 
-    _send_telegram(BOT_TOKEN_SCRAP, CHAT_ID_SCRAP, message, 'SOB Scrap')
+    message = format_exclusive_message(items, edition, removed=removed)
+
+    ok = _send_telegram(BOT_TOKEN_SCRAP, CHAT_ID_SCRAP, message, 'SOB Scrap')
+
+    # 발송 성공 시에만 기록 — 실패하면 다음 실행에서 재발송되도록 남겨둠
+    if ok and items:
+        try:
+            from scrap_dedup import record_sent
+            record_sent(items)
+        except Exception as e:
+            logger.warning(f'[dedup] 발송 기록 실패(무시): {e}')
 
     logger.info(f'=== 단독 뉴스 {label} 종료 ===')
 

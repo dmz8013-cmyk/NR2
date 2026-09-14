@@ -1,0 +1,8 @@
+{
+  "_meta": {
+    "description": "단독 스크랩봇 중복 제거 설정 — similarity_threshold: 같은 언론사 내 제목 유사도 병합 컷(token_set_ratio), seen_ttl_hours: 실행 간 재발송 차단 기억 시간",
+    "updated": "2026-09-15"
+  },
+  "similarity_threshold": 85,
+  "seen_ttl_hours": 48
+}
