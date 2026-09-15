@@ -13,7 +13,9 @@ verify_pass.py — 브리핑 발행 전 자가 검증 패스 (2차 팩트체크 
   3) 태깅 항목만 Claude(haiku-4-5 + web_search)로 검증 — 회당 상한 8건
      · 일치     → 통과
      · 불일치   → 수정문으로 교체
-     · 확인불가 → "~로 전해졌다" 완곡화 + 항목 앞 ⚠️
+     · 확인불가 → 브리핑: 항목 자체를 제외 + 관리자 DM "미확인 제외: 제목"
+                  (루머 유통 방지 — 완곡 발행 금지, 2026-09-15)
+                  leader_watch: 기존대로 완곡화("~로 전해짐" 체) 유지
   4) 결과 24시간 캐시(/tmp) — 아침·저녁 동일 항목 재검증 방지
   5) 회차별 건수를 DB(verify_log)에 기록 (주간 리포트용)
 
@@ -246,6 +248,23 @@ def _log_to_db(stats: dict) -> None:
         logger.warning(f"[자가검증] DB 로그 실패(무시): {e}")
 
 
+def _notify_admin_excluded(titles: list, briefing_type: str) -> None:
+    """확인불가로 제외한 항목을 관리자 DM으로 보고. 실패는 로그만."""
+    try:
+        import requests
+        token = os.environ.get("TELEGRAM_BOT_TOKEN")
+        chat = os.environ.get("TELEGRAM_ADMIN_CHAT_ID", "5132309076")
+        if not token:
+            return
+        body = "\n".join(f"미확인 제외: {t}" for t in titles)
+        requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                      json={"chat_id": chat,
+                            "text": f"🚫 자가검증 미확인 항목 제외 ({briefing_type}, {len(titles)}건)\n{body}"},
+                      timeout=10)
+    except Exception as e:
+        logger.warning(f"[자가검증] 제외 보고 DM 실패(무시): {e}")
+
+
 # ══════════════════════════════════════════════════
 #  5. 메인 — 발행 직전 훅
 # ══════════════════════════════════════════════════
@@ -285,6 +304,7 @@ def run_verify_pass(briefing: str, briefing_type: str = "") -> str:
 
         cache = _cache_load()
         client = anthropic.Anthropic(api_key=api_key, timeout=90.0)
+        excluded_titles: list[str] = []   # 확인불가로 제외된 항목 (관리자 DM 보고용)
 
         for line_no, text, reasons in to_verify:
             key = _item_key(text)
@@ -308,19 +328,28 @@ def run_verify_pass(briefing: str, briefing_type: str = "") -> str:
                 stats["fixed"] += 1
                 logger.warning(f"[자가검증] 수정: {text[:40]}… → {corrected[:40]}…")
             elif verdict == "확인불가":
-                soft = corrected if corrected else text
-                lines[line_no] = "▪ ⚠️ " + soft
                 stats["unconfirmed"] += 1
-                logger.warning(f"[자가검증] 확인불가(완곡+⚠️): {text[:40]}…")
+                if briefing_type == "leader_watch":
+                    # 시그널은 발행 포맷상 완곡체 유지 (항목 수 보존 전제)
+                    soft = corrected if corrected else text
+                    lines[line_no] = "▪ ⚠️ " + soft
+                    logger.warning(f"[자가검증] 확인불가(완곡+⚠️): {text[:40]}…")
+                else:
+                    # 브리핑: 완곡 발행 금지 — 항목 제외 + 관리자 DM 보고
+                    lines[line_no] = None
+                    excluded_titles.append(text[:80])
+                    logger.warning(f"[자가검증] 확인불가(항목 제외): {text[:40]}…")
             else:  # 오류 or 수정문 없는 불일치 → 원문 유지(발행 우선)
                 stats["errors"] += 1
 
         _cache_save(cache)
         _log_to_db(stats)
+        if excluded_titles:
+            _notify_admin_excluded(excluded_titles, briefing_type)
         logger.info(f"[자가검증] 완료 — 검증 {stats['verified']} / 통과 {stats['passed']} / "
                     f"수정 {stats['fixed']} / 확인불가 {stats['unconfirmed']} / "
                     f"오류 {stats['errors']} / 검색 {stats['searches']}회")
-        return "\n".join(lines)
+        return "\n".join(ln for ln in lines if ln is not None)
 
     except Exception as e:
         logger.error(f"[자가검증] 패스 전체 실패 — 원문 그대로 발행: {e}", exc_info=True)

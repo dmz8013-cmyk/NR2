@@ -156,6 +156,13 @@ def generate_political_briefing(articles, is_afternoon=True):
     except Exception:
         fact_context = ""
 
+    # 항목 종결 허용 술어 — config/briefing_layout.json 한 곳에서 관리 (두 봇 공유)
+    try:
+        from briefing_layout import allowed_endings
+        allowed_endings_str = ', '.join(allowed_endings())
+    except Exception:
+        allowed_endings_str = '확정, 체결, 비판, 기각'
+
     prompt = f"""{fact_context}당신은 한국 정치 전문 뉴스 브리핑 AI입니다.
 아래 {len(articles)}개의 정치 뉴스 기사를 분석하여 텔레그램용 정치 브리핑을 작성하세요.
 
@@ -164,44 +171,38 @@ def generate_political_briefing(articles, is_afternoon=True):
 🔥【한방에 정리하는 정치권 이슈 - 반박시니말이맞음({today_str} {time_label})】🔥
 [여기에 기사 내용을 종합한 자극적이고 핵심을 찌르는 한줄 제목을 작성 - 반드시 위 🔥 줄과 별도의 두번째 줄에 작성할 것]
 
-출처: https://buly.kr/7mBN720
-(실시간 카카오톡 오픈채팅)
-
 ⸻⸻⸻⸻
 
 🇰🇷 이재명 정부 🇰🇷
-(이재명 대통령/정부 관련 주요 이슈 3~5개를 각각 '-'로 시작하여 한줄 요약)
+(이재명 대통령/정부 관련 주요 이슈 3~5개를 각각 '▪'로 시작하여 한줄 요약)
 
 ⸻⸻⸻⸻
 
 🟦 더불어민주당 🟦
-(당 내부 이슈, 의원 동향 등 3~5개를 '-'로 요약)
+(당 내부 이슈, 의원 동향 등 3~5개를 '▪'로 요약)
 
 ⸻⸻⸻⸻
 
 🟥 국민의힘 🟥
-(국민의힘 관련 이슈 3~5개를 '-'로 요약)
+(국민의힘 관련 이슈 3~5개를 '▪'로 요약)
 
 ⸻⸻⸻⸻
 
 🎸 비교섭단체 및 기타 정치 🪕
-(조국혁신당, 개혁신당, 새로운미래, 기타 정치 이슈 2~4개를 '-'로 요약)
+(조국혁신당, 개혁신당, 새로운미래, 기타 정치 이슈 2~4개를 '▪'로 요약)
 
 ⸻⸻⸻⸻
 
 🌐 법조 및 국제 🌐
-(검찰 수사, 법원 판결, 외교, 국제 이슈 중 정치 관련 2~4개를 '-'로 요약)
-
-⸻⸻⸻⸻
-
-출처: https://t.me/gazzzza2025
-(텔레그램 실시간 정보방)
-
-⸻⸻⸻⸻
+(검찰 수사, 법원 판결, 외교, 국제 이슈 중 정치 관련 2~4개를 '▪'로 요약)
 
 [작성 규칙]
-1. 각 항목은 '-'로 시작하고 한줄~두줄로 간결하게 (핵심만)
-2. 말투는 단정하고 날카롭게 (예: "~로 파장", "~논란 점화", "~세 과시")
+1. 각 항목은 '▪'로 시작하는 1줄 요약 (핵심만). 섹션 헤더 아래 구분선(─────) 금지
+2. 말투는 단정하고 날카롭게 (예: "~로 파장", "~논란 점화", "~세 과시").
+   전언·풍문 술어 절대 금지: '전해졌다/전해짐/전해진다', '알려졌다/알려짐',
+   '~로 보인다', '~는 관측' — 확인된 사실만. 항목 종결은 명사형(…음/됨/임)
+   또는 사실 서술 술어로 통일 (허용 예: {allowed_endings_str})
+2-1. 출처·참고 링크 블록은 시스템이 발송 시 자동 삽입 — 본문에 '출처:'·URL 줄 금지
 3. 마침표 세 개(...) 대신 반드시 유니코드 말줄임표(…)를 사용
 4. 제공된 기사 제목과 요약을 최대한 활용하여 브리핑을 작성하세요. 기사에 없는 내용을 지어내지는 말되, 제목에서 충분히 유추 가능한 내용은 자연스럽게 서술하세요.
 5. 각 섹션에 해당 기사가 부족하면 1개까지 줄여도 됨. 해당 섹션에 기사가 전혀 없으면 "금일 주요 보도 없음"으로 짧게 처리
@@ -347,14 +348,15 @@ def send_political_briefing(is_afternoon=True):
     except Exception as fc_err:
         logger.error(f"[팩트체크] 실행 실패 (브리핑은 그대로 발송): {fc_err}")
 
-    # nr2.kr 유입 문구 추가
-    nr2_footer = (
-        "\n\n━━━━━━━━━━━━━━━━\n"
-        "📖 오늘 브리핑 전문 + 심층 토론\n"
-        "👉 https://nr2.kr\n"
-        "━━━━━━━━━━━━━━━━"
-    )
-    success = send_telegram_message(briefing + nr2_footer)
+    # 공용 레이아웃 — 헤더(출처 2링크)·푸터(참고 2링크)·섹션 간격 재조립
+    # (config/briefing_layout.json, 정보공유방 브리핑과 동일 템플릿)
+    try:
+        from briefing_layout import apply_layout
+        briefing = apply_layout(briefing)
+    except Exception as lay_err:
+        logger.error(f"[레이아웃] 적용 실패 — 원문 발송: {lay_err}")
+
+    success = send_telegram_message(briefing)
 # DB 저장
     try:
         from app import create_app, db
