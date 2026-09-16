@@ -524,22 +524,13 @@ def generate_cardnews(briefing_text: str, period: str = "",
 
 
 def run_cardnews_safe(briefing_text: str, period: str = "") -> None:
-    """브리핑 발송 로직과 완전히 분리된 안전 래퍼.
+    """[사용 중단 — 2026-09-17] 구 경로: 브리핑 텍스트를 받아 즉시 카드 생성·전송.
 
-    카드뉴스 생성이 어떤 이유로 실패해도 예외를 밖으로 던지지 않는다
-    (브리핑 발송 파이프라인에 영향 금지).
-    """
-    try:
-        if not briefing_text or not briefing_text.strip():
-            logger.warning("[카드뉴스] 입력 브리핑 텍스트가 비어 있음 — 생략")
-            return
-        paths = generate_cardnews(briefing_text, period=period)
-        logger.info(f"[카드뉴스] 완료 ✅ ({len(paths)}장)")
-    except Exception as e:
-        logger.error(f"[카드뉴스] 생성 실패(브리핑 발송에는 영향 없음): {e}", exc_info=True)
+    카드뉴스는 cardnews_daily(고정값 대조 → 관리자 미리보기 → /card_ok 승인) 경로만
+    사용한다. 누가 호출하더라도 아무것도 생성·전송하지 않고 로그만 남긴다."""
+    logger.error("[카드뉴스] run_cardnews_safe 는 사용 중단됨 — cardnews_daily 승인제 경로를 사용하세요")
+    return None
 
-
-# ── 직접 실행 (로컬 렌더 테스트) ──────────────────
 if __name__ == "__main__":
     import sys
 

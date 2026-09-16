@@ -9,8 +9,12 @@ cardnews_daily.py — 누렁이 카드뉴스 일일 파이프라인 (하루 1회
 흐름:
   브리핑 텍스트(저녁+아침) → Claude 로 상위 6개 이슈 선별 + 설명문 + 영어 장면 프롬프트 생성
   → Replicate flux-1.1-pro 로 장면 일러스트 6장 생성
-  → HTML/CSS(v3 템플릿) + Playwright 렌더 → output/cardnews/날짜/
-  → 텔레그램 관리자 채팅으로 전송
+  → HTML/CSS(v3/v4 템플릿) + Playwright 렌더 → output/cardnews/날짜/
+  → 고정값 사전(config/fixed_facts.json) 대조 → 관리자 DM 미리보기(앨범+텍스트)
+  → /card_ok 승인 시에만 채널 발행 (자동발행 없음) / /card_no 폐기
+
+입력 원칙: verify_pass·레이아웃 적용이 끝난 브리핑 최종본만 받는다
+(send_briefing 발송 직후 전달분 또는 DB 저장분 — 둘 다 최종본). 원문 피드 직결 금지.
 
 호출:
   - ai_briefing.send_briefing() 아침 실행 시 run_daily_cardnews_safe()
@@ -90,14 +94,22 @@ PROMPT = """당신은 '누렁이 정보공유방' 카드뉴스 편집장입니�
    외신 카드는 반드시 "외신"
 2. tier: 국내 카드는 "headline" / "core" / "life" / "trend" / "talk", 외신 카드는 "world"
 3. score: 1단계에서 매긴 0~100 정수 (외신은 AESA 점수 × 10)
-4. title: 카드 제목. 구어체로 흥미롭게. 이모지 1개까지 허용.
-   [길이 엄수] 공백 포함 20자 이내 — 카드에서 반드시 한 줄로 렌더되므로
+4. title: 카드 제목. 구어체로 흥미롭게, 최대 임팩트. 이모지 1개까지 허용.
+   [길이 엄수] 공백 포함 20자 이내 — 카드에서 최대 2줄로 렌더되므로
    20자를 넘기면 안 됨. 조사·수식어를 줄여서라도 20자 안에 압축할 것.
-5. desc: 설명 2~3문장. "~했어요/~있어요/~한답니다" 체의 친근한 존댓말.
+5. subtitle: 부제 1줄, 공백 포함 22자 이내. 핵심 수치나 인용 한 토막을 담는 명사형
+   (예: '기준금리 3.00% 동결', '피해자 1인당 10만 원'). 브리핑에 있는 수치만.
+6. bullets: 요점 정확히 3개. 각 25자 이내, 명사형 종결(~확정/~전망/~반발 등, 서술형 '~했어요' 금지).
+   브리핑에 있는 사실과 수치만 사용. 없는 내용 지어내기 절대 금지.
+7. desc: 설명 2~3문장. "~했어요/~있어요/~한답니다" 체의 친근한 존댓말.
    브리핑에 있는 사실과 수치만 사용. 없는 내용 지어내기 절대 금지.
    각 문장은 완결형으로 끝낼 것. 전체 100~140자.
-6. scene_ko: 이 뉴스를 대표하는 일러스트 장면을 한국어로 한 줄 묘사(검수용)
-7. image_prompt: 위 장면을 그릴 영어 프롬프트.
+8. scene_ko: 이 뉴스를 대표하는 일러스트 장면을 한국어로 한 줄 묘사(검수용)
+9. image_prompt: 위 장면을 그릴 영어 프롬프트.
+
+[사실 규칙 — 최우선] 아래 사전과 충돌하는 수치·직함·소속은 브리핑 원문에 있어도 쓰지 말 것.
+사전과 충돌하는 이슈는 사전 값으로 고쳐 쓰거나, 고칠 수 없으면 그 이슈를 제외할 것.
+{facts_block}
 
 [image_prompt 작성 규칙 — 매우 중요]
 - 뉴스 내용을 상징하는 '한 장면'을 사람·사물의 행동으로 묘사할 것.
@@ -125,7 +137,7 @@ PROMPT = """당신은 '누렁이 정보공유방' 카드뉴스 편집장입니�
 결과물은 오직 아래 JSON 으로만 반환하세요. 설명·마크다운 금지:
 {{
   "issues": [
-    {{"cat":"경제","tier":"headline","score":87,"title":"제목","desc":"설명 2~3문장","scene_ko":"장면 묘사","image_prompt":"english scene"}}
+    {{"cat":"경제","tier":"headline","score":87,"title":"제목","subtitle":"부제 1줄","bullets":["요점1","요점2","요점3"],"desc":"설명 2~3문장","scene_ko":"장면 묘사","image_prompt":"english scene"}}
   ]
 }}
 issues 배열은 정확히 {total}개(국내 {n}개{world_count_note})여야 합니다.
@@ -135,6 +147,60 @@ issues 배열은 정확히 {total}개(국내 {n}개{world_count_note})여야 합
 """
 
 VALID_CATS = {"경제", "정치", "사회국제", "생활문화", "AI", "외신"}
+DRAFT_STATE_KEY = "cardnews_draft"      # g2b_state — 미리보기 후 /card_ok 대기 초안
+
+
+def _facts_block() -> str:
+    """고정값 사전(fixed_facts.json) + 브리핑 팩트사전(facts.json) → 프롬프트 주입 블록.
+
+    브리핑은 발행 전 verify_pass 로 검증되지만, 카드 문구는 여기서 Claude 가 다시
+    써 내려가므로 같은 사전을 한 번 더 주입해 '재작성 중 오류 재유입'을 막는다.
+    실패해도 빈 문자열 — 카드 생성은 계속."""
+    parts = []
+    try:
+        from fixed_facts import fixed_facts_context
+        fx = fixed_facts_context()
+        if fx:
+            parts.append(fx)
+    except Exception as e:
+        logger.warning(f"[카드뉴스] 고정값 사전 주입 실패: {e}")
+    try:
+        from ai_briefing import _facts_block as _briefing_facts
+        fb = _briefing_facts()
+        if fb:
+            parts.append(fb)
+    except Exception as e:
+        logger.warning(f"[카드뉴스] 팩트사전 주입 실패: {e}")
+    return "\n\n".join(parts)
+
+
+def _clean_bullets(raw, desc: str | None) -> list[str]:
+    """요점 3개 정규화 — 모델이 누락하면 desc 문장으로 폴백(v3 템플릿 호환)."""
+    out = []
+    if isinstance(raw, list):
+        out = [str(b).strip().lstrip("•▪·-– ").strip() for b in raw if str(b).strip()]
+    if len(out) < 3 and desc:
+        for sent in [x.strip() for x in str(desc).replace("!", ".").split(".") if x.strip()]:
+            if len(out) >= 3:
+                break
+            if sent not in out:
+                out.append(sent[:25])
+    return out[:3]
+
+
+def _issues_text(issues: list[dict]) -> str:
+    """고정값 대조·미리보기용 카드 텍스트 전문 (제목/부제/요점/설명)."""
+    blocks = []
+    for i, it in enumerate(issues, 1):
+        lines = [f"[{i}] ({it.get('cat','')}) {it.get('title','')}"]
+        if it.get("subtitle"):
+            lines.append(f"  · {it['subtitle']}")
+        for b in it.get("bullets") or []:
+            lines.append(f"  ▪ {b}")
+        if it.get("desc"):
+            lines.append(f"  {it['desc']}")
+        blocks.append("\n".join(lines))
+    return "\n".join(blocks)
 
 
 def collect_aesa_top3(limit: int = NUM_WORLD) -> list[dict]:
@@ -219,7 +285,7 @@ def select_issues(briefing_text: str, n: int = NUM_ISSUES,
     prompt_text = PROMPT.format(
         n=n, total=total, briefing=briefing_text,
         world_intro=world_intro, world_section=world_section,
-        world_count_note=world_count_note,
+        world_count_note=world_count_note, facts_block=_facts_block(),
     )
     # JSON 파싱 실패(따옴표 이스케이프 누락 등) 시 1회 재요청 — 8/4 실측 사례 대응
     data = None
@@ -259,6 +325,8 @@ def select_issues(briefing_text: str, n: int = NUM_ISSUES,
             "tier": tier,
             "score": score,
             "title": (it.get("title") or "").strip(),
+            "subtitle": (it.get("subtitle") or "").strip(),
+            "bullets": _clean_bullets(it.get("bullets"), it.get("desc")),
             "desc": (it.get("desc") or "").strip(),
             "scene_ko": (it.get("scene_ko") or "").strip(),
             "image_prompt": (it.get("image_prompt") or "").strip(),
@@ -329,24 +397,45 @@ def _notify_admin(text: str) -> None:
         logger.warning(f"[카드뉴스] 관리자 알림 전송 실패: {e}")
 
 
+def _template():
+    """카드 템플릿 선택 — CARDNEWS_TEMPLATE=v4(위계형·그라데이션) / 기본 v3.
+    v4 는 샘플 승인 후 기본값으로 전환한다."""
+    if os.environ.get("CARDNEWS_TEMPLATE", "v3").lower() == "v4":
+        from cardnews_v4 import build_html as b4, hero_for as h4
+        return "v4", b4, h4
+    return "v3", build_html, _hero_for
+
+
+def _publish_target() -> str | None:
+    """/card_ok 발행 대상 채팅 — CARDNEWS_CHANNEL_ID 우선, 없으면 브리핑방(TELEGRAM_CHAT_ID)."""
+    return os.environ.get("CARDNEWS_CHANNEL_ID") or os.environ.get("TELEGRAM_CHAT_ID")
+
+
 def generate_daily_cardnews(briefing_text: str,
                             chat_id: str | None = None,
-                            world_articles: list[dict] | None = None) -> tuple[list[str], bool]:
-    """브리핑 텍스트 → 15장(표지+국내10+외신3+엔딩) 생성 → 관리자 텔레그램 전송.
+                            world_articles: list[dict] | None = None,
+                            source: str = "") -> tuple[list[str], bool]:
+    """브리핑 최종본 → 15장(표지+국내10+외신3+엔딩) 생성 → **관리자 미리보기 DM** → 초안 대기.
 
+    발행은 하지 않는다. 관리자가 미리보기(카드 앨범 + 텍스트 전문 + 고정값 대조 결과)를
+    확인하고 /card_ok 를 보내야 publish_card_draft() 가 채널로 내보낸다.
+    이미지는 정정이 어려우므로 자동발행 금지(2026-09-16 교섭단체 30석·천하람 소속 오류 민원).
+
+    source: 호출부가 입력 출처를 명시 — 'verified_briefing'(발송 직후 최종본) 또는
+            'db_briefing'(DB 저장분 = verify_pass·레이아웃 적용 후 저장된 최종본).
+            그 외 값(원문 피드 등)은 거부한다.
     world_articles: 외신 기사 목록. None이면 DB에서 자동 수집(프로덕션 경로).
-    외신이 없으면 12장으로 폴백.
 
-    반환: (PNG 경로 목록, 전송 성공 여부).
-    2026-08-02 06:04 사고 교훈: 전송 실패가 반환값으로만 알려지므로
-    호출부는 반드시 sent를 확인해야 한다(여기서 관리자 알림까지 처리).
+    반환: (PNG 경로 목록, 미리보기 전송 성공 여부).
     """
+    if source not in ("verified_briefing", "db_briefing"):
+        raise ValueError(f"카드뉴스 입력 출처 거부: {source!r} — verify_pass 통과 최종본만 허용")
     if world_articles is None:
         world_articles = collect_aesa_top3()
 
     issues = select_issues(briefing_text, world_articles=world_articles)
 
-    # 카드 표시 정보 주입 (v3 템플릿은 tier_label/display_no만 참조)
+    # 카드 표시 정보 주입 (템플릿은 tier_label/display_no만 참조)
     #  - 국내 카드: 01~10, 외신 카드: 별도로 01~03 재시작
     domestic_no = world_no = 0
     for iss in issues:
@@ -358,6 +447,19 @@ def generate_daily_cardnews(briefing_text: str,
             domestic_no += 1
             iss["display_no"] = domestic_no
 
+    # 고정값 사전 대조 — 위반 시 초안은 만들되 '발행 보류' 표시 (/card_ok 거부)
+    violations = []
+    try:
+        from fixed_facts import check_text
+        violations = check_text(_issues_text(issues))
+        if violations:
+            logger.warning(f"[카드뉴스] 고정값 불일치 {len(violations)}건 — 발행 보류: "
+                           + ", ".join(v["id"] for v in violations))
+    except Exception as e:
+        logger.warning(f"[카드뉴스] 고정값 대조 실패(보류 없이 진행): {e}")
+
+    tpl_name, _build_html, _hero = _template()
+
     # 장면 일러스트 생성 (실패한 장은 플레이스홀더로 대체되어 렌더는 계속)
     # 요청 간격 12초: 무결제 계정 분당 6건 제한 대응 (결제 등록 후에도 무해)
     import time
@@ -366,10 +468,10 @@ def generate_daily_cardnews(briefing_text: str,
         logger.info(f"[카드뉴스] 일러스트 {i}/{len(issues)} 생성 중… {iss['scene_ko'][:30]}")
         if i > 1:
             time.sleep(12)
-        heros.append(_hero_for(iss))
+        heros.append(_hero(iss))
 
     now = datetime.now(KST)
-    html = build_html(issues, heros, now.strftime("%Y.%m.%d"))
+    html = _build_html(issues, heros, now.strftime("%Y.%m.%d"))
 
     out_dir = os.path.join(_HERE, "output", "cardnews", now.strftime("%Y-%m-%d"))
 
@@ -393,26 +495,99 @@ def generate_daily_cardnews(briefing_text: str,
     target = chat_id or os.environ.get("TELEGRAM_ADMIN_CHAT_ID", "5132309076")
     caption = f"🗞️ 누렁이 카드뉴스 · {now.strftime('%Y년 %m월 %d일')}"
 
-    # 부분 실패(일러스트 생성 실패 → 플레이스홀더 카드) 감지 시 관리자에게 별도 알림
     failed = sum(1 for h in heros if not h)
+    preview_caption = f"🔍 [미리보기] {caption} ({len(paths)}장·{tpl_name})"
     if failed:
-        caption += f" (⚠️ 일러스트 {failed}장 생성 실패)"
-        _notify_admin(
-            f"⚠️ <b>카드뉴스 부분 실패</b>\n\n"
-            f"일러스트 {failed}/{len(heros)}장이 생성되지 않아 "
-            f"플레이스홀더로 대체됐습니다.\n"
-            f"/cardnews 로 재생성할 수 있습니다."
-        )
+        preview_caption += f" ⚠️ 일러스트 {failed}장 실패"
 
-    sent = send_cards_to_telegram(paths, target, caption=caption)
+    # 초안 저장 — /card_ok 가 이 상태를 읽어 발행. 파일은 워커 컨테이너 디스크에 있으므로
+    # 재배포 후에는 /cardnews 로 다시 생성해야 한다.
+    draft = {
+        "date": now.strftime("%Y-%m-%d"), "created_at": now.isoformat(),
+        "paths": paths, "caption": caption, "template": tpl_name,
+        "violations": violations, "failed_illust": failed,
+        "text": _issues_text(issues),
+    }
+    try:
+        from g2b_tracker import state_set
+        state_set(DRAFT_STATE_KEY, json.dumps(draft, ensure_ascii=False))
+    except Exception as e:
+        logger.error(f"[카드뉴스] 초안 상태 저장 실패 — /card_ok 불가, 재생성 필요: {e}")
+
+    # 미리보기: (1) 카드 앨범 → 관리자 DM, (2) 텍스트 전문 + 고정값 대조 + 승인 안내
+    sent = send_cards_to_telegram(paths, target, caption=preview_caption)
+    try:
+        from fixed_facts import format_violations
+        verdict = format_violations(violations)
+    except Exception:
+        verdict = ""
+    pub = _publish_target() or "(미설정 — CARDNEWS_CHANNEL_ID 또는 TELEGRAM_CHAT_ID 필요)"
+    head = (f"🔍 <b>[미리보기] 누렁이 카드뉴스</b> {now.strftime('%m/%d')} · {len(paths)}장 · 템플릿 {tpl_name}\n"
+            f"발행 대상: {pub}\n{verdict}\n"
+            + ("승인: /card_ok · 폐기: /card_no" if not violations
+               else "보류 상태 — 수정 후 /cardnews 재생성 권장 · 강행: /card_ok force · 폐기: /card_no")
+            + "\n\n")
+    body = draft["text"]
+    try:
+        from ai_briefing import _split_text
+        chunks = _split_text(head + body, limit=4000)
+    except Exception:
+        chunks = [(head + body)[:4000]]
+    for ch in chunks:
+        try:
+            from app.utils.telegram_notify import send_telegram_message
+            send_telegram_message(ch, chat_id=target)
+        except Exception as e:
+            logger.warning(f"[카드뉴스] 미리보기 텍스트 전송 실패: {e}")
+
     if not sent:
-        logger.error("[카드뉴스] 텔레그램 전송 최종 실패 — 관리자 알림 발송")
+        logger.error("[카드뉴스] 미리보기 앨범 전송 최종 실패 — 관리자 알림 발송")
         _notify_admin(
-            "❌ <b>카드뉴스 전송 실패</b>\n\n"
-            f"8장 생성은 완료됐으나 텔레그램 업로드가 실패했습니다.\n"
+            "❌ <b>카드뉴스 미리보기 전송 실패</b>\n\n"
+            f"{len(paths)}장 생성은 완료됐으나 텔레그램 업로드가 실패했습니다.\n"
             "/cardnews 로 재시도할 수 있습니다."
         )
     return paths, sent
+
+
+def publish_card_draft(force: bool = False) -> str:
+    """/card_ok — 미리보기 승인된 초안을 발행 채널로 전송. 고정값 불일치 시 force 없이는 거부."""
+    try:
+        from g2b_tracker import state_get, state_set
+        raw = state_get(DRAFT_STATE_KEY)
+        if not raw or raw == "null":
+            return "⚠️ 발행 대기 중인 카드뉴스 초안이 없습니다. /cardnews 로 생성하세요."
+        draft = json.loads(raw)
+        if draft.get("violations") and not force:
+            ids = ", ".join(v["id"] for v in draft["violations"])
+            return (f"🚫 고정값 불일치({ids})로 발행 보류 상태입니다.\n"
+                    "수정 후 /cardnews 재생성을 권장합니다. 그래도 내보내려면 /card_ok force")
+        paths = [p for p in draft.get("paths", []) if os.path.exists(p)]
+        if len(paths) != len(draft.get("paths", [])):
+            state_set(DRAFT_STATE_KEY, "null")
+            return ("⚠️ 초안 이미지 파일이 없습니다(재배포로 소실). /cardnews 로 다시 생성하세요.")
+        target = _publish_target()
+        if not target:
+            return "⚠️ 발행 대상 미설정 — CARDNEWS_CHANNEL_ID(또는 TELEGRAM_CHAT_ID) 환경변수 필요."
+        sent = send_cards_to_telegram(paths, target, caption=draft.get("caption", ""))
+        if not sent:
+            return "❌ 채널 전송 실패 — 초안은 유지됩니다. 잠시 후 /card_ok 재시도."
+        state_set(DRAFT_STATE_KEY, "null")
+        note = " (⚠️ 고정값 불일치 강행)" if draft.get("violations") else ""
+        return f"✅ 카드뉴스 {len(paths)}장 발행 완료 → {target}{note}"
+    except Exception as e:
+        logger.error(f"[카드뉴스] 발행 실패: {e}", exc_info=True)
+        return f"❌ 발행 실패: {e}"
+
+
+def discard_card_draft() -> str:
+    """/card_no — 초안 폐기 (이미지 파일은 남겨 둔다)."""
+    try:
+        from g2b_tracker import state_set
+        state_set(DRAFT_STATE_KEY, "null")
+    except Exception as e:
+        return f"❌ 폐기 실패: {e}"
+    return "🗑 카드뉴스 초안 폐기 완료."
 
 
 def run_daily_cardnews_safe(morning_briefing: str | None = None) -> None:
@@ -426,11 +601,12 @@ def run_daily_cardnews_safe(morning_briefing: str | None = None) -> None:
             logger.warning("[카드뉴스] 사용할 브리핑 텍스트가 없음 — 생략")
             _notify_admin("⚠️ <b>카드뉴스 생성 생략</b>\n\n사용할 브리핑 텍스트를 찾지 못했습니다.")
             return
-        paths, sent = generate_daily_cardnews(text)
+        paths, sent = generate_daily_cardnews(
+            text, source="verified_briefing" if morning_briefing else "db_briefing")
         if sent:
-            logger.info(f"[카드뉴스] 완료 ✅ ({len(paths)}장 생성·전송)")
+            logger.info(f"[카드뉴스] 완료 ✅ ({len(paths)}장 생성·미리보기 전송, /card_ok 대기)")
         else:
-            logger.error(f"[카드뉴스] 생성 {len(paths)}장 완료, 전송 실패 ❌ (관리자 알림 발송됨)")
+            logger.error(f"[카드뉴스] 생성 {len(paths)}장 완료, 미리보기 전송 실패 ❌ (관리자 알림 발송됨)")
     except Exception as e:
         logger.error(f"[카드뉴스] 생성 실패(브리핑 발송에는 영향 없음): {e}", exc_info=True)
         _notify_admin(

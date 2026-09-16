@@ -213,26 +213,35 @@ def handle_bias_command(chat_id, args, app):
 # /cardnews — 최신 브리핑으로 카드뉴스 수동 생성
 # ──────────────────────────────────────────────
 
+def _is_cardnews_admin(chat_id) -> bool:
+    admin_id = os.environ.get('TELEGRAM_ADMIN_CHAT_ID', '5132309076')
+    return str(chat_id) == str(admin_id)
+
+
 def handle_cardnews_command(chat_id, app):
     """최신 AI 브리핑을 카드뉴스 8장으로 생성해 관리자 채팅에 전송.
 
     카드 생성/전송은 cardnews 모듈이 담당(관리자 채팅에만 발송).
     여기서는 최신 브리핑 텍스트를 DB에서 꺼내 넘기고 진행 상황만 알린다.
     """
-    tg_send(chat_id, "🗞️ 카드뉴스 생성 중… 브리핑 분석 후 일러스트 6장을 그립니다. (2~3분 소요)")
+    if not _is_cardnews_admin(chat_id):
+        tg_send(chat_id, "⚠️ 관리자 전용 명령입니다.")
+        return
+    tg_send(chat_id, "🗞️ 카드뉴스 생성 중… 브리핑 최종본 분석 후 일러스트를 그립니다. (3~5분 소요)\n"
+                     "생성 후 미리보기를 보내드리며, /card_ok 승인 전에는 발행되지 않습니다.")
     try:
         from cardnews_daily import collect_today_briefings, generate_daily_cardnews
-        text = collect_today_briefings()
+        text = collect_today_briefings()   # DB 저장분 = verify_pass·레이아웃 적용 최종본
         if not text.strip():
             tg_send(chat_id, "⚠️ 최근 AI 브리핑을 찾을 수 없습니다.")
             return
 
-        # 명령을 보낸 채팅(관리자)으로 직접 전송
-        paths, sent = generate_daily_cardnews(text, chat_id=str(chat_id))
+        # 미리보기는 명령을 보낸 관리자 채팅으로
+        paths, sent = generate_daily_cardnews(text, chat_id=str(chat_id), source="db_briefing")
         if sent:
-            tg_send(chat_id, f"✅ 카드뉴스 {len(paths)}장 생성·전송 완료")
+            tg_send(chat_id, f"✅ 카드뉴스 {len(paths)}장 생성 — 미리보기 확인 후 /card_ok 또는 /card_no")
         else:
-            tg_send(chat_id, f"❌ 카드뉴스 {len(paths)}장 생성됐으나 앨범 전송 실패 — 다시 /cardnews 시도해주세요.")
+            tg_send(chat_id, f"❌ 카드뉴스 {len(paths)}장 생성됐으나 미리보기 전송 실패 — 다시 /cardnews 시도해주세요.")
     except Exception as e:
         logger.error(f'[WebBot] /cardnews 처리 오류: {e}')
         tg_send(chat_id, f"❌ 카드뉴스 생성 실패: {e}")
@@ -376,6 +385,20 @@ def poll_commands(app):
             elif cmd in ('/cardnews', '/cardnews@nr2_bot'):
                 logger.info(f'[WebBot] /cardnews 수신: chat_id={chat_id}')
                 handle_cardnews_command(chat_id, app)
+
+            elif cmd in ('/card_ok', '/card_ok@nr2_bot'):
+                logger.info(f'[WebBot] /card_ok 수신: chat_id={chat_id}, args={args}')
+                if _is_cardnews_admin(chat_id):
+                    from cardnews_daily import publish_card_draft
+                    tg_send(chat_id, publish_card_draft(force=(args.strip().lower() == 'force')))
+                else:
+                    tg_send(chat_id, "⚠️ 관리자 전용 명령입니다.")
+
+            elif cmd in ('/card_no', '/card_no@nr2_bot'):
+                logger.info(f'[WebBot] /card_no 수신: chat_id={chat_id}')
+                if _is_cardnews_admin(chat_id):
+                    from cardnews_daily import discard_card_draft
+                    tg_send(chat_id, discard_card_draft())
 
             elif cmd in ('/fact', '/fact@nr2_bot'):
                 logger.info(f'[WebBot] /fact 수신: chat_id={chat_id}')
