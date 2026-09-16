@@ -1,14 +1,13 @@
 {% extends "layouts/base.html" %}
 {% set first_sum = posts[0][4][:40] if posts else '' %}
-{% block title %}누렁이 시그널 {{ md }} | NR2{% endblock %}
-{% block og_title %}누렁이 시그널 {{ md }} — {{ first_sum }}{% endblock %}
-{% block og_desc %}세계를 움직이는 150인의 오늘 — {{ posts|length }}건 큐레이션{% endblock %}
+{% block title %}인터내셔널 시그널 {{ md }} | NR2{% endblock %}
+{% block og_title %}인터내셔널 시그널 {{ md }} — {{ first_sum }}{% endblock %}
+{% block og_desc %}인터내셔널 시그널 — {{ posts|length }}건 큐레이션{% endblock %}
 {% block content %}
 <div class="max-w-2xl mx-auto px-4 py-8">
-  <h1 class="text-2xl sm:text-3xl font-bold mb-1">📡 누렁이 시그널
+  <h1 class="text-2xl sm:text-3xl font-bold mb-1">📡 인터내셔널 시그널
     {% if date %}<span class="text-gray-400 font-normal">{{ date }}</span>{% endif %}</h1>
   <div class="flex items-center gap-3 mb-6">
-    <p class="text-gray-500 text-sm">세계를 움직이는 150인의 오늘</p>
     <button onclick="navigator.clipboard.writeText(location.href).then(()=>{this.textContent='✅ 복사됨'})"
             class="ml-auto text-xs border rounded-full px-3 py-1 text-gray-600">🔗 링크 복사</button>
   </div>

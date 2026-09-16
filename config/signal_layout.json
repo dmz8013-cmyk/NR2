@@ -1,0 +1,24 @@
+{
+  "_meta": {
+    "description": "인터내셔널 시그널(구 누렁이 시그널) 텍스트 카드 전용 레이아웃. 07:00 미리보기 DM 본문과 /leaders_ok 발행본(텔레 채널)이 같은 카드를 쓴다. 브리핑 2종(briefing_layout.json)과는 별개.",
+    "updated": "2026-09-16",
+    "placeholders": "{title} {sep} {web_url} {kakao} {tele} — header_lines/footer_lines 안에서 치환"
+  },
+  "title_format": "📡 인터내셔널 시그널 | {mm}/{dd}",
+  "separator": "━━━━━━━━━━━━━━━━",
+  "item_gap_lines": 1,
+  "header_lines": [
+    "{title}",
+    "",
+    "{sep}",
+    ""
+  ],
+  "footer_lines": [
+    "",
+    "{sep}",
+    "",
+    "원문 링크·전체 보기 → {web_url}",
+    "누렁이 정보방(카카오톡) {kakao}",
+    "누렁이 정보방(텔레그램) {tele}"
+  ]
+}

@@ -1,7 +1,7 @@
 """
-leader_watch.py — 누렁이 시그널 (발행기 + 수동 입력 모드)
+leader_watch.py — 인터내셔널 시그널(구 누렁이 시그널) (발행기 + 수동 입력 모드)
 
-'누렁이 시그널 — 세계를 움직이는 150인의 오늘':
+'인터내셔널 시그널' (카드 제목; 관리자 DM 운영 메시지는 '누렁이 시그널' 표기 유지):
 X(트위터)의 AI·지정학 거물 150인 발언을 큐레이션해 발행하는 모듈.
 기존 인프라(Postgres db_conn / Claude 채점 / verify_pass / 텔레그램 발행 /
 nr2.kr 웹)를 재사용하며 새 서비스는 만들지 않는다.
@@ -9,6 +9,7 @@ nr2.kr 웹)를 재사용하며 새 서비스는 만들지 않는다.
 출력 채널 2종:
   · 텍스트 버전(텔레 AESA 채널·카톡 복사용) — 항목별 원문 링크 없음,
     마크다운·괄호 링크 금지, 이모지는 헤더 📡 하나만
+    레이아웃: config/signal_layout.json (브리핑 2종 briefing_layout.json과 분리)
   · 웹 버전(nr2.kr/signal/YYYY-MM-DD) — 동일 본문 + 항목별 원문 X 링크 병기
 
 편집 규칙: X status 링크 없는 항목 폐기 → 채점(7점 컷) → 동일 이벤트
@@ -49,10 +50,34 @@ MAX_ITEMS = 8                          # 텍스트 버전 총 5~8개 — 채우�
 DRAFT_STATE_KEY = "leaders_draft"
 AWAIT_STATE_KEY = "leaders_await"
 
-PRODUCT_NAME = "누렁이 시그널"
-TAGLINE = "세계를 움직이는 150인의 오늘"
+PRODUCT_NAME = "인터내셔널 시그널"     # 카드 제목 (관리자 DM 운영 헤더는 '누렁이 시그널' 유지)
 SEP = "━" * 16
 WEB_BASE = "nr2.kr/signal"
+TELEGRAM_LIMIT = 4000                  # 텔레 4096 한도 여유분
+
+# 시그널 전용 카드 레이아웃 — config/signal_layout.json (브리핑 2종의
+# briefing_layout.json과 분리). 로드 실패 시 아래 기본값으로 발행 — 중단 경로 없음.
+LAYOUT_PATH = os.path.join(_HERE, "config", "signal_layout.json")
+_LAYOUT_DEFAULTS = {
+    "title_format": f"📡 {PRODUCT_NAME} | {{mm}}/{{dd}}",
+    "separator": SEP,
+    "item_gap_lines": 1,
+    "header_lines": ["{title}", "", "{sep}", ""],
+    "footer_lines": ["", "{sep}", "",
+                     "원문 링크·전체 보기 → {web_url}",
+                     "누렁이 정보방(카카오톡) {kakao}",
+                     "누렁이 정보방(텔레그램) {tele}"],
+}
+
+
+def load_signal_layout() -> dict:
+    try:
+        with open(LAYOUT_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+        return {k: data.get(k, v) for k, v in _LAYOUT_DEFAULTS.items()}
+    except Exception as e:
+        logger.warning(f"[시그널] 레이아웃 설정 로드 실패 — 기본값 사용: {e}")
+        return dict(_LAYOUT_DEFAULTS)
 
 # 원문 링크 강제: 실제 X status 링크만 인정 (모델이 지어낸 자리표시자
 # 'https://x.com/...' 류 차단)
@@ -63,10 +88,9 @@ def valid_post_url(url: str) -> bool:
     return bool(url and STATUS_URL_RE.match(url.strip()))
 
 
-def _cta_lines() -> list[str]:
-    kakao = os.environ.get("KAKAO_LINK", "https://buly.kr/7mBN720")
-    tele = os.environ.get("TELE_LINK", "https://t.me/gazzzza2025")
-    return [f"누렁이 정보방(카카오톡) {kakao}", f"누렁이 정보방(텔레그램) {tele}"]
+def _cta_links() -> tuple[str, str]:
+    return (os.environ.get("KAKAO_LINK", "https://buly.kr/7mBN720"),
+            os.environ.get("TELE_LINK", "https://t.me/gazzzza2025"))
 
 
 def admin_chat_id() -> str:
@@ -344,18 +368,53 @@ def cluster_items(items: list[dict]) -> tuple[list[dict], list[dict]]:
 def build_text_card(items: list[dict], date_iso: str) -> str:
     """텍스트 버전(텔레 채널·카톡 복사용) — 항목별 링크 없음, 이모지는 📡 하나.
 
+    미리보기 DM 본문과 /leaders_ok 발행본이 이 결과(초안 card)를 그대로 공유한다.
+    레이아웃은 config/signal_layout.json:
+      제목 / ━ 구분선 / ▪ 항목(사이 빈 줄 1) / ━ 구분선 / 원문 링크 / 카톡 / 텔레
     마크다운·괄호 링크 문법 금지: URL은 순수 문자열로만 포함.
     """
+    lay = load_signal_layout()
     dt = datetime.strptime(date_iso, "%Y-%m-%d")
-    lines = [f"📡 {PRODUCT_NAME} | {dt.month:02d}/{dt.day:02d}", TAGLINE, ""]
-    lines += _cta_lines()
-    lines += ["", SEP, ""]
-    for it in items:
-        lines.append(f"▪ {_who_prefix(it)}: {it['summary_ko']}")
-    lines += ["", SEP, ""]
-    lines.append(f"원문 링크·전체 보기 → {WEB_BASE}/{date_iso}")
-    lines += _cta_lines()
+    kakao, tele = _cta_links()
+    ctx = {
+        "title": lay["title_format"].format(mm=f"{dt.month:02d}", dd=f"{dt.day:02d}"),
+        "sep": lay["separator"],
+        "web_url": f"{WEB_BASE}/{date_iso}",
+        "kakao": kakao, "tele": tele,
+    }
+    gap = [""] * max(0, int(lay.get("item_gap_lines", 1)))
+    body: list[str] = []
+    for i, it in enumerate(items):
+        if i:
+            body += gap
+        # 항목 내부 개행은 그대로 유지
+        body.append(f"▪ {_who_prefix(it)}: {it['summary_ko']}")
+    lines = ([ln.format(**ctx) for ln in lay["header_lines"]] + body
+             + [ln.format(**ctx) for ln in lay["footer_lines"]])
     return "\n".join(lines)
+
+
+def split_card(card: str, limit: int = TELEGRAM_LIMIT) -> list[str]:
+    """텔레 한도 초과 시 분할 — 항목 경계(빈 줄) 우선, 없으면 줄바꿈, 최후 강제.
+
+    항목 8개 × 요약 ~200자면 한도에 못 미치므로 실제로는 거의 단일 청크.
+    """
+    if len(card) <= limit:
+        return [card]
+    chunks: list[str] = []
+    text = card
+    while text:
+        if len(text) <= limit:
+            chunks.append(text)
+            break
+        cut = text.rfind("\n\n", 0, limit)      # 항목 경계
+        if cut <= 0:
+            cut = text.rfind("\n", 0, limit)     # 줄 경계
+        if cut <= 0:
+            cut = limit
+        chunks.append(text[:cut].rstrip("\n"))
+        text = text[cut:].lstrip("\n")
+    return [c for c in chunks if c]
 
 
 def _verify_items(items: list[dict]) -> None:
@@ -509,13 +568,12 @@ def publish_draft() -> str:
         # (a) 텔레 AESA 채널 (기존 발행 경로 재사용)
         sent = False
         try:
-            from ai_briefing import _split_text
             import requests
             token = os.environ.get("TELEGRAM_BOT_TOKEN")
             channel = os.environ.get("AESA_TELEGRAM_CHANNEL_ID",
                                      os.environ.get("TELEGRAM_CHAT_ID"))
             if token and channel:
-                for chunk in _split_text(card, limit=4000):
+                for chunk in split_card(card, limit=TELEGRAM_LIMIT):
                     r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
                                       json={"chat_id": channel, "text": chunk,
                                             "disable_web_page_preview": True}, timeout=30)
