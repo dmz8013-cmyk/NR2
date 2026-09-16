@@ -530,11 +530,15 @@ async def send_news():
             for art in cross:
                 save_ranking_to_db(art)
 
-            # 나머지 네이버 랭킹도 저장
+            # 나머지 네이버 랭킹도 저장 — 섹션 페이지 4곳이 같은 기사를 반복 반환하므로
+            # 링크 기준 1회만 저장(ranking_hits 가 수집 회차 단위로만 늘도록)
             cross_links = {a['link'] for a in cross}
+            seen = set()
             for art in naver_ranking:
-                if art['link'] not in cross_links:
-                    save_ranking_to_db(art)
+                if art['link'] in cross_links or art['link'] in seen:
+                    continue
+                seen.add(art['link'])
+                save_ranking_to_db(art)
 
             print(f"[랭킹] 완료 — 네이버 {len(naver_ranking)}건, 다음 {len(daum_ranking)}건, 교집합 {len(cross)}건")
         except Exception as e:
@@ -702,25 +706,45 @@ def cross_platform_ranking(naver_articles, daum_articles):
     return cross
 
 
+_RANKING_COLS_READY = False
+
+
+def _ensure_ranking_cols(cur):
+    """랭킹 주목도 컬럼(노출 횟수·최근 노출) — 카드뉴스 주목도 선별용. 1회만 시도."""
+    global _RANKING_COLS_READY
+    if _RANKING_COLS_READY:
+        return
+    cur.execute("ALTER TABLE news_articles ADD COLUMN IF NOT EXISTS ranking_hits INTEGER DEFAULT 1")
+    cur.execute("ALTER TABLE news_articles ADD COLUMN IF NOT EXISTS ranking_last_seen TIMESTAMP")
+    _RANKING_COLS_READY = True
+
+
 def save_ranking_to_db(art):
-    """랭킹 기사를 news_articles에 저장 (무조건 저장, 키워드 필터 X)"""
+    """랭킹 기사를 news_articles에 저장 (무조건 저장, 키워드 필터 X).
+
+    같은 URL이 다시 잡히면 ranking_hits +1 · ranking_last_seen 갱신 — 10분 주기 수집에서
+    '얼마나 오래 상위권에 머물렀는지'가 트래픽 대용 지표가 된다(카드뉴스 주목도 선별)."""
     conn = _get_db_conn()
     if not conn:
         return
     try:
         bias = get_media_bias(art['press'])
         cur = conn.cursor()
+        _ensure_ranking_cols(cur)
         is_cross = art.get('is_cross_platform', False)
         cur.execute(
             """INSERT INTO news_articles
                (title, url, source, source_political, source_geopolitical, source_economic,
-                is_ranking, ranking_section, ranking_rank, is_cross_platform, is_visible, submitted_by, created_at)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, 1, NOW())
+                is_ranking, ranking_section, ranking_rank, is_cross_platform, is_visible, submitted_by, created_at,
+                ranking_hits, ranking_last_seen)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE, 1, NOW(), 1, NOW())
                ON CONFLICT (url) DO UPDATE SET
                  is_ranking = EXCLUDED.is_ranking,
                  ranking_section = EXCLUDED.ranking_section,
-                 ranking_rank = EXCLUDED.ranking_rank,
-                 is_cross_platform = EXCLUDED.is_cross_platform""",
+                 ranking_rank = LEAST(COALESCE(news_articles.ranking_rank, 99), EXCLUDED.ranking_rank),
+                 is_cross_platform = news_articles.is_cross_platform OR EXCLUDED.is_cross_platform,
+                 ranking_hits = COALESCE(news_articles.ranking_hits, 1) + 1,
+                 ranking_last_seen = NOW()""",
             (art['title'], art['link'], art['press'],
              bias['political'], bias['geopolitical'], bias['economic'],
              True, art['section'], art.get('rank'), is_cross)

@@ -57,6 +57,37 @@ def test_legacy_path_disabled():
     assert cardnews.run_cardnews_safe("텍스트") is None
 
 
+def test_window_start_and_label():
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    now = datetime(2026, 9, 17, 6, 0, tzinfo=ZoneInfo("Asia/Seoul"))
+    ws = cd.window_start(now)
+    assert (ws.month, ws.day, ws.hour, ws.minute) == (9, 16, 17, 0)
+    assert cd._window_label(now) == "09/16 17:00 ~ 09/17 06:00 KST"
+
+
+def test_ranking_cluster_and_format():
+    rows = [
+        {"title": "[단독] 코스피 17% 급등…역대 최대", "press": "A일보", "rank": 1, "hits": 30, "section": "경제"},
+        {"title": "코스피 17% 급등 역대 최대 상승폭", "press": "B뉴스", "rank": 2, "hits": 12, "section": "경제"},
+        {"title": "코스피 급등, 역대 최대 상승폭 기록(종합)", "press": "A일보", "rank": 3, "hits": 5, "section": "경제"},
+        {"title": "교섭단체 요건 20석 유지 확정", "press": "C신문", "rank": 1, "hits": 40, "section": "정치"},
+    ]
+    cl = cd.cluster_ranking_rows(rows)
+    assert len(cl) == 2
+    assert cl[0]["presses"] == ["A일보", "B뉴스"] and cl[0]["hits"] == 47 and cl[0]["best_rank"] == 1
+    assert "코스피" in cl[0]["title"]
+    blk = cd.format_ranking_block(cl)
+    assert blk.startswith("[주목도 신호 ①") and "(언론사 2곳 · 노출 47회 · 최고 1위)" in blk
+    assert "2. (언론사 1곳 · 노출 40회" in blk
+    assert cd.format_scoop_block([{"title": "t", "source": "s"}]).startswith("[주목도 신호 ②")
+    assert cd.format_ranking_block([]) == "" and cd.format_scoop_block([]) == ""
+
+
+def test_prompt_mentions_window_and_attention():
+    assert "주목도 (40점)" in cd.PROMPT and "{window}" in cd.PROMPT and "basis" in cd.PROMPT
+
+
 if __name__ == "__main__":
     import inspect
     fails = 0

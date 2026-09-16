@@ -1,7 +1,8 @@
 """
 cardnews_daily.py — 누렁이 카드뉴스 일일 파이프라인 (하루 1회, 아침)
 
-전날 저녁 브리핑 + 당일 아침 브리핑을 합쳐 하루치 카드뉴스 8장을 생성한다.
+소재 창 = 전일 17:00 ~ 생성 시각. 사실 출처(아침 브리핑 + 전날 22시 정치 브리핑)에
+주목도 신호(네이버 많이 본 뉴스 노출 클러스터 · [단독] 보도)를 붙여 '많이 읽힌 것' 위주로 고른다.
   1장   : 표지 (누렁이 마스코트)
   2~7장 : 핵심 이슈 6개 — 뉴스 '장면' 일러스트(사람/사물, 누렁이 없음) 60% + 제목 + 설명 2~3줄
   8장   : 엔딩 (누렁이 마스코트)
@@ -65,16 +66,25 @@ TIER_QUOTA = {"headline": 1, "core": 3, "life": 3, "trend": 2, "talk": 1, "world
 #  1. Claude — 점수화 + 티어 배열 + 설명문 + 장면 프롬프트
 # ══════════════════════════════════════════════════
 PROMPT = """당신은 '누렁이 정보공유방' 카드뉴스 편집장입니다.
-아래는 오늘 하루치 뉴스 브리핑(어제 저녁 + 오늘 아침)입니다.
+아래는 소재 창 [{window}] 의 자료입니다: 브리핑 본문(사실의 출처) + 주목도 신호(무엇이 많이 읽혔는지).
 국내 카드 {n}장에 실을 이슈를 2단계로 선별·배열하세요.{world_intro}
 
-[1단계 — 점수화]
-브리핑에 등장하는 모든 이슈를 100점 만점으로 평가하세요:
-- 생활 영향 (30점): 독자의 돈·건강·일상에 직접 닿는가 (물가·금리·부동산·의료·재해·제도 변화)
-- 파급력 (25점): 한국 사회·경제·외교에 구조적 영향을 주는가
-- 시의성 (20점): 오늘 새로 발생/전개됐는가, 오늘 알아야 가치가 있는가
-- 화제성 (15점): 오늘 사람들의 대화 소재가 될 만한가
-- 지속성 (10점): 앞으로 계속 커질 이슈의 시작점/변곡점인가
+[소재 창 규칙] 전일 17:00 이후 발생·전개된 이슈만 다룹니다. 그 이전(어제 낮) 사건은
+이 창 안에서 새 전개(후속 보도·결과·반응)가 있을 때만 그 전개를 중심으로 다루세요.
+
+[1단계 — 점수화: 주목도 우선]
+자료에 등장하는 모든 이슈를 100점 만점으로 평가하세요:
+- 주목도 (40점): 주목도 신호에서 얼마나 많이·오래 읽혔는가 — 노출 언론사 수, 노출 지속 횟수,
+  최고 순위, [단독] 여부. 신호 목록 상단일수록 높게. 브리핑에만 있고 신호에 없으면 이 항목은 낮게.
+- 화제성 (20점): 오늘 사람들의 대화 소재가 될 만한가
+- 생활 영향 (15점): 독자의 돈·건강·일상에 직접 닿는가
+- 파급력 (15점): 한국 사회·경제·외교에 구조적 영향을 주는가
+- 시의성 (10점): 창 안에서 새로 발생/전개됐는가
+
+[사실 출처 규칙 — 최우선]
+- 부제·요점·설명의 사실과 수치는 '브리핑 본문'에 있는 것만 씁니다.
+- 주목도 신호에만 있고 브리핑에 없는 이슈도 카드로 만들 수 있으나, 그 경우 제목에 드러난
+  사실 범위 안에서만 쓰고 수치·인용·배경을 지어내지 마세요. 확실치 않으면 그 이슈를 제외하세요.
 
 [2단계 — 티어 배열 (정확히 {n}개, 이 순서대로)]
 - "headline" 1개: 종합 최고점. 오늘 하루를 한 장으로 요약하는 이슈
@@ -106,6 +116,7 @@ PROMPT = """당신은 '누렁이 정보공유방' 카드뉴스 편집장입니�
    각 문장은 완결형으로 끝낼 것. 전체 100~140자.
 8. scene_ko: 이 뉴스를 대표하는 일러스트 장면을 한국어로 한 줄 묘사(검수용)
 9. image_prompt: 위 장면을 그릴 영어 프롬프트.
+10. basis: 사실 근거 — "briefing"(브리핑 본문에 있음) / "signal"(주목도 신호 제목만) / "both"
 
 [사실 규칙 — 최우선] 아래 사전과 충돌하는 수치·직함·소속은 브리핑 원문에 있어도 쓰지 말 것.
 사전과 충돌하는 이슈는 사전 값으로 고쳐 쓰거나, 고칠 수 없으면 그 이슈를 제외할 것.
@@ -137,12 +148,12 @@ PROMPT = """당신은 '누렁이 정보공유방' 카드뉴스 편집장입니�
 결과물은 오직 아래 JSON 으로만 반환하세요. 설명·마크다운 금지:
 {{
   "issues": [
-    {{"cat":"경제","tier":"headline","score":87,"title":"제목","subtitle":"부제 1줄","bullets":["요점1","요점2","요점3"],"desc":"설명 2~3문장","scene_ko":"장면 묘사","image_prompt":"english scene"}}
+    {{"cat":"경제","tier":"headline","score":87,"basis":"both","title":"제목","subtitle":"부제 1줄","bullets":["요점1","요점2","요점3"],"desc":"설명 2~3문장","scene_ko":"장면 묘사","image_prompt":"english scene"}}
   ]
 }}
 issues 배열은 정확히 {total}개(국내 {n}개{world_count_note})여야 합니다.
 
-[오늘 하루치 브리핑]
+[자료 — 브리핑 본문 + 주목도 신호]
 {briefing}
 """
 
@@ -192,7 +203,8 @@ def _issues_text(issues: list[dict]) -> str:
     """고정값 대조·미리보기용 카드 텍스트 전문 (제목/부제/요점/설명)."""
     blocks = []
     for i, it in enumerate(issues, 1):
-        lines = [f"[{i}] ({it.get('cat','')}) {it.get('title','')}"]
+        basis = f" 〔{it['basis']}〕" if it.get("basis") else ""
+        lines = [f"[{i}] ({it.get('cat','')}) {it.get('title','')}{basis}"]
         if it.get("subtitle"):
             lines.append(f"  · {it['subtitle']}")
         for b in it.get("bullets") or []:
@@ -283,7 +295,7 @@ def select_issues(briefing_text: str, n: int = NUM_ISSUES,
     # 13개 이슈 × (점수+설명+장면프롬프트)는 출력이 커서 넉넉한 타임아웃/토큰 필요
     client = anthropic.Anthropic(api_key=api_key, timeout=180.0, max_retries=2)
     prompt_text = PROMPT.format(
-        n=n, total=total, briefing=briefing_text,
+        n=n, total=total, briefing=briefing_text, window=_window_label(),
         world_intro=world_intro, world_section=world_section,
         world_count_note=world_count_note, facts_block=_facts_block(),
     )
@@ -324,6 +336,7 @@ def select_issues(briefing_text: str, n: int = NUM_ISSUES,
             "cat": cat,
             "tier": tier,
             "score": score,
+            "basis": (it.get("basis") or "").strip(),
             "title": (it.get("title") or "").strip(),
             "subtitle": (it.get("subtitle") or "").strip(),
             "bullets": _clean_bullets(it.get("bullets"), it.get("desc")),
@@ -347,41 +360,222 @@ def select_issues(briefing_text: str, n: int = NUM_ISSUES,
 # ══════════════════════════════════════════════════
 #  2. 브리핑 텍스트 수집 (저녁 + 아침)
 # ══════════════════════════════════════════════════
-def collect_today_briefings(morning_briefing: str | None = None) -> str:
-    """전날 저녁 + 당일 아침 브리핑 텍스트를 합쳐 반환.
+WINDOW_START_HOUR = 17          # 소재 창: 전일 17:00 KST ~ 생성 시각
+RANKING_CLUSTERS = 30           # 프롬프트에 넣는 랭킹 클러스터 수
+SCOOP_LIMIT = 12                # 프롬프트에 넣는 [단독] 수
+LAST_SOURCE_STATS: dict = {}    # 미리보기 DM 표기용 (직전 수집 통계)
 
-    morning_briefing 이 주어지면(발송 직후 호출) 그것을 아침분으로 쓰고,
-    저녁분은 DB에서 조회한다. 둘 다 없으면 DB에서 최근 것을 가져온다.
+
+def window_start(now: datetime | None = None) -> datetime:
+    """소재 창 시작(전일 17:00 KST, tz-aware)."""
+    now = now or datetime.now(KST)
+    return (now - timedelta(days=1)).replace(hour=WINDOW_START_HOUR, minute=0, second=0, microsecond=0)
+
+
+def _window_label(now: datetime | None = None) -> str:
+    now = now or datetime.now(KST)
+    ws = window_start(now)
+    return f"{ws.strftime('%m/%d %H:%M')} ~ {now.strftime('%m/%d %H:%M')} KST"
+
+
+def _norm_title(t: str) -> str:
+    import re as _re
+    t = _re.sub(r"\[[^\]]{1,10}\]|\([^)]{1,12}\)|【[^】]*】", " ", t or "")   # [단독]·(종합) 류 제거
+    t = _re.sub(r"[^0-9A-Za-z가-힣 ]", " ", t)
+    return " ".join(t.split()).lower()
+
+
+def _similar(a: str, b: str) -> float:
+    try:
+        from rapidfuzz import fuzz
+        return float(fuzz.token_set_ratio(a, b))
+    except Exception:
+        import difflib
+        return difflib.SequenceMatcher(None, a, b).ratio() * 100
+
+
+def cluster_ranking_rows(rows: list[dict], threshold: float = 62.0) -> list[dict]:
+    """랭킹 기사 → 같은 사건 클러스터. 각 클러스터: title(최다 노출 대표), presses, hits(합), best_rank.
+
+    rows: {title, press, rank, hits, section}. 반환은 (언론사 수, 노출 합) 내림차순."""
+    clusters: list[dict] = []
+    for r in rows:
+        nt = _norm_title(r["title"])
+        if not nt:
+            continue
+        home = None
+        for c in clusters:
+            if _similar(nt, c["_norm"]) >= threshold:
+                home = c
+                break
+        if home is None:
+            home = {"_norm": nt, "title": r["title"], "_top_hits": r.get("hits") or 1,
+                    "presses": [], "hits": 0, "best_rank": 99, "sections": set()}
+            clusters.append(home)
+        h = r.get("hits") or 1
+        home["hits"] += h
+        if h > home["_top_hits"]:
+            home["_top_hits"], home["title"] = h, r["title"]
+        if r.get("press") and r["press"] not in home["presses"]:
+            home["presses"].append(r["press"])
+        if r.get("rank") and r["rank"] < home["best_rank"]:
+            home["best_rank"] = r["rank"]
+        if r.get("section"):
+            home["sections"].add(r["section"])
+    clusters.sort(key=lambda c: (-len(c["presses"]), -c["hits"], c["best_rank"]))
+    for c in clusters:
+        c.pop("_norm", None); c.pop("_top_hits", None)
+        c["sections"] = sorted(c["sections"])
+    return clusters
+
+
+def format_ranking_block(clusters: list[dict], limit: int = RANKING_CLUSTERS) -> str:
+    if not clusters:
+        return ""
+    lines = [f"[주목도 신호 ① — 네이버 '많이 본 뉴스' 상위권 노출 (전일 {WINDOW_START_HOUR}:00 이후, 10분 단위 집계) "
+             f"— 노출 언론사 수·노출 지속 횟수 내림차순, 상단일수록 더 많이 읽힘]"]
+    for i, c in enumerate(clusters[:limit], 1):
+        presses = "/".join(c["presses"][:4]) + ("…" if len(c["presses"]) > 4 else "")
+        rank = f" · 최고 {c['best_rank']}위" if c.get("best_rank", 99) < 99 else ""
+        lines.append(f"{i}. (언론사 {len(c['presses'])}곳 · 노출 {c['hits']}회{rank}) {c['title']} — {presses}")
+    return "\n".join(lines)
+
+
+def format_scoop_block(scoops: list[dict], limit: int = SCOOP_LIMIT) -> str:
+    if not scoops:
+        return ""
+    lines = [f"[주목도 신호 ② — [단독] 보도 (전일 {WINDOW_START_HOUR}:00 이후)]"]
+    for sc in scoops[:limit]:
+        lines.append(f"- ({sc.get('source','')}) {sc.get('title','')}")
+    return "\n".join(lines)
+
+
+def _fetch_ranking_rows(ws_kst: datetime) -> list[dict]:
+    """news_articles 랭킹 행 (created_at 은 DB NOW() = UTC 저장 → UTC 로 비교)."""
+    from zoneinfo import ZoneInfo as _ZI
+    from g2b_tracker import db_conn
+    ws_utc = ws_kst.astimezone(_ZI("UTC")).replace(tzinfo=None)
+    conn = db_conn()
+    if not conn:
+        return []
+    try:
+        cur = conn.cursor()
+        try:
+            cur.execute("""SELECT title, source, ranking_rank, COALESCE(ranking_hits, 1), ranking_section
+                           FROM news_articles
+                           WHERE is_ranking AND COALESCE(ranking_last_seen, created_at) >= %s
+                           ORDER BY COALESCE(ranking_hits, 1) DESC, ranking_rank ASC NULLS LAST
+                           LIMIT 1500""", (ws_utc,))
+        except Exception:
+            conn.rollback()   # ranking_hits 컬럼 미생성(뉴스봇 첫 실행 전) 폴백
+            cur.execute("""SELECT title, source, ranking_rank, 1, ranking_section
+                           FROM news_articles WHERE is_ranking AND created_at >= %s
+                           ORDER BY ranking_rank ASC NULLS LAST LIMIT 1500""", (ws_utc,))
+        rows = [{"title": t, "press": p, "rank": r, "hits": h, "section": sec}
+                for t, p, r, h, sec in cur.fetchall()]
+        conn.close()
+        return rows
+    except Exception as e:
+        logger.warning(f"[카드뉴스] 랭킹 조회 실패: {e}")
+        try:
+            conn.close()
+        except Exception:
+            pass
+        return []
+
+
+def _fetch_scoops(ws_kst: datetime) -> list[dict]:
+    """scoop_alerts (sent_at 은 컨테이너 KST naive)."""
+    from g2b_tracker import db_conn
+    conn = db_conn()
+    if not conn:
+        return []
+    try:
+        cur = conn.cursor()
+        cur.execute("""SELECT title, source FROM scoop_alerts WHERE sent_at >= %s
+                       ORDER BY sent_at DESC LIMIT 40""", (ws_kst.replace(tzinfo=None),))
+        rows = [{"title": t, "source": s} for t, s in cur.fetchall()]
+        conn.close()
+        return rows
+    except Exception as e:
+        logger.warning(f"[카드뉴스] 단독 조회 실패: {e}")
+        try:
+            conn.close()
+        except Exception:
+            pass
+        return []
+
+
+def collect_today_briefings(morning_briefing: str | None = None) -> str:
+    """소재 창(전일 17:00 ~ 지금) 자료를 합쳐 반환 — 사실 출처 + 주목도 신호.
+
+    [사실 출처] 오늘 아침 브리핑(전달분 또는 DB 최신 ai_morning) + 전날 22:00 정치 브리핑.
+      전날 저녁 브리핑(06~18시 소재)은 창 밖이라 제외.
+    [주목도 신호] 네이버 많이 본 뉴스 노출 클러스터(언론사 수·지속 노출) + [단독] 보도.
+    모두 DB 저장분 = verify_pass·레이아웃 적용 최종본. 실패한 소스는 건너뛰고 나머지로 진행.
     """
+    global LAST_SOURCE_STATS
+    now = datetime.now(KST)
+    ws = window_start(now)
+    stats = {"window": _window_label(now), "briefings": [], "ranking_rows": 0,
+             "ranking_clusters": 0, "scoops": 0}
     parts: list[str] = []
+
+    # 1) 사실 출처 — 브리핑 본문
     try:
         from app import create_app
         from app.models.briefing import Briefing
         _app = create_app()
         with _app.app_context():
-            since = datetime.now(KST) - timedelta(hours=20)
-            evening = Briefing.query.filter(
-                Briefing.briefing_type == 'ai_evening',
-                Briefing.created_at >= since.replace(tzinfo=None),
-            ).order_by(Briefing.created_at.desc()).first()
-            if evening:
-                parts.append("[어제 저녁 브리핑]\n" + evening.content)
-
+            ws_naive = ws.replace(tzinfo=None)
             if morning_briefing:
-                parts.append("[오늘 아침 브리핑]\n" + morning_briefing)
+                parts.append("[오늘 아침 브리핑 — 사실 출처]\n" + morning_briefing)
+                stats["briefings"].append("ai_morning(전달)")
             else:
                 morning = Briefing.query.filter(
                     Briefing.briefing_type == 'ai_morning',
+                    Briefing.created_at >= ws_naive,
                 ).order_by(Briefing.created_at.desc()).first()
                 if morning:
-                    parts.append("[오늘 아침 브리핑]\n" + morning.content)
+                    parts.append("[오늘 아침 브리핑 — 사실 출처]\n" + morning.content)
+                    stats["briefings"].append("ai_morning")
+            pol = Briefing.query.filter(
+                Briefing.briefing_type == 'political_evening',
+                Briefing.created_at >= ws_naive,
+            ).order_by(Briefing.created_at.desc()).first()
+            if pol:
+                parts.append("[어젯밤 22시 정치 브리핑 — 사실 출처]\n" + pol.content)
+                stats["briefings"].append("political_evening")
     except Exception as e:
         logger.warning(f"[카드뉴스] DB 브리핑 조회 실패({e}) — 전달받은 텍스트만 사용")
         if morning_briefing and not parts:
-            parts.append(morning_briefing)
-
+            parts.append("[오늘 아침 브리핑 — 사실 출처]\n" + morning_briefing)
+            stats["briefings"].append("ai_morning(전달)")
     if not parts and morning_briefing:
-        parts.append(morning_briefing)
+        parts.append("[오늘 아침 브리핑 — 사실 출처]\n" + morning_briefing)
+        stats["briefings"].append("ai_morning(전달)")
+
+    # 2) 주목도 신호
+    try:
+        rows = _fetch_ranking_rows(ws)
+        clusters = cluster_ranking_rows(rows)
+        stats["ranking_rows"], stats["ranking_clusters"] = len(rows), len(clusters)
+        blk = format_ranking_block(clusters)
+        if blk:
+            parts.append(blk)
+    except Exception as e:
+        logger.warning(f"[카드뉴스] 랭킹 신호 생략: {e}")
+    try:
+        scoops = _fetch_scoops(ws)
+        stats["scoops"] = len(scoops)
+        blk = format_scoop_block(scoops)
+        if blk:
+            parts.append(blk)
+    except Exception as e:
+        logger.warning(f"[카드뉴스] 단독 신호 생략: {e}")
+
+    LAST_SOURCE_STATS = stats
+    logger.info(f"[카드뉴스] 소재 수집 — {stats}")
     return "\n\n".join(parts)
 
 
@@ -522,8 +716,11 @@ def generate_daily_cardnews(briefing_text: str,
     except Exception:
         verdict = ""
     pub = _publish_target() or "(미설정 — CARDNEWS_CHANNEL_ID 또는 TELEGRAM_CHAT_ID 필요)"
+    st = LAST_SOURCE_STATS or {}
+    src_line = (f"소재 창: {st.get('window', _window_label())} · 브리핑 {'+'.join(st.get('briefings') or []) or '없음'}"
+                f" · 랭킹 {st.get('ranking_clusters', 0)}건(원시 {st.get('ranking_rows', 0)}) · 단독 {st.get('scoops', 0)}건\n")
     head = (f"🔍 <b>[미리보기] 누렁이 카드뉴스</b> {now.strftime('%m/%d')} · {len(paths)}장 · 템플릿 {tpl_name}\n"
-            f"발행 대상: {pub}\n{verdict}\n"
+            f"{src_line}발행 대상: {pub}\n{verdict}\n"
             + ("승인: /card_ok · 폐기: /card_no" if not violations
                else "보류 상태 — 수정 후 /cardnews 재생성 권장 · 강행: /card_ok force · 폐기: /card_no")
             + "\n\n")
