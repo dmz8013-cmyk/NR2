@@ -414,9 +414,12 @@ def _to_jpeg_payloads(paths: list[str]) -> list[tuple[str, bytes, str]]:
 
 
 def send_cards_to_telegram(paths: list[str], chat_id: str,
-                           caption: str = "") -> bool:
+                           caption: str = "", captions: list[str] | None = None) -> bool:
     """카드 묶음을 sendMediaGroup 으로 전송(최대 10장/앨범).
 
+    caption : 앨범 첫 장 캡션 (captions 미지정 시).
+    captions: 장별 캡션 목록(paths 와 같은 길이) — 카드에 그리지 않는 문단(desc)을
+              이미지 캡션으로만 싣는 용도. 각 1024자 초과분은 잘라 보낸다.
     JPEG 변환 + 넉넉한 타임아웃 + 3회 재시도. 실패 시 False 반환 —
     호출부는 반드시 반환값을 확인해 관리자 알림을 보낼 것.
     """
@@ -454,7 +457,11 @@ def send_cards_to_telegram(paths: list[str], chat_id: str,
         for i, (name, data, mime) in enumerate(chunk):
             key = f"photo{i}"
             item = {"type": "photo", "media": f"attach://{key}"}
-            if i == 0 and caption and chunk_start == 0:
+            if captions:
+                cap = (captions[chunk_start + i] if chunk_start + i < len(captions) else "") or ""
+                if cap:
+                    item["caption"] = cap[:1024]
+            elif i == 0 and caption and chunk_start == 0:
                 item["caption"] = caption
             media.append(item)
             files[key] = (name, data, mime)   # bytes라 재시도에도 재사용 가능

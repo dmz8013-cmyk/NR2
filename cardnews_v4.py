@@ -18,7 +18,7 @@ v3(문단 나열: 제목 1줄 + 설명 2~3줄)에서 위계형으로 구조 변�
 
 렌더: cardnews.render_cards(Playwright headless chromium) 재사용.
 히어로: cardnews_v3._hero_for(Flux + 한국인 기본값 접미) 재사용.
-전환: CARDNEWS_TEMPLATE=v4 (cardnews_daily._template) — 샘플 승인 후 기본값으로.
+기본 템플릿(2026-09-18~). 구 문단형으로 되돌리려면 CARDNEWS_TEMPLATE=v3.
 """
 
 import os
@@ -37,14 +37,16 @@ FOOTER_TEXT = "누렁이 정보공유방 (카카오톡 오픈채팅/텔레그램
 
 # 카테고리별 포인트 컬러 (부제·요점 마커) — 어두운 오버레이 위에서 도드라지는 톤
 POINT = {
-    "정치":   "#FF6B5E",
-    "경제":   "#FFC72C",
+    "정치":   "#FF4D4D",   # 레드
+    "경제":   "#FFC72C",   # 골드
+    "AI":     "#4DA3FF",   # 블루
+    "생활문화": "#6EE07A",   # 그린
+    "외신":   "#1E3A8A",   # 네이비 — 어두운 배경에서 글자색으로는 안 보이므로 필(pill) 배경으로 사용
     "사회국제": "#FF9F43",
-    "생활문화": "#7EE081",
-    "AI":     "#5CB8FF",
-    "외신":   "#3DD6C8",
-    "기타":   "#7EE081",
+    "기타":   "#6EE07A",
 }
+# 포인트 컬러를 글자색이 아닌 배경 필로 쓰는 카테고리 (네이비 등 저휘도 색)
+PILL_CATS = {"외신"}
 
 
 def fonts_head() -> str:
@@ -76,20 +78,25 @@ def _card(hero_uri, c, idx):
         hero_inner = (f'<div class="hero-ph">🎨<div class="ph-s">{_esc(c.get("scene_ko", ""))}</div></div>')
     tier_html = f'<span class="tier">{_esc(c["tier_label"])}</span>' if c.get("tier_label") else ""
     bullets = (c.get("bullets") or [])[:3]
-    li = "".join(f'<li><span class="mk" style="color:{point}">▪</span>{_esc(b)}</li>' for b in bullets)
+    li = "".join(f'<li><span class="bar" style="background:{point}"></span><span class="bt">{_esc(b)}</span></li>'
+                 for b in bullets)
     sub = c.get("subtitle") or ""
+    if c["cat"] in PILL_CATS:
+        sub_html = f'<p class="sub"><span class="pill" style="background:{point}">{_esc(sub)}</span></p>'
+    else:
+        sub_html = f'<p class="sub" style="color:{point}">{_esc(sub)}</p>'
     return f"""
     <section class="card v4">
       <div class="hero">{hero_inner}</div>
       <div class="shade"></div>
       <div class="panel"></div>
       <div class="chips">
-        <span class="cat" style="background:{bg};color:{fg}">{_esc(cat_label)} · {idx:02d}</span>
+        <span class="cat" style="background:{bg};color:{fg}">{_esc(cat_label)}·{idx:02d}</span>
         {tier_html}
       </div>
       <div class="txt">
         <h2 class="title">{_esc(c['title'])}</h2>
-        <p class="sub" style="color:{point}">{_esc(sub)}</p>
+        {sub_html}
         <ul class="pts">{li}</ul>
       </div>
       <div class="footbar"><span>{_esc(FOOTER_TEXT)}</span></div>
@@ -169,8 +176,10 @@ def build_html(issues, hero_uris, date_str, with_cover=True):
           white-space:nowrap; overflow:hidden; }}
   .pts {{ list-style:none; margin-top:24px; display:flex; flex-direction:column; gap:8px; }}
   .pts li {{ font-weight:400; font-size:35px; line-height:1.4; color:rgba(255,255,255,.9);
-             white-space:nowrap; overflow:hidden; word-break:keep-all; }}
-  .pts .mk {{ display:inline-block; width:44px; }}
+             white-space:nowrap; overflow:hidden; word-break:keep-all; display:flex; align-items:center; }}
+  .pts .bar {{ display:inline-block; width:6px; height:.95em; border-radius:3px; margin-right:22px; flex:0 0 auto; }}
+  .pts .bt {{ overflow:hidden; }}
+  .sub .pill {{ display:inline-block; color:#fff; padding:4px 22px; border-radius:12px; }}
 
   /* ─ 출처 바 ─ */
   .footbar {{ position:absolute; left:0; right:0; bottom:0; height:{FOOT_H}px; display:flex; align-items:center;
@@ -233,6 +242,14 @@ SAMPLE = [
      "image_prompt": ("a jubilant crowd of Korean investors in suits cheering with arms raised and throwing "
                       "cash into the air in front of a huge green upward stock-market arrow bursting "
                       "up through the floor of a Seoul trading hall, confetti and coins flying")},
+    {"cat": "외신", "tier_label": "", "display_no": 1,
+     "title": "연준, 금리 3.75~4.00% 동결",
+     "subtitle": "워시 의장 '물가 재상승 경계'",
+     "bullets": ["3회 연속 동결, 시장 예상 부합", "점도표 연내 인하 1회 유지", "달러 강세·코스피 외국인 관망"],
+     "scene_ko": "미국 연준 건물 앞에서 기자들이 대변인의 발표를 듣는 장면, 전광판은 빈 화면",
+     "image_prompt": ("American journalists with microphones gathered on the steps of a grand neoclassical "
+                      "central-bank building as a spokesperson speaks at a podium, blank screens and blank "
+                      "papers, crisp autumn morning light, Washington setting")},
     {"cat": "생활문화", "tier_label": "생활", "display_no": 3,
      "title": "\"돈 더 줘도 승진 싫어요\"",
      "subtitle": "Z세대 '상사 되고 싶다' 6%",
@@ -262,5 +279,5 @@ if __name__ == "__main__":
         from cardnews import send_cards_to_telegram
         target = os.environ.get("TELEGRAM_ADMIN_CHAT_ID", "5132309076")
         ok = send_cards_to_telegram(paths, target,
-                                    caption="🎨 카드뉴스 v4 디자인 샘플 3장 (정치/경제/생활문화 · 검토용 가상 문구)")
+                                    caption="🎨 카드뉴스 구조형 렌더러 샘플 4장 (정치/경제/외신/생활문화 · 검토용 가상 문구)")
         print("DM 전송:", "성공" if ok else "실패")

@@ -88,6 +88,28 @@ def test_prompt_mentions_window_and_attention():
     assert "주목도 (40점)" in cd.PROMPT and "{window}" in cd.PROMPT and "basis" in cd.PROMPT
 
 
+def test_v4_four_samples_and_pill():
+    html = build_html(SAMPLE, [None] * 4, "2026.09.18", with_cover=False)
+    assert html.count('class="card v4"') == 4 and len(SAMPLE) == 4
+    assert 'class="pill"' in html and '외신·01' in html and '정치·01' in html
+    assert html.count('class="bar"') == 12
+    assert "설명 2~3문장" not in html   # 문단은 카드에 그리지 않음
+
+
+def test_captions_and_preview_text():
+    from datetime import datetime
+    paths = ["c"] + [f"{i}" for i in range(4)] + ["e"]
+    caps = cd._card_captions(paths, [{"desc": f"d{i}"} for i in range(4)], "HDR")
+    assert caps == ["HDR", "d0", "d1", "d2", "d3", ""]
+    issues = [{"cat": "정치", "display_no": 1, "title": "제목A", "desc": "x"},
+              {"cat": "외신", "display_no": 1, "title": "제목B", "desc": "y"}]
+    txt = cd._preview_text(datetime(2026, 9, 18, 6, 5), ["a"] * 4, issues, "v4",
+                           [{"card": 2, "id": "여론조사_병기", "found": "누락: 조사기관"}], 0)
+    assert "01 표지" in txt and "02 정치·01 제목A" in txt and "03 🌍외신·01 제목B 🚫" in txt and "04 엔딩" in txt
+    assert "발행 보류" in txt and "/card_ok force" in txt and "x" not in txt.split("\n")[-1]
+    assert len(txt) < 800
+
+
 if __name__ == "__main__":
     import inspect
     fails = 0

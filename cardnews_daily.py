@@ -592,17 +592,54 @@ def _notify_admin(text: str) -> None:
 
 
 def _template():
-    """카드 템플릿 선택 — CARDNEWS_TEMPLATE=v4(위계형·그라데이션) / 기본 v3.
-    v4 는 샘플 승인 후 기본값으로 전환한다."""
-    if os.environ.get("CARDNEWS_TEMPLATE", "v3").lower() == "v4":
-        from cardnews_v4 import build_html as b4, hero_for as h4
-        return "v4", b4, h4
-    return "v3", build_html, _hero_for
+    """카드 템플릿 선택 — 기본 v4(구조형: 제목/부제/요점 3 + 그라데이션).
+    구 문단형(제목+설명)으로 되돌리려면 CARDNEWS_TEMPLATE=v3."""
+    if os.environ.get("CARDNEWS_TEMPLATE", "v4").lower() == "v3":
+        return "v3", build_html, _hero_for
+    from cardnews_v4 import build_html as b4, hero_for as h4
+    return "v4", b4, h4
 
 
 def _publish_target() -> str | None:
     """/card_ok 발행 대상 채팅 — CARDNEWS_CHANNEL_ID 우선, 없으면 브리핑방(TELEGRAM_CHAT_ID)."""
     return os.environ.get("CARDNEWS_CHANNEL_ID") or os.environ.get("TELEGRAM_CHAT_ID")
+
+
+def _card_captions(paths: list[str], issues: list[dict], header: str) -> list[str]:
+    """앨범 장별 캡션 — [표지: 헤더] + [콘텐츠: desc] + [엔딩: 빈 캡션]. paths 길이에 맞춤."""
+    caps = [header] + [(iss.get("desc") or "").strip() for iss in issues] + [""]
+    if len(caps) < len(paths):
+        caps += [""] * (len(paths) - len(caps))
+    return caps[:len(paths)]
+
+
+def _preview_text(now, paths, issues, tpl_name, violations, failed) -> str:
+    """미리보기 DM 본문 — 헤더 + 장별 한 줄(번호·카테고리·제목) + 명령. 상세는 preview.txt."""
+    st = LAST_SOURCE_STATS or {}
+    bad_cards = {v.get("card") for v in violations}
+    lines = [f"🔍 <b>[미리보기] 누렁이 카드뉴스</b> {now.strftime('%m/%d')} · {len(paths)}장 · 템플릿 {tpl_name}",
+             f"소재 창: {st.get('window', _window_label())} · 브리핑 {'+'.join(st.get('briefings') or []) or '없음'}"
+             f" · 랭킹 {st.get('ranking_clusters', 0)}건 · 단독 {st.get('scoops', 0)}건"]
+    if failed:
+        lines.append(f"⚠️ 일러스트 {failed}장 생성 실패(플레이스홀더)")
+    if violations:
+        lines.append(f"🚫 렌더 전 검증 {len(violations)}건 — 발행 보류: "
+                     + ", ".join(f"#{v.get('card', '?'):02d} {v['id']}({v['found'][:30]})" for v in violations))
+    else:
+        lines.append("✅ 고정값·콘텐츠 규칙 대조 통과")
+    lines.append("")
+    lines.append("01 표지")
+    for i, iss in enumerate(issues, 2):
+        mark = " 🚫" if (i - 1) in bad_cards else ""
+        cat = "🌍외신" if iss.get("cat") == "외신" else iss.get("cat", "")
+        lines.append(f"{i:02d} {cat}·{iss.get('display_no', i - 1):02d} {iss.get('title', '')}{mark}")
+    lines.append(f"{len(issues) + 2:02d} 엔딩")
+    lines.append("")
+    pub = _publish_target() or "(미설정 — CARDNEWS_CHANNEL_ID 또는 TELEGRAM_CHAT_ID 필요)"
+    lines.append(f"발행 대상: {pub}")
+    lines.append("승인: /card_ok · 폐기: /card_no" if not violations
+                 else "보류 — 수정 후 /cardnews 재생성 권장 · 강행: /card_ok force · 폐기: /card_no")
+    return "\n".join(lines)
 
 
 def generate_daily_cardnews(briefing_text: str,
@@ -641,16 +678,29 @@ def generate_daily_cardnews(briefing_text: str,
             domestic_no += 1
             iss["display_no"] = domestic_no
 
-    # 고정값 사전 대조 — 위반 시 초안은 만들되 '발행 보류' 표시 (/card_ok 거부)
+    # 렌더 전 검증 (일러스트 생성·렌더 전에 실행 — 비용 지출 전 판정)
+    #  (1) 고정값 사전 대조(직책·소속·수치·장소)  (2) 콘텐츠 규칙(여론조사 기관·방식·기간 병기)
+    #  위반 시 초안은 만들되 '발행 보류' 표시 (/card_ok 거부, force 로만 강행)
     violations = []
     try:
         from fixed_facts import check_text
-        violations = check_text(_issues_text(issues))
-        if violations:
-            logger.warning(f"[카드뉴스] 고정값 불일치 {len(violations)}건 — 발행 보류: "
-                           + ", ".join(v["id"] for v in violations))
+        for i, iss in enumerate(issues, 1):
+            for v in check_text(_issues_text([iss])):
+                v["card"] = i
+                violations.append(v)
     except Exception as e:
         logger.warning(f"[카드뉴스] 고정값 대조 실패(보류 없이 진행): {e}")
+    try:
+        from content_rules import check_issue
+        for i, iss in enumerate(issues, 1):
+            for v in check_issue(iss):
+                v["card"] = i
+                violations.append(v)
+    except Exception as e:
+        logger.warning(f"[카드뉴스] 콘텐츠 규칙 검증 실패(보류 없이 진행): {e}")
+    if violations:
+        logger.warning(f"[카드뉴스] 렌더 전 검증 위반 {len(violations)}건 — 발행 보류: "
+                       + ", ".join(f"{v['id']}#{v.get('card')}" for v in violations))
 
     tpl_name, _build_html, _hero = _template()
 
@@ -688,19 +738,17 @@ def generate_daily_cardnews(briefing_text: str,
 
     target = chat_id or os.environ.get("TELEGRAM_ADMIN_CHAT_ID", "5132309076")
     caption = f"🗞️ 누렁이 카드뉴스 · {now.strftime('%Y년 %m월 %d일')}"
-
     failed = sum(1 for h in heros if not h)
-    preview_caption = f"🔍 [미리보기] {caption} ({len(paths)}장·{tpl_name})"
-    if failed:
-        preview_caption += f" ⚠️ 일러스트 {failed}장 실패"
+
+    # 장별 캡션: 표지=날짜 헤더, 콘텐츠=문단(desc — 카드에는 그리지 않음), 엔딩=없음
+    captions = _card_captions(paths, issues, caption)
 
     # 초안 저장 — /card_ok 가 이 상태를 읽어 발행. 파일은 워커 컨테이너 디스크에 있으므로
     # 재배포 후에는 /cardnews 로 다시 생성해야 한다.
     draft = {
         "date": now.strftime("%Y-%m-%d"), "created_at": now.isoformat(),
-        "paths": paths, "caption": caption, "template": tpl_name,
+        "paths": paths, "caption": caption, "captions": captions, "template": tpl_name,
         "violations": violations, "failed_illust": failed,
-        "text": _issues_text(issues),
     }
     try:
         from g2b_tracker import state_set
@@ -708,34 +756,26 @@ def generate_daily_cardnews(briefing_text: str,
     except Exception as e:
         logger.error(f"[카드뉴스] 초안 상태 저장 실패 — /card_ok 불가, 재생성 필요: {e}")
 
-    # 미리보기: (1) 카드 앨범 → 관리자 DM, (2) 텍스트 전문 + 고정값 대조 + 승인 안내
-    sent = send_cards_to_telegram(paths, target, caption=preview_caption)
+    # 상세 구조화 텍스트는 로그 파일로만 (미리보기 DM 에는 싣지 않음)
     try:
         from fixed_facts import format_violations
         verdict = format_violations(violations)
     except Exception:
         verdict = ""
-    pub = _publish_target() or "(미설정 — CARDNEWS_CHANNEL_ID 또는 TELEGRAM_CHAT_ID 필요)"
-    st = LAST_SOURCE_STATS or {}
-    src_line = (f"소재 창: {st.get('window', _window_label())} · 브리핑 {'+'.join(st.get('briefings') or []) or '없음'}"
-                f" · 랭킹 {st.get('ranking_clusters', 0)}건(원시 {st.get('ranking_rows', 0)}) · 단독 {st.get('scoops', 0)}건\n")
-    head = (f"🔍 <b>[미리보기] 누렁이 카드뉴스</b> {now.strftime('%m/%d')} · {len(paths)}장 · 템플릿 {tpl_name}\n"
-            f"{src_line}발행 대상: {pub}\n{verdict}\n"
-            + ("승인: /card_ok · 폐기: /card_no" if not violations
-               else "보류 상태 — 수정 후 /cardnews 재생성 권장 · 강행: /card_ok force · 폐기: /card_no")
-            + "\n\n")
-    body = draft["text"]
     try:
-        from ai_briefing import _split_text
-        chunks = _split_text(head + body, limit=4000)
-    except Exception:
-        chunks = [(head + body)[:4000]]
-    for ch in chunks:
-        try:
-            from app.utils.telegram_notify import send_telegram_message
-            send_telegram_message(ch, chat_id=target)
-        except Exception as e:
-            logger.warning(f"[카드뉴스] 미리보기 텍스트 전송 실패: {e}")
+        with open(os.path.join(out_dir, "preview.txt"), "w", encoding="utf-8") as f:
+            f.write(f"{caption} · 템플릿 {tpl_name}\n{LAST_SOURCE_STATS}\n\n{verdict}\n\n{_issues_text(issues)}\n")
+    except Exception as e:
+        logger.warning(f"[카드뉴스] preview.txt 저장 실패: {e}")
+
+    # 미리보기: (1) 카드 앨범(발행본과 같은 캡션) → 관리자 DM
+    #          (2) 헤더 + 장별 한 줄(번호·카테고리·제목) + 승인 명령
+    sent = send_cards_to_telegram(paths, target, captions=captions)
+    try:
+        from app.utils.telegram_notify import send_telegram_message
+        send_telegram_message(_preview_text(now, paths, issues, tpl_name, violations, failed), chat_id=target)
+    except Exception as e:
+        logger.warning(f"[카드뉴스] 미리보기 텍스트 전송 실패: {e}")
 
     if not sent:
         logger.error("[카드뉴스] 미리보기 앨범 전송 최종 실패 — 관리자 알림 발송")
@@ -766,7 +806,8 @@ def publish_card_draft(force: bool = False) -> str:
         target = _publish_target()
         if not target:
             return "⚠️ 발행 대상 미설정 — CARDNEWS_CHANNEL_ID(또는 TELEGRAM_CHAT_ID) 환경변수 필요."
-        sent = send_cards_to_telegram(paths, target, caption=draft.get("caption", ""))
+        sent = send_cards_to_telegram(paths, target, caption=draft.get("caption", ""),
+                                      captions=draft.get("captions") or None)
         if not sent:
             return "❌ 채널 전송 실패 — 초안은 유지됩니다. 잠시 후 /card_ok 재시도."
         state_set(DRAFT_STATE_KEY, "null")
