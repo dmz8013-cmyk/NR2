@@ -256,7 +256,13 @@ def priority_of(reasons: list[str]) -> int:
 
 
 def max_verify_for(briefing_type: str) -> int:
-    return MAX_VERIFY_POLITICS if (briefing_type or "").startswith("political") else MAX_VERIFY_PER_RUN
+    """정치 상한은 환경변수 VERIFY_MAX_POLITICS 로 조정(기본 14, 10/14 이후 10 예정). 일반은 8 고정."""
+    if (briefing_type or "").startswith("political"):
+        try:
+            return max(1, int(os.environ.get("VERIFY_MAX_POLITICS", MAX_VERIFY_POLITICS)))
+        except (TypeError, ValueError):
+            return MAX_VERIFY_POLITICS
+    return MAX_VERIFY_PER_RUN
 
 
 def _section_of(lines: list[str], line_no: int) -> str:
@@ -377,9 +383,18 @@ def verify_named_statement(client, text: str, names: list[str], keywords: list[s
                 keywords=", ".join(keywords) or "-", sentence=text)}],
         )
         final_text = ""
+        queries: list[str] = []
         for block in resp.content:
-            if getattr(block, "type", "") == "text":
+            btype = getattr(block, "type", "")
+            if btype == "text":
                 final_text = block.text
+            elif btype == "server_tool_use":
+                try:
+                    q = (getattr(block, "input", None) or {}).get("query")
+                    if q:
+                        queries.append(str(q))
+                except Exception:
+                    pass
         searches = 0
         try:
             searches = resp.usage.server_tool_use.web_search_requests
@@ -394,7 +409,8 @@ def verify_named_statement(client, text: str, names: list[str], keywords: list[s
         exists = data.get("person_exists")
         out = {"verdict": verdict, "corrected": (data.get("corrected") or "").strip(),
                "matched_name": bool(data.get("matched_name")), "matched_keywords": matched_kw,
-               "newest_pub_date": newest, "person_exists": exists, "searches": searches}
+               "newest_pub_date": newest, "person_exists": exists, "searches": searches,
+               "queries": queries}
         # 사전 밖 인명+직함: 검색에서 그 조합이 0건(person_exists=false) 이거나,
         # 확인불가인데 인명조차 보도에서 안 잡히면 '존재 불명 인물' — 큐에 넣지 않고 즉시 제외
         if unregistered and (exists is False or (verdict == "확인불가" and not out["matched_name"])):
@@ -606,8 +622,9 @@ def run_verify_pass_ex(briefing: str, briefing_type: str = "", enqueue: bool = T
                 stats["unknown_person"] += 1
                 lines[line_no] = None
                 ent = next((r.split(":", 1)[1].strip() for r in reasons if r.startswith("미등재 인명+직함")), title)
-                details["unknown"].append(ent)
-                logger.warning(f"[자가검증] 존재 불명 인물 제외: {ent}")
+                qs = " | ".join(result.get("queries") or []) or "(쿼리 기록 없음)"
+                details["unknown"].append(f"{ent} · 검색 쿼리: {qs}")
+                logger.warning(f"[자가검증] 존재 불명 인물 제외: {ent} (검색: {qs})")
             elif verdict == "확인불가":
                 stats["unconfirmed"] += 1
                 if briefing_type == "leader_watch":

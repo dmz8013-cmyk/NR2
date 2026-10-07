@@ -12,6 +12,7 @@ class RunReport:
     def __init__(self, briefing_type: str):
         self.briefing_type = briefing_type
         self.timeliness_excluded: list[dict] = []
+        self.timeliness_lenient: list[dict] = []
         self.queued: list[str] = []
         self.restored: list[str] = []
         self.discarded: list[str] = []
@@ -27,9 +28,11 @@ class RunReport:
                 f"큐 복귀 {len(self.restored)} · 폐기 {len(self.discarded)}")
 
     def text(self) -> str:
-        from timeliness import format_exclusions
+        from timeliness import format_exclusions, format_lenient
         lines = [f"📋 <b>{self.briefing_type} 회차 요약</b>", self.summary_line(),
                  format_exclusions(self.timeliness_excluded)]
+        if self.timeliness_lenient:
+            lines.append(format_lenient(self.timeliness_lenient))
         lines += [f"시의성 미달 제외: {t}" for t in self.stale]
         lines += [f"존재 불명: {t}" for t in self.unknown]
         lines += [f"미확인→큐: {t}" for t in self.queued]

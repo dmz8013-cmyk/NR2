@@ -275,14 +275,24 @@
       "correct_title": "농구 선수 (한국가스공사)",
       "wrong_titles": [],
       "verified_on": "2026-10-07"
+    },
+    {
+      "name": "강신철",
+      "correct_title": "국방부 장관",
+      "wrong_titles": [
+        "국방부 장관 후보자",
+        "한미연합사 부사령관"
+      ],
+      "verified_on": "2026-09-22",
+      "note": "2026-09-22 취임"
     }
   ],
   "unfilled_positions": {
     "국방부 장관": {
-      "name": "",
-      "must_search": true,
-      "note": "2026년 중 교체됨, 성명 미확인 — 기억으로 채우지 말 것",
-      "verified_on": "2026-10-07"
+      "name": "강신철",
+      "must_search": false,
+      "note": "2026-09-22 취임 보도 확인 — 미확인 해제",
+      "verified_on": "2026-09-22"
     }
   }
 }

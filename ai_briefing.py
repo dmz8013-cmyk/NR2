@@ -167,16 +167,18 @@ def fetch_news_by_category(
 
     # 시의성 필터 (전 파이프라인 공통): 발행일 ∈ {오늘, 전일} 만 통과. 발행일 없는 기사는
     # HTML 메타(회당 ≤30건, 3초) 보조 조회 후에도 없으면 제외. 제외 목록은 회차 요약 DM 용.
-    global LAST_TIMELINESS_EXCLUDED
+    global LAST_TIMELINESS_EXCLUDED, LAST_TIMELINESS_LENIENT
     LAST_TIMELINESS_EXCLUDED = []
+    LAST_TIMELINESS_LENIENT = []
     try:
-        from timeliness import filter_timely
+        import timeliness as _tl
         budget = 30
         for category in list(categorized.keys()):
-            passed, excluded = filter_timely(categorized[category], html_budget=budget)
+            passed, excluded = _tl.filter_timely(categorized[category], html_budget=budget)
             budget = max(0, budget - sum(1 for a in categorized[category] if a.get("pub_date_resolved")))
             categorized[category] = passed
             LAST_TIMELINESS_EXCLUDED.extend(excluded)
+            LAST_TIMELINESS_LENIENT.extend(_tl.LAST_LENIENT)
         if LAST_TIMELINESS_EXCLUDED:
             logger.warning(f"[시의성] 제외 {len(LAST_TIMELINESS_EXCLUDED)}건")
     except Exception as te:
@@ -186,6 +188,7 @@ def fetch_news_by_category(
 
 
 LAST_TIMELINESS_EXCLUDED: list[dict] = []
+LAST_TIMELINESS_LENIENT: list[dict] = []
 
 
 # ══════════════════════════════════════════════════
@@ -712,6 +715,7 @@ def send_briefing():
         total_raw = sum(len(v) for v in categorized.values())
         logger.info(f"RSS 수집 완료: {total_raw}건")
         report.timeliness_excluded = list(LAST_TIMELINESS_EXCLUDED)
+        report.timeliness_lenient = list(LAST_TIMELINESS_LENIENT)
 
         # 2.6) 재검색 큐(general) — 이전 회차 미확인 실명 발언 재검색 (생성 전)
         restored_items: list[tuple[str, str]] = []

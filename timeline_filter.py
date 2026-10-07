@@ -104,6 +104,11 @@ def filter_articles(
         # published 필드 → datetime 변환
         pub_date = _parse_iso_date(article.get("published"))
 
+        if pub_date is None and article.get("timeliness_lenient"):
+            # TIMELINESS_STRICT=0 완화 통과 항목 — 발행일 없음 거부를 적용하지 않음
+            passed.append(article)
+            continue
+
         ok, reason = is_within_window(pub_date, window_start, window_end, max_age)
 
         if ok:

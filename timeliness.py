@@ -8,6 +8,7 @@
   3) 그래도 없으면 제외 (허용 아님)
 어떤 실패도 수집을 멈추지 않는다 — 해석 불가 기사는 '제외' 로 분류될 뿐이다.
 """
+import os
 import re
 import json
 import logging
@@ -117,6 +118,7 @@ def filter_timely(articles: list[dict], now: datetime | None = None,
     제외 항목: {title, source, pub_date(ISO|None), reason}"""
     allowed = allowed_dates(now)
     passed, excluded = [], []
+    lenient: list[dict] = []
     budget = html_budget if allow_html else 0
     for a in articles:
         dt = article_pub_date(a)
@@ -136,6 +138,14 @@ def filter_timely(articles: list[dict], now: datetime | None = None,
                                  "pub_date": meta.isoformat(), "reason": f"HTML 메타 발행일 {meta:%m/%d} (API pubDate {dt:%m/%d} 재색인 의심)"})
                 continue
         if dt is None:
+            if not strict_mode():
+                # TIMELINESS_STRICT=0: 제외 대신 통과 + 표기 (롤백 없이 완화하는 스위치)
+                a["timeliness_lenient"] = True
+                a["pub_label"] = "발행시각 없음"
+                lenient.append({"title": a.get("title", ""), "source": source_of(a), "pub_date": None,
+                                "reason": "발행시각 없음 — TIMELINESS_STRICT=0 통과"})
+                passed.append(a)
+                continue
             excluded.append({"title": a.get("title", ""), "source": source_of(a),
                              "pub_date": None, "reason": "발행시각 없음"})
             continue
@@ -148,7 +158,26 @@ def filter_timely(articles: list[dict], now: datetime | None = None,
         passed.append(a)
     if excluded:
         logger.warning(f"[시의성] {len(articles)}건 중 {len(excluded)}건 제외 (허용 {sorted(allowed)})")
+    if lenient:
+        logger.warning(f"[시의성] 발행시각 없음 {len(lenient)}건 통과 (TIMELINESS_STRICT=0)")
+    global LAST_LENIENT
+    LAST_LENIENT = lenient
     return passed, excluded
+
+
+LAST_LENIENT: list[dict] = []     # 직전 filter_timely 에서 완화 통과한 항목 (회차 DM 표기용)
+
+
+def strict_mode() -> bool:
+    """TIMELINESS_STRICT (기본 1). 0/false/no 면 완화 모드."""
+    return str(os.environ.get("TIMELINESS_STRICT", "1")).strip().lower() not in ("0", "false", "no", "off")
+
+
+def format_lenient(lenient: list[dict], max_examples: int = 3) -> str:
+    if not lenient:
+        return ""
+    ex = " / ".join(f"{e.get('source', '')} · {(e.get('title') or '')[:28]}" for e in lenient[:max_examples])
+    return f"⚠️ 발행시각 없음 통과 {len(lenient)}건 (TIMELINESS_STRICT=0): {ex}"
 
 
 def format_exclusions(excluded: list[dict], max_examples: int = 3) -> str:

@@ -28,13 +28,15 @@ def test_no_kimjiyong():
     for fn in ("config/facts.json", "fact_sheet.json", "config/fixed_facts.json"):
         assert "김지용" not in open(os.path.join(ROOT, fn), encoding="utf-8").read(), fn
 
-def test_defense_minister_unfilled():
+def test_defense_minister_filled():
     facts = json.load(open(os.path.join(ROOT, "config", "facts.json"), encoding="utf-8"))
     sheet = json.load(open(os.path.join(ROOT, "fact_sheet.json"), encoding="utf-8"))
-    assert facts["직책_미확인"]["국방부 장관"]["must_search"] is True and facts["직책_미확인"]["국방부 장관"]["name"] == ""
-    assert sheet["unfilled_positions"]["국방부 장관"]["must_search"] is True
+    assert facts["직책_미확인"]["국방부 장관"]["name"] == "강신철" and facts["직책_미확인"]["국방부 장관"]["must_search"] is False
+    assert facts["인물_직함"]["강신철"].startswith("국방부 장관") and "2026-09-22" in facts["인물_직함"]["강신철"]
+    assert sheet["unfilled_positions"]["국방부 장관"]["must_search"] is False
     from fact_checker import get_fact_context
-    assert "국방부 장관: 현직자 성명 미확인" in get_fact_context()
+    ctx = get_fact_context()
+    assert "강신철: 국방부 장관" in ctx and "성명 미확인" not in ctx
 
 if __name__ == "__main__":
     rows, mism = facts_diff()

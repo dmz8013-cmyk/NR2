@@ -57,6 +57,7 @@ def search_naver_news(query, display=10, sort='date'):
 
 
 LAST_TIMELINESS_EXCLUDED: list = []
+LAST_TIMELINESS_LENIENT: list = []
 
 
 def collect_political_news(is_afternoon=True):
@@ -115,11 +116,13 @@ def collect_political_news(is_afternoon=True):
 
     # 시의성 필터 (공통): 발행일 ∈ {오늘, 전일} 만 통과 — 네이버 pubDate 가 재색인 시각일 때
     # 옛 기사가 '오늘' 로 들어오는 경우는 기사 HTML 메타(회당 ≤30건) 로 재확인
-    global LAST_TIMELINESS_EXCLUDED
+    global LAST_TIMELINESS_EXCLUDED, LAST_TIMELINESS_LENIENT
     LAST_TIMELINESS_EXCLUDED = []
+    LAST_TIMELINESS_LENIENT = []
     try:
-        from timeliness import filter_timely
-        all_articles, LAST_TIMELINESS_EXCLUDED = filter_timely(all_articles, cross_check=True)
+        import timeliness as _tl
+        all_articles, LAST_TIMELINESS_EXCLUDED = _tl.filter_timely(all_articles, cross_check=True)
+        LAST_TIMELINESS_LENIENT = list(_tl.LAST_LENIENT)
     except Exception as te:
         logger.error(f"[시의성] 필터 실패 — 윈도우 필터만 적용: {te}")
 
@@ -336,6 +339,7 @@ def send_political_briefing(is_afternoon=True):
 
     articles = collect_political_news(is_afternoon=is_afternoon)
     report.timeliness_excluded = list(LAST_TIMELINESS_EXCLUDED)
+    report.timeliness_lenient = list(LAST_TIMELINESS_LENIENT)
 
     if not articles:
         logger.warning(f"수집된 기사 없음 - {period} 브리핑 건너뜀")

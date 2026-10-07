@@ -54,6 +54,22 @@ def test_cross_check_reindexed_pubdate():
     assert len(p2) == 1
 
 
+def test_strict_switch():
+    import timeliness as tl
+    os.environ["TIMELINESS_STRICT"] = "0"
+    try:
+        p, e = _run([{"title": "g", "link": "https://x.test/9"}])
+        assert len(p) == 1 and e == [] and p[0]["timeliness_lenient"] is True and p[0]["pub_label"] == "발행시각 없음"
+        assert tl.format_lenient(tl.LAST_LENIENT).startswith("⚠️ 발행시각 없음 통과 1건")
+        from timeline_filter import filter_articles
+        kept = filter_articles(p, NOW, NOW, briefing_type="ai_morning")
+        assert len(kept) == 1
+    finally:
+        os.environ["TIMELINESS_STRICT"] = "1"
+    p, e = _run([{"title": "g", "link": "https://x.test/9"}])
+    assert p == [] and len(e) == 1
+
+
 def test_format_exclusions():
     _, e = _run([{"title": "오래된 기사 제목", "link": "https://news.example.co.kr/a", "published": "2026-09-18T10:00:00+09:00"}])
     line = format_exclusions(e)

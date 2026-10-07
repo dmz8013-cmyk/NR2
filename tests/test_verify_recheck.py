@@ -39,7 +39,13 @@ def test_participle_not_person():
 
 
 def test_caps():
+    os.environ.pop("VERIFY_MAX_POLITICS", None)
     assert max_verify_for("political_afternoon") == 14 and max_verify_for("political_evening") == 14
+    os.environ["VERIFY_MAX_POLITICS"] = "10"
+    assert max_verify_for("political_evening") == 10 and max_verify_for("ai_morning") == 8
+    os.environ["VERIFY_MAX_POLITICS"] = "abc"
+    assert max_verify_for("political_evening") == 14
+    os.environ.pop("VERIFY_MAX_POLITICS", None)
     assert max_verify_for("ai_morning") == 8 and max_verify_for("ai_evening") == 8
     assert family_of("political_evening") == "politics" and family_of("ai_morning") == "general"
 
