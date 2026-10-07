@@ -508,6 +508,18 @@ BANNED_PREDICATE_RE = re.compile(
     r"|로 보인다|로 보임|는 관측|란 관측|라는 관측")
 MAX_ITEM_CHARS = 200
 
+# 미래 이벤트 완료형 — 예고 표지(이달·내달·오는 N일·앞두고…)와 완료 술어(발표.·공개했음…)가 한 항목에 공존하고
+# '예정/계획' 종결이 없으면 시제 승격으로 보고 재작성 요청 (2026-10-08, 현대차 '미래차 10년 비전' 유형)
+FUTURE_MARK_RE = re.compile(r"(이달|내달|내년|이번\s*주|다음\s*주|다음\s*달|오는\s*\d+\s*일|오는\s*\d+\s*월|앞두고|앞둔|로드맵|추진 중|추진한다|계획 중)")
+COMPLETION_RE = re.compile(r"(발표|공개|출시|확정|체결|개최|발간|공표|선보|착수)(?:\.|했음|했다|함\b|됐음|됨\b|되었음)")
+FUTURE_OK_RE = re.compile(r"(할\s*예정|할\s*계획|예정임|예정이다|예정\.|계획임|계획이다|앞두고 있)")
+
+
+def is_future_completion(body: str) -> bool:
+    return bool(FUTURE_MARK_RE.search(body) and COMPLETION_RE.search(body) and not FUTURE_OK_RE.search(body))
+
+TENSE_FIXED_LAST: list[str] = []     # 직전 _enforce_density 에서 시제 재작성 요청한 항목 (회차 DM 용)
+
 REWRITE_PROMPT = """다음 뉴스 브리핑 항목들이 문체 규칙을 위반했다. 각 항목을 규칙에 맞게 다시 써라.
 
 [규칙]
@@ -526,6 +538,9 @@ REWRITE_PROMPT = """다음 뉴스 브리핑 항목들이 문체 규칙을 위반
   채우는 마무리 절은 삭제할 것. 삭제하면 항목이 한 문장만 남거나 그 절이
   구체 사실(예: 검찰 수사 진행 등 핵심 정보)이면 원문 그대로 유지.
 - 원문에 없는 사실·수치 추가 금지. 길이 초과분은 해설·부차 정보 삭제로 해결.
+- [시제] 예정·추진·계획 단계 이벤트(이달/내달/오는 N일 발표·공개·출시 등 아직 일어나지 않은 일)는
+  "~할 예정" 으로만 쓰고, 완료형("발표.", "공개했음", "출시했음")으로 쓰지 말 것.
+  이미 일어난 일이 분명하면 완료형을 유지하되 시점을 명시할 것.
 - 큰따옴표(") 사용 금지.
 
 [위반 항목]
@@ -547,12 +562,14 @@ def _enforce_density(text: str, client, system_prompt: str) -> str:
             if not s.startswith("▪"):
                 continue
             body = s.lstrip("▪").strip()
-            if BANNED_PREDICATE_RE.search(body) or len(body) > MAX_ITEM_CHARS:
+            if BANNED_PREDICATE_RE.search(body) or len(body) > MAX_ITEM_CHARS or is_future_completion(body):
                 bad.append((i, body))
+        global TENSE_FIXED_LAST
+        TENSE_FIXED_LAST = [b[:60] for _, b in bad if is_future_completion(b)]
         if not bad:
             return text
         logger.warning(f"[문체강제] 위반 항목 {len(bad)}건 재작성 요청 "
-                       f"(해설 술어/{MAX_ITEM_CHARS}자 초과)")
+                       f"(해설 술어/{MAX_ITEM_CHARS}자 초과/미래 완료형 {len(TENSE_FIXED_LAST)})")
         listing = "\n".join(f"{n}. {b}" for n, (_, b) in enumerate(bad, 1))
         kwargs = {"system": system_prompt} if system_prompt else {}
         resp = client.messages.create(
@@ -790,6 +807,7 @@ def send_briefing():
         # 3.7) 발행 전 자가 검증 패스 — 고위험 항목만 웹검색 교차 검증.
         #      run_verify_pass 는 내부에서 모든 예외를 삼키지만, import 실패까지
         #      포함해 어떤 경우에도 발행을 중단시키지 않도록 이중 방어.
+        vdetails: dict = {}
         try:
             from verify_pass import run_verify_pass_ex
             briefing, vstats, vdetails = run_verify_pass_ex(briefing, briefing_type=btype_now)
@@ -801,6 +819,25 @@ def send_briefing():
             report.searches += vstats.get("searches", 0)
         except Exception as vp_err:
             logger.error(f"[자가검증] 패스 실행 실패 — 스킵하고 발행: {vp_err}")
+
+        # 3.7a) 전판 기보도 제거 — 직전 24h 어느 모듈이든 발행한 사건은 새 전개 없으면 제외
+        try:
+            from prior_coverage import load_recent_items, filter_prior_coverage
+            prior = load_recent_items(exclude_type=btype_now)
+            briefing, pex, pkeep = filter_prior_coverage(briefing, prior)
+            report.prior_excluded, report.prior_kept = pex, pkeep
+        except Exception as pc_err:
+            logger.warning(f"[기보도] 제거 실패(무시): {pc_err}")
+        # 3.7b) 구단 정식 명칭 교정 (facts.json 스포츠_구단명)
+        try:
+            from sports_names import fix_team_names
+            briefing, report.name_fixes = fix_team_names(briefing)
+        except Exception as sn_err:
+            logger.warning(f"[구단명] 교정 실패(무시): {sn_err}")
+        report.record_dropped = vdetails.get("record_dropped", [])
+        report.source_added = vdetails.get("source_added", [])
+        report.source_dropped = vdetails.get("source_dropped", [])
+        report.tense_fixed = list(TENSE_FIXED_LAST)
 
         # 3.75) 큐 복귀 항목 삽입 (검증 직후·레이아웃 전 — 재검증 대상에서 제외)
         for sec, txt in restored_items:

@@ -56,8 +56,19 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 FACTS_JSON_PATH = os.path.join(_HERE, "config", "facts.json")
 
 VERIFY_MODEL = "claude-haiku-4-5-20251001"
-MAX_VERIFY_PER_RUN = 8          # 회당 검증 상한 (06/18 일반 브리핑)
-MAX_VERIFY_POLITICS = 14        # 13/22 정치 브리핑 — 거의 전 항목이 실명 발언 (2026-10-07)
+MAX_VERIFY_PER_RUN = 14         # 06/18 일반 브리핑 기본 상한 (8→14, 2026-10-08; 환경변수 VERIFY_MAX_GENERAL)
+MAX_VERIFY_POLITICS = 14        # 13/22 정치 브리핑 — 거의 전 항목이 실명 발언 (2026-10-07; VERIFY_MAX_POLITICS)
+
+# 기록·최상급 주장 — 상한과 무관하게 무조건 검색, 미확인이면 삭제(큐 미적재) (2026-10-08, '최원준 204안타' 유형)
+RECORD_RE = re.compile(r"(최다|최초|신기록|사상\s*(?:최고|최대|최저|처음)|역대\s*(?:최고|최대|최다|최장)|\d+\s*연승|\d+\s*연패|"
+                       r"\d+\s*승\s*(?:달성|고지)|\d+\s*안타|\d+\s*홈런\s*달성|대기록|새\s*역사|이정표|통산\s*\d+|최장|최단|최연소|최고령)")
+LAUNCH_RE = re.compile(r"(신규\s*출시|정식\s*출시|첫\s*출시|출시됐음|출시했음|서비스\s*개시|상장됐음)")
+# 수치 출처 병기 — 유출입·보유액·등락 수치는 기관명이 없으면 출처 확인 후 병기, 확인 불가·방향 불일치면 삭제
+FLOW_RE = re.compile(r"(순?유입|순?유출|외환보유액|보유액|순매수|순매도|거래대금|등락|상승\s*마감|하락\s*마감|급등|급락|증가|감소|집계|기록했)")
+SOURCE_RE = re.compile(r"(SoSoValue|소소밸류|SAFE|국가외환관리국|인민은행|한국은행|한은|금융감독원|금감원|금융위|한국거래소|KRX|거래소|"
+                       r"업비트|빗썸|바이낸스|코인베이스|CoinGecko|코인게코|CoinMarketCap|코인마켓캡|Farside|파사이드|블룸버그|로이터|"
+                       r"통계청|관세청|무역협회|산업부|기재부|기획예산처|연준|Fed|BIS|IMF|OECD|S&P|무디스|피치|나스닥|뉴욕증권거래소|"
+                       r"에 따르면|기준\)|집계 기준|발표 기준|조사 결과|자료에 따르면)")
 MAX_SEARCHES_PER_ITEM = 2
 STALE_HOURS = 48                # 검색 결과 최신 기사가 이보다 오래되면 'stale'
 
@@ -98,11 +109,21 @@ ORG_STOPWORDS = {"국회", "정부", "검찰", "경찰", "법원", "대법원", 
                  "해군", "공군", "주한미군", "연합사", "대통령실", "비서실", "총리실", "국무회의"}
 
 
-def _looks_like_person(name: str) -> bool:
-    """기관어·조사 결합 토큰('비판에 의원' 의 '비판에')은 인명으로 보지 않는다."""
-    return (bool(name) and name not in ORG_STOPWORDS
-            and not name.endswith(("당", "부", "청", "실", "위", "처", "에", "의", "을", "를", "은", "는", "과", "와", "로",
-                                   "한", "된", "할", "될", "던", "인")))   # '규정한 대통령'·'지명된 장관' 류 관형형 차단
+AMBIGUOUS_TITLES = {"시장", "감독", "대표", "회장", "사장", "의장", "원장", "국장", "교수", "대사"}   # 일반명사로도 쓰이는 직함
+
+
+def _looks_like_person(name: str, title: str = "", known: set | None = None) -> bool:
+    """기관어·조사 결합 토큰('비판에 의원' 의 '비판에', '감소폭이 시장', '암호화폐 시장')은 인명으로 보지 않는다."""
+    if not name or name in ORG_STOPWORDS:
+        return False
+    if name.endswith(("당", "부", "청", "실", "위", "처", "에", "의", "을", "를", "은", "는", "과", "와", "로",
+                      "한", "된", "할", "될", "던", "인")):          # 관형형·조사 결합
+        return False
+    if len(name) == 4 and name.endswith(("이", "가")):            # '감소폭이' 류 3자 명사+조사
+        return False
+    if title in AMBIGUOUS_TITLES and not (known and name in known) and len(name) != 3:
+        return False                                              # '암호화폐 시장'·'리그 감독' — 3자 인명만 허용
+    return True
 
 # (c) 구체 수치 + 단정 종결
 NUMBER_RE = re.compile(r"[0-9][0-9,.]*\s*(?:%|퍼센트|조|억|만|천|달러|원|명|건|배|년|개월|일|포인트|p|도|㎜|mm|km|㎞)")
@@ -121,7 +142,8 @@ VERIFY_PROMPT = """다음 문장이 최근 보도와 일치하는지 검색해 �
 
 반드시 아래 JSON 형식으로만 최종 응답할 것 (설명 금지):
 {{"verdict": "일치" 또는 "불일치" 또는 "확인불가",
- "corrected": "불일치면 보도에 부합하는 수정문 1문장, 확인불가면 원문을 '~로 전해졌다' 체로 완곡화한 1문장, 일치면 빈 문자열"}}"""
+ "corrected": "불일치면 보도에 부합하는 수정문 1문장, 확인불가면 원문을 '~로 전해졌다' 체로 완곡화한 1문장, 일치면 빈 문자열",
+ "newest_pub_date": "확인한 보도 중 가장 최신 발행일 YYYY-MM-DD, 없으면 빈 문자열"}}"""
 
 
 NAMED_PROMPT = """다음 '실명 발언·행위' 문장이 최근 48시간 내 보도와 일치하는지 웹 검색으로 판정하라.
@@ -140,6 +162,18 @@ NAMED_PROMPT = """다음 '실명 발언·행위' 문장이 최근 48시간 내 �
  "matched_keywords": ["문장 핵심어 중 보도에서 확인된 것"],
  "newest_pub_date": "확인한 보도 중 가장 최신 발행일 YYYY-MM-DD, 없으면 빈 문자열",
  "person_exists": true/false/null}}"""
+
+SOURCE_PROMPT = """다음 수치 문장이 최근 보도와 일치하는지 웹 검색으로 판정하고, 수치의 '출처 기관'을 찾아라.
+방향(유입/유출, 증가/감소, 상승/하락)이 보도와 다르면 반드시 direction_ok=false.
+
+오늘 날짜: {today}
+검증 대상 문장: "{sentence}"
+
+반드시 아래 JSON 으로만 최종 응답 (설명 금지):
+{{"verdict": "일치" 또는 "불일치" 또는 "확인불가",
+ "direction_ok": true/false,
+ "source_org": "수치를 집계·발표한 기관명(예: SoSoValue, 국가외환관리국 SAFE, 한국거래소). 모르면 빈 문자열",
+ "corrected": "원문 문장에 출처 기관을 자연스럽게 병기한 1문장(수치·방향은 보도대로). 확인불가면 빈 문자열"}}"""
 
 _STOP_TOKENS = {"대해", "관련", "위해", "통해", "대한", "이번", "오늘", "지난", "현재", "것으로", "것을", "등을",
                 "등이", "에서", "으로", "에게", "까지", "부터", "하며", "하고", "했다", "했음", "했음.", "했다.", "이라고"}
@@ -165,7 +199,7 @@ def person_names(text: str, known_names: set) -> list[str]:
         if n and n in text and n not in names:
             names.append(n)
     for m in NAME_TITLE_RE.finditer(text):
-        if m.group(1) not in names and _looks_like_person(m.group(1)):
+        if m.group(1) not in names and _looks_like_person(m.group(1), m.group(2), known_names):
             names.append(m.group(1))
     title_set = set(TITLE_WORDS.split("|"))
     for m in QUOTE_SUBJECT_RE.finditer(text):
@@ -220,7 +254,7 @@ def tag_item(text: str, known_names: set) -> list[str]:
     # (a) 사전에 없는 인명+직함 (기관어·단체어는 인명으로 보지 않음)
     for m in NAME_TITLE_RE.finditer(text):
         name = m.group(1)
-        if name not in known_names and _looks_like_person(name):
+        if name not in known_names and _looks_like_person(name, m.group(2), known_names):
             reasons.append(f"미등재 인명+직함: {name} {m.group(2)}")
             break
     # (b) 상태변화 동사
@@ -240,29 +274,63 @@ def tag_item(text: str, known_names: set) -> list[str]:
     names = person_names(text, known_names)
     if names and any(p in text for p in _speech_predicates()):
         reasons.append("실명 발언: " + "·".join(names[:3]))
+    # (f) 기록·최상급 주장 — 필수 검색, 미확인 삭제
+    m = RECORD_RE.search(text)
+    if m:
+        reasons.append(f"기록 주장: {m.group(0)}")
+    # (h) 신규 출시·개시 주장 — 상한 내 검색(수치 그룹 우선순위)
+    m = LAUNCH_RE.search(text)
+    if m:
+        reasons.append(f"출시 주장: {m.group(0)}")
+    # (g) 수치 출처 병기 — 유출입·보유액·등락 수치에 기관명 부재
+    if NUMBER_RE.search(text) and FLOW_RE.search(text) and not SOURCE_RE.search(text):
+        reasons.append("수치 출처 필요")
     return reasons
 
 
-def priority_of(reasons: list[str]) -> int:
-    """검색 우선순위 — 사전 밖 인명·직함(0) > 실명 인용(1) > 수치 단정·외화(2) > 상태변화(3)."""
+def is_mandatory(reasons: list[str]) -> bool:
+    """상한과 무관하게 검색: 기록 주장·수치 출처 필요."""
+    return any(r.startswith("기록 주장") or r == "수치 출처 필요" for r in reasons)
+
+
+def priority_of(reasons: list[str], briefing_type: str = "") -> int:
+    """검색 우선순위.
+    정치: 사전 밖 인명·직함(0) > 실명 인용(1) > 수치·기록 단정(2) > 상태변화(3)
+    일반: 사전 밖 인명·직함(0) > 수치·기록 단정(1) > 실명 인용(2) > 상태변화(3)"""
     joined = " ".join(reasons)
+    politics = (briefing_type or "").startswith("political")
     if "미등재 인명+직함" in joined:
         return 0
-    if "실명 발언" in joined:
-        return 1
-    if "수치+단정" in joined or "외화 금액" in joined:
-        return 2
+    numeric = ("수치+단정" in joined or "외화 금액" in joined or "기록 주장" in joined or "수치 출처" in joined
+               or "출시 주장" in joined)
+    named = "실명 발언" in joined
+    if politics:
+        if named:
+            return 1
+        if numeric:
+            return 2
+    else:
+        if numeric:
+            return 1
+        if named:
+            return 2
+    if "잔여 검색" in joined:
+        return 4
     return 3
 
 
+def _env_int(name: str, default: int) -> int:
+    try:
+        return max(1, int(os.environ.get(name, default)))
+    except (TypeError, ValueError):
+        return default
+
+
 def max_verify_for(briefing_type: str) -> int:
-    """정치 상한은 환경변수 VERIFY_MAX_POLITICS 로 조정(기본 14, 10/14 이후 10 예정). 일반은 8 고정."""
+    """상한 — 정치 VERIFY_MAX_POLITICS(기본 14, 10/14 이후 10 예정) / 일반 VERIFY_MAX_GENERAL(기본 14)."""
     if (briefing_type or "").startswith("political"):
-        try:
-            return max(1, int(os.environ.get("VERIFY_MAX_POLITICS", MAX_VERIFY_POLITICS)))
-        except (TypeError, ValueError):
-            return MAX_VERIFY_POLITICS
-    return MAX_VERIFY_PER_RUN
+        return _env_int("VERIFY_MAX_POLITICS", MAX_VERIFY_POLITICS)
+    return _env_int("VERIFY_MAX_GENERAL", MAX_VERIFY_PER_RUN)
 
 
 def _section_of(lines: list[str], line_no: int) -> str:
@@ -341,9 +409,17 @@ def _verify_with_search(client, text: str) -> dict:
             data = json.loads(final_text[start:end + 1])
             verdict = (data.get("verdict") or "").strip()
             if verdict in ("일치", "불일치", "확인불가"):
-                return {"verdict": verdict,
-                        "corrected": (data.get("corrected") or "").strip(),
-                        "searches": searches}
+                newest = (data.get("newest_pub_date") or "").strip()
+                out = {"verdict": verdict, "corrected": (data.get("corrected") or "").strip(),
+                       "newest_pub_date": newest, "searches": searches}
+                if verdict == "일치" and newest:
+                    try:
+                        nd = datetime.strptime(newest, "%Y-%m-%d").replace(tzinfo=KST)
+                        if (datetime.now(KST) - nd).total_seconds() > STALE_HOURS * 3600:
+                            out["verdict"] = "stale"
+                    except Exception:
+                        pass
+                return out
         # JSON 파싱 실패 → 키워드 폴백
         for v in ("불일치", "확인불가", "일치"):
             if v in final_text:
@@ -432,8 +508,13 @@ def verify_named_statement(client, text: str, names: list[str], keywords: list[s
         return {"verdict": "오류", "corrected": "", "searches": 0}
 
 
+_RUMOR_RE = re.compile(r"(전해졌|전해진다|전해짐|전해져|알려졌|알려진다|알려짐|알려져|로 보인다|로 보임|는 관측|것으로 전해)")
+
+
 def _sane_correction(original: str, corrected: str, known: set) -> bool:
-    """실명 발언 수정문 적합성 — 원문 인명 유지 + 원문 핵심어 1개 이상 + 길이 0.5~1.6배."""
+    """수정문 적합성 — 전언 술어 없음 + 원문 인명 유지 + 원문 핵심어 1개 이상 + 길이 0.5~1.6배."""
+    if _RUMOR_RE.search(corrected):
+        return False
     names = person_names(original, known)
     if names and not any(n in corrected for n in names):
         return False
@@ -442,6 +523,49 @@ def _sane_correction(original: str, corrected: str, known: set) -> bool:
         return False
     ratio = len(corrected) / max(1, len(original))
     return 0.5 <= ratio <= 1.6
+
+
+def verify_numeric_source(client, text: str) -> dict:
+    """수치 출처 병기 검증 → {verdict, direction_ok, source_org, corrected, searches}."""
+    try:
+        resp = client.messages.create(
+            model=VERIFY_MODEL, max_tokens=500,
+            tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": MAX_SEARCHES_PER_ITEM}],
+            messages=[{"role": "user", "content": SOURCE_PROMPT.format(
+                today=datetime.now(KST).strftime("%Y년 %m월 %d일"), sentence=text)}],
+        )
+        final_text = ""
+        for block in resp.content:
+            if getattr(block, "type", "") == "text":
+                final_text = block.text
+        searches = 0
+        try:
+            searches = resp.usage.server_tool_use.web_search_requests
+        except Exception:
+            pass
+        data = _parse_json_block(final_text) or {}
+        verdict = (data.get("verdict") or "").strip()
+        if verdict not in ("일치", "불일치", "확인불가"):
+            verdict = next((v for v in ("불일치", "확인불가", "일치") if v in final_text), "오류")
+        return {"verdict": verdict, "direction_ok": data.get("direction_ok", True) is not False,
+                "source_org": (data.get("source_org") or "").strip(),
+                "corrected": (data.get("corrected") or "").strip(), "searches": searches}
+    except Exception as e:
+        logger.warning(f"[자가검증] 수치 출처 검증 호출 실패(통과 처리): {e}")
+        return {"verdict": "오류", "direction_ok": True, "source_org": "", "corrected": "", "searches": 0}
+
+
+def _with_source(original: str, corrected: str, source_org: str) -> str:
+    """출처 병기 문장 — 모델 수정문이 수치·기관을 담으면 사용, 아니면 원문 끝에 '(기관 집계)' 부가."""
+    nums = NUMBER_RE.findall(original)
+    if corrected and source_org and source_org in corrected and all(n.strip() in corrected for n in nums[:2]):
+        return corrected
+    body = original.rstrip()
+    end = ""
+    while body and body[-1] in ".。":
+        end = body[-1] + end
+        body = body[:-1]
+    return f"{body} ({source_org} 집계){end}" if source_org else original
 
 
 def make_verifier():
@@ -479,19 +603,16 @@ def _log_to_db(stats: dict) -> None:
                 items_total INT, tagged INT, verified INT,
                 passed INT, fixed INT, unconfirmed INT, errors INT, searches INT
             )""")
-        for col in ("calls", "stale", "unknown_person", "queued"):
+        cols = ("calls", "stale", "unknown_person", "queued", "mandatory", "record_dropped",
+                "source_added", "source_dropped")
+        for col in cols:
             cur.execute(f"ALTER TABLE verify_log ADD COLUMN IF NOT EXISTS {col} INT DEFAULT 0")
-        row = {k: stats.get(k, 0) for k in ("items_total", "tagged", "verified", "passed", "fixed",
-                                             "unconfirmed", "errors", "searches", "calls", "stale",
-                                             "unknown_person", "queued")}
+        keys = ("items_total", "tagged", "verified", "passed", "fixed", "unconfirmed", "errors", "searches") + cols
+        row = {k: stats.get(k, 0) for k in keys}
         row["briefing_type"] = stats.get("briefing_type", "")
-        cur.execute("""
-            INSERT INTO verify_log
-              (briefing_type, items_total, tagged, verified, passed, fixed,
-               unconfirmed, errors, searches, calls, stale, unknown_person, queued)
-            VALUES (%(briefing_type)s, %(items_total)s, %(tagged)s, %(verified)s,
-                    %(passed)s, %(fixed)s, %(unconfirmed)s, %(errors)s, %(searches)s,
-                    %(calls)s, %(stale)s, %(unknown_person)s, %(queued)s)
+        cur.execute(f"""
+            INSERT INTO verify_log (briefing_type, {", ".join(keys)})
+            VALUES (%(briefing_type)s, {", ".join(f"%({k})s" for k in keys)})
         """, row)
         conn.commit()
         conn.close()
@@ -526,10 +647,12 @@ def run_verify_pass_ex(briefing: str, briefing_type: str = "", enqueue: bool = T
     details = {excluded, stale, unknown, queued, fixed} — 각 항목 제목 목록(관리자 보고용).
     실명 발언 항목이 '확인불가'면 완곡 처리 없이 제외하고 recheck_queue 에 적재(enqueue=True).
     notify=True 면 구 포맷 DM('미확인 제외')도 보낸다(기본은 호출부 회차 요약이 담당)."""
-    details = {"excluded": [], "stale": [], "unknown": [], "queued": [], "fixed": []}
+    details = {"excluded": [], "stale": [], "unknown": [], "queued": [], "fixed": [],
+               "record_dropped": [], "source_added": [], "source_dropped": []}
     stats = {"briefing_type": briefing_type, "items_total": 0, "tagged": 0, "verified": 0,
              "passed": 0, "fixed": 0, "unconfirmed": 0, "errors": 0, "searches": 0,
-             "calls": 0, "stale": 0, "unknown_person": 0, "queued": 0}
+             "calls": 0, "stale": 0, "unknown_person": 0, "queued": 0,
+             "mandatory": 0, "record_dropped": 0, "source_added": 0, "source_dropped": 0}
     try:
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key or anthropic is None:
@@ -544,21 +667,28 @@ def run_verify_pass_ex(briefing: str, briefing_type: str = "", enqueue: bool = T
             return briefing, stats, details
 
         known = _load_known_names()
-        tagged = []
+        tagged, untagged = [], []
         for line_no, text in items:
             reasons = tag_item(text, known)
             if reasons:
                 tagged.append((line_no, text, reasons))
+            elif briefing_type != "leader_watch":
+                untagged.append((line_no, text, ["잔여 검색"]))   # 상한 여유분으로 검색 (미검색 발행 최소화)
         stats["tagged"] = len(tagged)
-        if not tagged:
+        if not tagged and not untagged:
             logger.info(f"[자가검증] 태깅 0건 (전체 {len(items)}항목) — 통과")
             _log_to_db(stats)
             return briefing, stats, details
 
         cap = max_verify_for(briefing_type)
-        tagged.sort(key=lambda t: priority_of(t[2]))      # 안정 정렬 — 같은 우선순위는 원문 순
-        to_verify = tagged[:cap]
-        logger.info(f"[자가검증] 태깅 {len(tagged)}건 중 {len(to_verify)}건 검증 (상한 {cap}, {briefing_type})")
+        mandatory = [t for t in tagged if is_mandatory(t[2])]
+        optional = [t for t in tagged if not is_mandatory(t[2])]
+        optional.sort(key=lambda t: priority_of(t[2], briefing_type))   # 안정 정렬 — 같은 우선순위는 원문 순
+        to_verify = mandatory + (optional + untagged)[:cap]
+        to_verify.sort(key=lambda t: t[0])
+        stats["mandatory"] = len(mandatory)
+        logger.info(f"[자가검증] 태깅 {len(tagged)}건 중 {len(to_verify)}건 검증 "
+                    f"(필수 {len(mandatory)} + 상한 {cap}, {briefing_type})")
 
         cache = _cache_load()
         client = anthropic.Anthropic(api_key=api_key, timeout=90.0)
@@ -568,7 +698,10 @@ def run_verify_pass_ex(briefing: str, briefing_type: str = "", enqueue: bool = T
         for line_no, text, reasons in to_verify:
             named = any(r.startswith("실명 발언") for r in reasons)
             unregistered = any(r.startswith("미등재 인명+직함") for r in reasons)
-            key = _item_key("v2:" + ("N:" + ("U:" if unregistered else "") if named else "G:") + text)
+            record = any(r.startswith("기록 주장") for r in reasons)
+            source_needed = "수치 출처 필요" in reasons
+            mode = "S:" if (source_needed and not named) else ("N:" + ("U:" if unregistered else "") if named else "G:")
+            key = _item_key("v2:" + mode + text)
             if key in cache:
                 result = cache[key]
                 logger.info(f"[자가검증] 캐시 적중: {text[:30]}… → {result['verdict']}")
@@ -577,6 +710,8 @@ def run_verify_pass_ex(briefing: str, briefing_type: str = "", enqueue: bool = T
                     names = person_names(text, known)
                     result = verify_named_statement(client, text, names, keywords_of(text, names),
                                                     unregistered=unregistered)
+                elif source_needed:
+                    result = verify_numeric_source(client, text)
                 else:
                     result = _verify_with_search(client, text)
                 result["ts"] = time.time()
@@ -589,9 +724,47 @@ def run_verify_pass_ex(briefing: str, briefing_type: str = "", enqueue: bool = T
             corrected = (result.get("corrected") or "").strip().lstrip("▪").strip()
             title = text[:80]
 
+            # (g) 수치 출처: 방향 불일치 → 즉시 삭제 / 일치+기관 → 병기 / 확인불가 → 삭제 (큐 미적재)
+            if source_needed and not named and verdict != "오류":
+                if not result.get("direction_ok", True):
+                    lines[line_no] = None
+                    stats["source_dropped"] += 1
+                    details["source_dropped"].append(f"{title} (방향 불일치)")
+                    logger.warning(f"[자가검증] 수치 방향 불일치 삭제: {text[:40]}…")
+                    continue
+                if verdict in ("일치", "불일치") and result.get("source_org"):
+                    base = corrected if (verdict == "불일치" and corrected) else text
+                    lines[line_no] = "▪ " + _with_source(base, result.get("corrected", ""), result["source_org"])
+                    stats["source_added"] += 1
+                    details["source_added"].append(f"{title} ← {result['source_org']}")
+                    if verdict == "불일치":
+                        stats["fixed"] += 1
+                    else:
+                        stats["passed"] += 1
+                    continue
+                lines[line_no] = None
+                stats["source_dropped"] += 1
+                details["source_dropped"].append(f"{title} ({'출처 미확인' if verdict == '일치' else verdict})")
+                logger.warning(f"[자가검증] 수치 출처 미확인 삭제: {text[:40]}…")
+                continue
+
+            # (f) 기록·최상급: 일치만 통과, 적합한 수정문은 반영, 그 외 삭제 (큐 미적재)
+            if record and verdict not in ("일치", "오류"):
+                if verdict == "불일치" and corrected and _sane_correction(text, corrected, known):
+                    lines[line_no] = "▪ " + corrected
+                    stats["fixed"] += 1
+                    details["fixed"].append(title)
+                    logger.warning(f"[자가검증] 기록 주장 수정: {text[:40]}… → {corrected[:40]}…")
+                else:
+                    lines[line_no] = None
+                    stats["record_dropped"] += 1
+                    details["record_dropped"].append(f"{title} ({verdict})")
+                    logger.warning(f"[자가검증] 기록 주장 미확인 삭제: {text[:40]}…")
+                continue
+
             if verdict == "일치":
                 stats["passed"] += 1
-            elif verdict == "불일치" and corrected and (not named or _sane_correction(text, corrected, known)):
+            elif verdict == "불일치" and corrected and _sane_correction(text, corrected, known):
                 lines[line_no] = "▪ " + corrected
                 stats["fixed"] += 1
                 details["fixed"].append(title)
@@ -616,7 +789,7 @@ def run_verify_pass_ex(briefing: str, briefing_type: str = "", enqueue: bool = T
             elif verdict == "stale":
                 stats["stale"] += 1
                 lines[line_no] = None
-                details["stale"].append(title)
+                details["stale"].append(f"{title} (최신 보도 {result.get('newest_pub_date', '?')})")
                 logger.warning(f"[자가검증] 시의성 미달 제외: {text[:40]}…")
             elif verdict == "unknown_person":
                 stats["unknown_person"] += 1
@@ -647,7 +820,13 @@ def run_verify_pass_ex(briefing: str, briefing_type: str = "", enqueue: bool = T
                             logger.warning(f"[자가검증] 큐 적재 실패(제외 처리): {qe}")
                     details["excluded"].append(title)
                     logger.warning(f"[자가검증] 확인불가(항목 제외): {text[:40]}…")
-            else:  # 오류 or 수정문 없는 불일치 → 원문 유지(발행 우선)
+            elif verdict == "불일치":
+                # 수정문이 없거나 부적합(전언 술어·인명/핵심어 유실) → 항목 제외 (루머 유통 방지, 큐 미적재)
+                stats["unconfirmed"] += 1
+                lines[line_no] = None
+                details["excluded"].append(f"{title} (불일치·수정문 부적합)")
+                logger.warning(f"[자가검증] 불일치(수정문 부적합) 제외: {text[:40]}…")
+            else:  # 오류 → 원문 유지(발행 우선)
                 stats["errors"] += 1
 
         _cache_save(cache)
@@ -656,7 +835,8 @@ def run_verify_pass_ex(briefing: str, briefing_type: str = "", enqueue: bool = T
             _notify_admin_excluded(details["excluded"], briefing_type)
         logger.info(f"[자가검증] 완료 — 검증 {stats['verified']} / 통과 {stats['passed']} / "
                     f"수정 {stats['fixed']} / 확인불가 {stats['unconfirmed']} / stale {stats['stale']} / "
-                    f"존재불명 {stats['unknown_person']} / 큐 {stats['queued']} / 오류 {stats['errors']} / "
+                    f"존재불명 {stats['unknown_person']} / 큐 {stats['queued']} / 기록삭제 {stats['record_dropped']} / "
+                    f"출처병기 {stats['source_added']} / 출처삭제 {stats['source_dropped']} / 오류 {stats['errors']} / "
                     f"호출 {stats['calls']} / 검색 {stats['searches']}회")
         return "\n".join(ln for ln in lines if ln is not None), stats, details
 

@@ -25,7 +25,7 @@ def test_org_not_person():
 def test_known_name_speech_priority_and_keywords():
     t = "정점식 원내대표가 김현지 청와대 제1부속실장 국감 출석 촉구"
     r = tag_item(t, KNOWN)
-    assert r == ["실명 발언: 정점식·김현지"] and priority_of(r) == 1
+    assert r == ["실명 발언: 정점식·김현지"] and priority_of(r, "political_afternoon") == 1 and priority_of(r, "ai_morning") == 2
     kw = keywords_of(t, ["정점식", "김현지"])
     assert "정점식" not in kw and "국감" in kw and len(kw) <= 6
 
@@ -42,11 +42,11 @@ def test_caps():
     os.environ.pop("VERIFY_MAX_POLITICS", None)
     assert max_verify_for("political_afternoon") == 14 and max_verify_for("political_evening") == 14
     os.environ["VERIFY_MAX_POLITICS"] = "10"
-    assert max_verify_for("political_evening") == 10 and max_verify_for("ai_morning") == 8
+    assert max_verify_for("political_evening") == 10 and max_verify_for("ai_morning") == 14
     os.environ["VERIFY_MAX_POLITICS"] = "abc"
     assert max_verify_for("political_evening") == 14
     os.environ.pop("VERIFY_MAX_POLITICS", None)
-    assert max_verify_for("ai_morning") == 8 and max_verify_for("ai_evening") == 8
+    assert max_verify_for("ai_morning") == 14 and max_verify_for("ai_evening") == 14
     assert family_of("political_evening") == "politics" and family_of("ai_morning") == "general"
 
 def test_insert_into_section():

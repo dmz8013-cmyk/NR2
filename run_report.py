@@ -19,13 +19,21 @@ class RunReport:
         self.stale: list[str] = []
         self.unknown: list[str] = []
         self.unconfirmed_dropped: list[str] = []
+        self.record_dropped: list[str] = []
+        self.source_added: list[str] = []
+        self.source_dropped: list[str] = []
+        self.prior_excluded: list[str] = []
+        self.prior_kept: list[str] = []
+        self.name_fixes: list[str] = []
+        self.tense_fixed: list[str] = []
         self.calls = 0
         self.searches = 0
         self.extra: list[str] = []
 
     def summary_line(self) -> str:
-        return (f"시의성 제외 {len(self.timeliness_excluded)} · 미확인→큐 {len(self.queued)} · "
-                f"큐 복귀 {len(self.restored)} · 폐기 {len(self.discarded)}")
+        return (f"시의성 제외 {len(self.timeliness_excluded)} · 기보도 제외 {len(self.prior_excluded)} · "
+                f"기록·수치 삭제 {len(self.record_dropped) + len(self.source_dropped)} · "
+                f"미확인→큐 {len(self.queued)} · 큐 복귀 {len(self.restored)} · 폐기 {len(self.discarded)}")
 
     def text(self) -> str:
         from timeliness import format_exclusions, format_lenient
@@ -39,6 +47,13 @@ class RunReport:
         lines += [f"큐 복귀: {t}" for t in self.restored]
         lines += [f"큐 폐기(2회 미확인): {t}" for t in self.discarded]
         lines += [f"미확인 제외: {t}" for t in self.unconfirmed_dropped]
+        lines += [f"기록 미확인 삭제: {t}" for t in self.record_dropped]
+        lines += [f"수치 삭제: {t}" for t in self.source_dropped]
+        lines += [f"출처 병기: {t}" for t in self.source_added]
+        lines += [f"기보도 제외: {t}" for t in self.prior_excluded]
+        lines += [f"기보도·새 전개 유지: {t}" for t in self.prior_kept]
+        lines += [f"구단명 교정: {t}" for t in self.name_fixes]
+        lines += [f"시제 교정: {t}" for t in self.tense_fixed]
         lines += self.extra
         if self.calls or self.searches:
             lines.append(f"검증 호출 {self.calls}회 · 검색 {self.searches}회")
