@@ -1,57 +1,288 @@
 {
-  "last_updated": "2026-09-04",
+  "last_updated": "2026-10-07",
   "president": {
     "current": "이재명",
     "order": "제21대",
     "party": "더불어민주당",
     "term_start": "2025-06-04",
     "term_end": "2030-06-03",
-    "wrong_names": ["이준석", "윤석열", "한덕수"]
+    "wrong_names": [
+      "이준석",
+      "윤석열",
+      "한덕수"
+    ]
   },
   "prime_minister": {
     "current": "한성숙",
-    "wrong_names": ["이해찬", "김민석", "한덕수"]
+    "status": "인준 완료·재임 중 (2026-06-30 국회 임명동의안 가결 재석167·찬성166)",
+    "verified_on": "2026-10-07",
+    "wrong_names": [
+      "이해찬",
+      "김민석",
+      "한덕수"
+    ]
   },
   "key_figures": [
     {
       "name": "이준석",
       "correct_title": "개혁신당 대표 / 제21대 대선 낙선 후보",
-      "wrong_titles": ["대통령", "대통령 당선인"]
+      "wrong_titles": [
+        "대통령",
+        "대통령 당선인"
+      ]
     },
     {
       "name": "윤석열",
       "correct_title": "전 대통령 (2025년 4월 파면)",
-      "wrong_titles": ["대통령", "현 대통령"]
+      "wrong_titles": [
+        "대통령",
+        "현 대통령"
+      ]
     },
     {
       "name": "한덕수",
       "correct_title": "전 국무총리 (내란 혐의 징역 23년 선고·법정구속)",
-      "wrong_titles": ["대통령", "총리"]
+      "wrong_titles": [
+        "대통령",
+        "총리"
+      ]
     },
     {
       "name": "김정관",
       "correct_title": "산업통상부 장관",
-      "wrong_titles": ["산업통상자원부 장관"]
+      "wrong_titles": [
+        "산업통상자원부 장관"
+      ],
+      "verified_on": "2026-10-07"
     },
     {
       "name": "윤호중",
       "correct_title": "행정안전부 장관",
-      "wrong_titles": []
+      "wrong_titles": [],
+      "verified_on": "2026-10-07"
+    },
+    {
+      "name": "한성숙",
+      "correct_title": "국무총리",
+      "wrong_titles": [],
+      "verified_on": "2026-10-07",
+      "note": "2026-06-30 인준 완료"
+    },
+    {
+      "name": "김민석",
+      "correct_title": "더불어민주당 대표",
+      "wrong_titles": [
+        "총리",
+        "국무총리"
+      ],
+      "verified_on": "2026-10-07",
+      "note": "前 국무총리(~2026.6)"
+    },
+    {
+      "name": "정청래",
+      "correct_title": "더불어민주당 전 대표",
+      "wrong_titles": [
+        "대표",
+        "민주당 대표",
+        "더불어민주당 대표"
+      ],
+      "verified_on": "2026-10-07",
+      "note": "현 대표는 김민석"
+    },
+    {
+      "name": "한동훈",
+      "correct_title": "무소속 국회의원",
+      "wrong_titles": [
+        "국민의힘 대표",
+        "국민의힘 의원",
+        "국힘 대표"
+      ],
+      "verified_on": "2026-10-07",
+      "note": "외교통일위원회"
     },
     {
       "name": "지귀연",
-      "correct_title": "서울북부지법 부장판사",
-      "wrong_titles": []
+      "correct_title": "서울중앙지법 부장판사",
+      "wrong_titles": [
+        "서울북부지법 부장판사"
+      ],
+      "verified_on": "2026-10-07",
+      "note": "사법연구 발령, 징계절차 진행 중"
+    },
+    {
+      "name": "정동영",
+      "correct_title": "통일부 장관",
+      "wrong_titles": [],
+      "verified_on": "2026-10-07"
+    },
+    {
+      "name": "조현",
+      "correct_title": "외교부 장관",
+      "wrong_titles": [],
+      "verified_on": "2026-10-07"
+    },
+    {
+      "name": "정점식",
+      "correct_title": "국민의힘 원내대표",
+      "wrong_titles": [
+        "대표",
+        "당대표"
+      ],
+      "verified_on": "2026-10-07",
+      "note": "2026-10-07 확인"
+    },
+    {
+      "name": "추미애",
+      "correct_title": "경기도지사",
+      "wrong_titles": [
+        "의원",
+        "국회의원",
+        "민주당 의원"
+      ],
+      "verified_on": "2026-10-07"
+    },
+    {
+      "name": "조희대",
+      "correct_title": "대법원장",
+      "wrong_titles": [
+        "의원",
+        "한국당 의원",
+        "국민의힘 의원",
+        "청와대 국무비서관"
+      ],
+      "verified_on": "2026-10-07",
+      "note": "2026-10-06 법사위 국감 출석, 대법관 제청 관련 증언 거부"
+    },
+    {
+      "name": "김현지",
+      "correct_title": "청와대 제1부속실장",
+      "wrong_titles": [
+        "대통령실 제1부속실장",
+        "대통령실 부속실장"
+      ],
+      "verified_on": "2026-10-07"
+    },
+    {
+      "name": "최휘영",
+      "correct_title": "문화체육관광부 장관",
+      "wrong_titles": [],
+      "verified_on": "2026-10-07"
+    },
+    {
+      "name": "정은경",
+      "correct_title": "보건복지부 장관",
+      "wrong_titles": [],
+      "verified_on": "2026-10-07"
+    },
+    {
+      "name": "이재정",
+      "correct_title": "국회 문화체육관광위원장",
+      "wrong_titles": [],
+      "verified_on": "2026-10-07"
+    },
+    {
+      "name": "조국",
+      "correct_title": "조국혁신당 대표",
+      "wrong_titles": [],
+      "verified_on": "2026-10-07"
+    },
+    {
+      "name": "조상호",
+      "correct_title": "세종특별자치시장",
+      "wrong_titles": [
+        "세종시의원"
+      ],
+      "verified_on": "2026-10-07",
+      "note": "민선 9기"
+    },
+    {
+      "name": "이정현",
+      "correct_title": "공소청장 직무대행",
+      "wrong_titles": [
+        "공소청장"
+      ],
+      "verified_on": "2026-10-07",
+      "note": "2026-10-03 확인, 변동 시 검색"
+    },
+    {
+      "name": "이수진",
+      "correct_title": "더불어민주당 국회의원",
+      "wrong_titles": [
+        "국민의힘 의원"
+      ],
+      "verified_on": "2026-10-07"
+    },
+    {
+      "name": "조계원",
+      "correct_title": "더불어민주당 국회의원",
+      "wrong_titles": [
+        "국민의힘 의원"
+      ],
+      "verified_on": "2026-10-07"
+    },
+    {
+      "name": "정진욱",
+      "correct_title": "더불어민주당 국회의원",
+      "wrong_titles": [
+        "국민의힘 의원"
+      ],
+      "verified_on": "2026-10-07"
+    },
+    {
+      "name": "박충권",
+      "correct_title": "국민의힘 국회의원",
+      "wrong_titles": [
+        "민주당 의원",
+        "더불어민주당 의원"
+      ],
+      "verified_on": "2026-10-07"
+    },
+    {
+      "name": "박성민",
+      "correct_title": "국민의힘 국회의원",
+      "wrong_titles": [
+        "민주당 의원",
+        "더불어민주당 의원"
+      ],
+      "verified_on": "2026-10-07"
+    },
+    {
+      "name": "윤용근",
+      "correct_title": "국민의힘 국회의원",
+      "wrong_titles": [
+        "민주당 의원",
+        "더불어민주당 의원"
+      ],
+      "verified_on": "2026-10-07"
+    },
+    {
+      "name": "주진우",
+      "correct_title": "국민의힘 국회의원",
+      "wrong_titles": [
+        "민주당 의원",
+        "더불어민주당 의원"
+      ],
+      "verified_on": "2026-10-07"
     },
     {
       "name": "박기홍",
       "correct_title": "기본소득당 전략기획부총장",
-      "wrong_titles": []
+      "wrong_titles": [],
+      "verified_on": "2026-10-07"
     },
     {
       "name": "라건아",
       "correct_title": "농구 선수 (한국가스공사)",
-      "wrong_titles": []
+      "wrong_titles": [],
+      "verified_on": "2026-10-07"
     }
-  ]
+  ],
+  "unfilled_positions": {
+    "국방부 장관": {
+      "name": "",
+      "must_search": true,
+      "note": "2026년 중 교체됨, 성명 미확인 — 기억으로 채우지 말 것",
+      "verified_on": "2026-10-07"
+    }
+  }
 }

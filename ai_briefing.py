@@ -140,12 +140,9 @@ def fetch_news_by_category(
                 for entry in feed.entries:
                     pub = _parse_pub_date(entry)
 
-                    # 발행일 없는 기사는 무조건 제외 (구식 기사 혼입 방지)
-                    if pub is None:
-                        continue
-
-                    # 시간 필터: 커버리지 윈도우 밖이면 제외
-                    if pub < start_time or pub > end_time:
+                    # 발행일 없는 기사: 즉시 버리지 않고 시의성 필터(HTML 메타 보조 조회)에 넘긴다.
+                    # 시간 필터: 발행일이 있고 커버리지 윈도우 밖이면 제외
+                    if pub is not None and (pub < start_time or pub > end_time):
                         continue
 
                     title = (entry.get("title") or "").strip()
@@ -168,7 +165,27 @@ def fetch_news_by_category(
         categorized[category] = articles[:MAX_ARTICLES_PER_CATEGORY]
         logger.info(f"  [{category}] {len(categorized[category])}건 수집")
 
+    # 시의성 필터 (전 파이프라인 공통): 발행일 ∈ {오늘, 전일} 만 통과. 발행일 없는 기사는
+    # HTML 메타(회당 ≤30건, 3초) 보조 조회 후에도 없으면 제외. 제외 목록은 회차 요약 DM 용.
+    global LAST_TIMELINESS_EXCLUDED
+    LAST_TIMELINESS_EXCLUDED = []
+    try:
+        from timeliness import filter_timely
+        budget = 30
+        for category in list(categorized.keys()):
+            passed, excluded = filter_timely(categorized[category], html_budget=budget)
+            budget = max(0, budget - sum(1 for a in categorized[category] if a.get("pub_date_resolved")))
+            categorized[category] = passed
+            LAST_TIMELINESS_EXCLUDED.extend(excluded)
+        if LAST_TIMELINESS_EXCLUDED:
+            logger.warning(f"[시의성] 제외 {len(LAST_TIMELINESS_EXCLUDED)}건")
+    except Exception as te:
+        logger.error(f"[시의성] 필터 실패 — 윈도우 필터만 적용: {te}")
+
     return categorized
+
+
+LAST_TIMELINESS_EXCLUDED: list[dict] = []
 
 
 # ══════════════════════════════════════════════════
@@ -342,7 +359,8 @@ def generate_briefing_with_ai(
     for cat, articles in categorized_news.items():
         news_block += f"\n[{cat}]\n"
         for a in articles:
-            news_block += f"- {a['title']}\n"
+            label = a.get("pub_label") or ""
+            news_block += f"- {a['title']}" + (f" (발행 {label})" if label else "") + "\n"
             total_count += 1
 
     if total_count == 0:
@@ -434,7 +452,9 @@ def generate_briefing_with_ai(
 10. "정보가 부족합니다", "브리핑을 작성할 수 없습니다" 같은 거부 메시지는 절대 출력하지 마세요. 어떤 상황에서든 반드시 브리핑 형식으로 작성하세요.
 11. 특정 분야 기사가 없으면 해당 분야는 "주요 보도 없음"으로 짧게 언급하고 다음 분야로 넘어가세요.
 12. [팩트 정확도] 헤드라인에 명시된 내용만 요약하세요. 헤드라인에 없는 감정, 반응, 발언을 지어내지 마세요. 예: "OO 열애설" 헤드라인 → "열애설이 보도됐다"까지만. "심기불편", "분노" 등 추측성 표현 절대 금지.
-13. [시의성] 제공된 헤드라인은 모두 오늘자입니다. "최근", "지난달" 등 모호한 시점 대신 "오늘", "금일" 기준으로 작성하세요.
+13. [시의성] 각 헤드라인 끝의 (발행 MM/DD HH:MM)은 그 기사의 발행 시각입니다. 오늘({today_str})과 전일에
+    발행된 기사만 쓰고, 전일 이전 기사는 사용 금지. 기억 속 과거 사건·발언을 '오늘' 일처럼 쓰지 마세요.
+    "최근", "지난달" 등 모호한 시점 대신 "오늘", "금일" 기준으로 작성하세요.
 14. [수치·날짜 임의생성 금지] 팩트 컨텍스트와 [시세 데이터]로 제공된 값 외에는 구체적 수치(가격·지수·통계·퍼센트), 날짜, 인과관계('~때문에', 'A가 B를 초래')를 지어내지 마세요. 헤드라인에 숫자가 없으면 숫자를 쓰지 말고, 제공되지 않은 시세·지표는 언급하지 마세요.
 15. [섹션 고정] 암호화폐·코인 관련 항목(시세·ETF·규제·거래소 포함)은 예외 없이 💰 경제/산업 섹션에만 배치하고, 브리핑 전체에서 ▪ 항목 기준 최대 1건만 다루세요(별도 제공되는 [시세 데이터] 줄은 이 제한과 무관). 코인 소재가 여러 건이면 파급력이 가장 큰 1건만 선택하세요.
 
@@ -682,10 +702,31 @@ def send_briefing():
                 logger.warning(f"이미 오늘자 {period} 브리핑이 생성되어 재생성 및 중복발송을 방지합니다.")
                 return
 
+        # 회차 요약 리포트 (관리자 DM 한 통) — 시의성 제외 · 미확인→큐 · 큐 복귀 · 폐기
+        from run_report import RunReport
+        btype_now = 'ai_morning' if '아침' in period else 'ai_evening'
+        report = RunReport(btype_now)
+
         # 2) RSS 수집
         categorized = fetch_news_by_category(start, end)
         total_raw = sum(len(v) for v in categorized.values())
         logger.info(f"RSS 수집 완료: {total_raw}건")
+        report.timeliness_excluded = list(LAST_TIMELINESS_EXCLUDED)
+
+        # 2.6) 재검색 큐(general) — 이전 회차 미확인 실명 발언 재검색 (생성 전)
+        restored_items: list[tuple[str, str]] = []
+        try:
+            from recheck_queue import process_queue
+            from verify_pass import make_verifier
+            vf = make_verifier()
+            if vf:
+                restored_items, discarded, qdetails = process_queue("general", vf)
+                report.restored = [t[:80] for _, t in restored_items]
+                report.discarded = [t[:80] for t in discarded]
+                report.searches += sum(d.get("searches", 0) for d in qdetails)
+                report.calls += len(qdetails)
+        except Exception as qe:
+            logger.warning(f"[재검색큐] 처리 실패(무시): {qe}")
 
         # 2.5) 타임라인 필터 2차 검증 (절대 상한 체크)
         try:
@@ -746,11 +787,24 @@ def send_briefing():
         #      run_verify_pass 는 내부에서 모든 예외를 삼키지만, import 실패까지
         #      포함해 어떤 경우에도 발행을 중단시키지 않도록 이중 방어.
         try:
-            from verify_pass import run_verify_pass
-            briefing = run_verify_pass(
-                briefing, briefing_type='ai_morning' if '아침' in period else 'ai_evening')
+            from verify_pass import run_verify_pass_ex
+            briefing, vstats, vdetails = run_verify_pass_ex(briefing, briefing_type=btype_now)
+            report.queued = vdetails.get("queued", [])
+            report.stale = vdetails.get("stale", [])
+            report.unknown = vdetails.get("unknown", [])
+            report.unconfirmed_dropped = vdetails.get("excluded", [])
+            report.calls += vstats.get("calls", 0)
+            report.searches += vstats.get("searches", 0)
         except Exception as vp_err:
             logger.error(f"[자가검증] 패스 실행 실패 — 스킵하고 발행: {vp_err}")
+
+        # 3.75) 큐 복귀 항목 삽입 (검증 직후·레이아웃 전 — 재검증 대상에서 제외)
+        for sec, txt in restored_items:
+            try:
+                from recheck_queue import insert_into_section
+                briefing = insert_into_section(briefing, sec, txt)
+            except Exception as ie:
+                logger.warning(f"[재검색큐] 복귀 삽입 실패: {ie}")
 
         # 3.8) 문체 2차 패스 — verify_pass 수정문·완곡문이 해설 술어/필러 절을
         #      재유입하는 경로 차단 (위반 항목이 있을 때만 1회 재작성, 실패 시 원문)
@@ -803,6 +857,10 @@ def send_briefing():
         logger.info("=" * 50)
         logger.info("AI 브리핑 파이프라인 완료 ✅")
         logger.info("=" * 50)
+        try:
+            report.send()
+        except Exception as re_err:
+            logger.warning(f"[회차요약] 전송 실패(무시): {re_err}")
 
         # 6) 카드뉴스 자동 생성 — 아침 브리핑 때 1회만 실행.
         #    (전날 저녁 브리핑 + 당일 아침 브리핑을 합쳐 하루치 카드뉴스 8장 생성.

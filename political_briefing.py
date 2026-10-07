@@ -56,6 +56,9 @@ def search_naver_news(query, display=10, sort='date'):
         return []
 
 
+LAST_TIMELINESS_EXCLUDED: list = []
+
+
 def collect_political_news(is_afternoon=True):
     """
     정치 뉴스 수집
@@ -110,6 +113,16 @@ def collect_political_news(is_afternoon=True):
     all_articles.sort(key=lambda x: x['pub_date'], reverse=True)
     all_articles = all_articles[:40]
 
+    # 시의성 필터 (공통): 발행일 ∈ {오늘, 전일} 만 통과 — 네이버 pubDate 가 재색인 시각일 때
+    # 옛 기사가 '오늘' 로 들어오는 경우는 기사 HTML 메타(회당 ≤30건) 로 재확인
+    global LAST_TIMELINESS_EXCLUDED
+    LAST_TIMELINESS_EXCLUDED = []
+    try:
+        from timeliness import filter_timely
+        all_articles, LAST_TIMELINESS_EXCLUDED = filter_timely(all_articles, cross_check=True)
+    except Exception as te:
+        logger.error(f"[시의성] 필터 실패 — 윈도우 필터만 적용: {te}")
+
     # 타임라인 필터 2차 검증 (절대 상한 체크)
     try:
         from timeline_filter import filter_naver_articles
@@ -147,7 +160,8 @@ def generate_political_briefing(articles, is_afternoon=True):
 
     news_block = ""
     for i, article in enumerate(articles, 1):
-        news_block += f"{i}. [{article['title']}]\n   {article['description'][:150]}\n\n"
+        label = article.get('pub_label') or (article['pub_date'].strftime('%m/%d %H:%M') if article.get('pub_date') else '')
+        news_block += f"{i}. [{article['title']}] (발행 {label})\n   {article['description'][:150]}\n\n"
 
     # 팩트 컨텍스트 자동 주입
     try:
@@ -211,7 +225,10 @@ def generate_political_briefing(articles, is_afternoon=True):
 8. 첫 줄 🔥【한방에 정리하는 정치권 이슈 - 반박시니말이맞음(...)】🔥는 절대 수정하지 말것. 이 줄은 고정 텍스트이며 자극적 제목은 반드시 그 다음 줄에 별도로 작성
 9. "정보가 부족합니다", "브리핑을 작성할 수 없습니다" 같은 거부 메시지는 절대 출력하지 마세요. 기사가 적더라도 반드시 위 포맷대로 브리핑을 완성하세요.
 10. [팩트 정확도] 기사 제목과 요약에 명시된 내용만 사용하세요. 기사에 없는 감정("심기불편", "분노"), 반응, 발언을 지어내지 마세요. 사실 기반 서술만 허용됩니다.
-11. [시의성] 제공된 기사는 모두 오늘자입니다. "최근", "지난달" 등 모호한 시점 대신 구체적 시점으로 작성하세요.
+11. [시의성] 각 기사 제목 뒤 (발행 MM/DD HH:MM)은 발행 시각입니다. 오늘({now.strftime('%m/%d')})·전일 발행 기사만 쓰고,
+    전일 이전 기사는 사용 금지. 기억 속 과거 사건·발언을 오늘 일처럼 쓰지 마세요. "최근", "지난달" 등 모호한 시점 대신 구체적 시점으로.
+12. [인명 규칙] 기사에 없는 인물·직책을 만들지 마세요. 발언 주체가 기사에 명시되지 않으면 이름을 빼고 직명·기관명만 쓰세요.
+    사전에 없는 인물의 직함은 기사 원문 표기 그대로만 쓰고, 추측으로 채우지 마세요.
 
 [오늘 {time_range} 정치 뉴스]
 {news_block}"""
@@ -313,11 +330,33 @@ def send_political_briefing(is_afternoon=True):
     except Exception as e:
         logger.error(f"중복 체크 실패: {e}")
 
+    btype = 'political_afternoon' if is_afternoon else 'political_evening'
+    from run_report import RunReport
+    report = RunReport(btype)
+
     articles = collect_political_news(is_afternoon=is_afternoon)
+    report.timeliness_excluded = list(LAST_TIMELINESS_EXCLUDED)
 
     if not articles:
         logger.warning(f"수집된 기사 없음 - {period} 브리핑 건너뜀")
+        report.extra.append("수집 기사 0건 — 브리핑 생략")
+        report.send()
         return
+
+    # 재검색 큐(politics) — 이전 회차 미확인 실명 발언 재검색 (생성 전)
+    restored_items = []
+    try:
+        from recheck_queue import process_queue
+        from verify_pass import make_verifier
+        vf = make_verifier()
+        if vf:
+            restored_items, discarded, qdetails = process_queue("politics", vf)
+            report.restored = [t[:80] for _, t in restored_items]
+            report.discarded = [t[:80] for t in discarded]
+            report.searches += sum(d.get("searches", 0) for d in qdetails)
+            report.calls += len(qdetails)
+    except Exception as qe:
+        logger.warning(f"[재검색큐] 처리 실패(무시): {qe}")
 
     briefing = generate_political_briefing(articles, is_afternoon=is_afternoon)
 
@@ -347,6 +386,28 @@ def send_political_briefing(is_afternoon=True):
             logger.info("[팩트체크] 오류 없음 — 통과")
     except Exception as fc_err:
         logger.error(f"[팩트체크] 실행 실패 (브리핑은 그대로 발송): {fc_err}")
+
+    # 발행 전 자가 검증 패스 — 실명 발언·사전 밖 인명 직함·수치 (회당 상한 14, 2026-10-07 추가)
+    #   확인불가 실명 발언은 제외 + recheck_queue(politics) 적재, stale/존재 불명은 제외
+    try:
+        from verify_pass import run_verify_pass_ex
+        briefing, vstats, vdetails = run_verify_pass_ex(briefing, briefing_type=btype)
+        report.queued = vdetails.get("queued", [])
+        report.stale = vdetails.get("stale", [])
+        report.unknown = vdetails.get("unknown", [])
+        report.unconfirmed_dropped = vdetails.get("excluded", [])
+        report.calls += vstats.get("calls", 0)
+        report.searches += vstats.get("searches", 0)
+    except Exception as vp_err:
+        logger.error(f"[자가검증] 패스 실행 실패 — 스킵하고 발행: {vp_err}")
+
+    # 큐 복귀 항목 삽입 (검증 직후·레이아웃 전)
+    for sec, txt in restored_items:
+        try:
+            from recheck_queue import insert_into_section
+            briefing = insert_into_section(briefing, sec, txt)
+        except Exception as ie:
+            logger.warning(f"[재검색큐] 복귀 삽입 실패: {ie}")
 
     # 공용 레이아웃 — 헤더(출처 2링크)·푸터(참고 2링크)·섹션 간격 재조립
     # (config/briefing_layout.json, 정보공유방 브리핑과 동일 템플릿)
@@ -388,6 +449,11 @@ def send_political_briefing(is_afternoon=True):
         logger.info(f"=== 정치 브리핑 완료 ({period}) ===")
     else:
         logger.error(f"=== 정치 브리핑 전송 실패 ({period}) ===")
+        report.extra.append("⚠️ 텔레그램 전송 실패")
+    try:
+        report.send()
+    except Exception as re_err:
+        logger.warning(f"[회차요약] 전송 실패(무시): {re_err}")
 
 
 def afternoon_political_briefing():

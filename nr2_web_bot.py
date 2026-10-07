@@ -248,6 +248,42 @@ def handle_cardnews_command(chat_id, app):
 
 
 # ──────────────────────────────────────────────
+# /recheck_* — 미확인 실명 발언 재검색 큐 (관리자 전용)
+# ──────────────────────────────────────────────
+
+def handle_recheck_command(chat_id, cmd, args):
+    """/recheck_add <family> <section> <항목문장> · /recheck_list · /recheck_drop <id>"""
+    admin_id = os.environ.get('TELEGRAM_ADMIN_CHAT_ID', '5132309076')
+    if str(chat_id) != str(admin_id):
+        tg_send(chat_id, "⚠️ 관리자 전용 명령입니다.")
+        return
+    try:
+        import recheck_queue as rq
+        base = cmd.split('@')[0]
+        if base == '/recheck_list':
+            tg_send(chat_id, rq.format_list(rq.list_items(status='pending')))
+        elif base == '/recheck_drop':
+            try:
+                rid = int((args or '').strip())
+            except ValueError:
+                tg_send(chat_id, "형식: /recheck_drop <id>")
+                return
+            tg_send(chat_id, f"🗑 #{rid} 폐기" if rq.drop(rid) else f"⚠️ #{rid} 없음(또는 pending 아님)")
+        else:
+            parts = (args or '').split(None, 2)
+            if len(parts) < 3 or parts[0] not in rq.FAMILIES:
+                tg_send(chat_id, "형식: /recheck_add <general|politics> <섹션> <항목문장>\n"
+                                 "예: /recheck_add politics 더불어민주당 김준혁 의원이 …")
+                return
+            rid = rq.enqueue(parts[0], parts[1], parts[2], first_run="manual")
+            tg_send(chat_id, f"📥 재검색 큐 #{rid} 적재 [{parts[0]}/{parts[1]}] — 다음 {parts[0]} 회차 생성 전 재검색"
+                             if rid else "❌ 적재 실패(DB)")
+    except Exception as e:
+        logger.error(f'[WebBot] recheck 처리 오류: {e}')
+        tg_send(chat_id, f"❌ 처리 실패: {e}")
+
+
+# ──────────────────────────────────────────────
 # /fact — 확정 팩트 사전 런타임 추가 (관리자 전용)
 # ──────────────────────────────────────────────
 
@@ -399,6 +435,11 @@ def poll_commands(app):
                 if _is_cardnews_admin(chat_id):
                     from cardnews_daily import discard_card_draft
                     tg_send(chat_id, discard_card_draft())
+
+            elif cmd in ('/recheck_add', '/recheck_add@nr2_bot', '/recheck_list', '/recheck_list@nr2_bot',
+                         '/recheck_drop', '/recheck_drop@nr2_bot'):
+                logger.info(f'[WebBot] {cmd} 수신: chat_id={chat_id}')
+                handle_recheck_command(chat_id, cmd, args)
 
             elif cmd in ('/fact', '/fact@nr2_bot'):
                 logger.info(f'[WebBot] /fact 수신: chat_id={chat_id}')

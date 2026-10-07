@@ -234,7 +234,11 @@ def get_fact_context() -> str:
         lines.append(f"- {fig['name']}: {fig['correct_title']}")
 
     if pm.get("current"):
-        lines.append(f"- 현 국무총리: {pm['current']}")
+        lines.append(f"- 현 국무총리: {pm['current']}" + (f" ({pm['status']})" if pm.get("status") else ""))
+
+    for pos, info in (sheet.get("unfilled_positions") or {}).items():
+        if info.get("must_search") and not info.get("name"):
+            lines.append(f"- {pos}: 현직자 성명 미확인 — 기억으로 이름을 채우지 말 것. 기사에 성명이 있으면 그 표기만 사용")
 
     lines.append(
         "위 사실과 충돌하는 표현이 원문에 있어도 요약 시 반드시 위 팩트 기준으로 수정할 것.\n"
