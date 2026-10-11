@@ -11,8 +11,9 @@ from datetime import datetime, timedelta
 logger = logging.getLogger("prior_coverage")
 SIM_THRESHOLD = 45.0
 HOURS = 24
-NEW_DEV_RE = re.compile(r"(후속|추가로|새로|이어|다시|재차|번복|확정|최종|결과|판결|선고|가결|부결|체결|출범|착수|시행|"
-                        r"인상|인하|사퇴|해임|구속|기소|무죄|유죄|항소|상고|합의|타결|결렬|철회|취소|승인|부결)")
+# 새 전개 = 새 발언(따옴표 인용) · 새 결정(결정 동사) · 새 수치. '출범·결과·추가' 같은 범용어는 표지어가 아님 (2026-10-12)
+DECISION_RE = re.compile(r"(결정|의결|가결|부결|확정|선고|판결|지명|임명|철회|취소|승인|사퇴|해임|구속|기소|무죄|유죄|항소|상고|타결|결렬|체결|해산|탄핵|제명)")
+QUOTE_RE = re.compile(r"[\"“'‘]([^\"”'’]{4,60})[\"”'’]")
 NUM_RE = re.compile(r"\d[\d,.]*")
 
 
@@ -92,10 +93,40 @@ def load_recent_items(hours: int = HOURS, exclude_type: str | None = None, now: 
 
 
 def is_new_development(new_text: str, prior_text: str) -> bool:
-    """이전 항목에 없던 '전개 표지어'(판결·가결·확정·철회 등 상태 변화)가 새 항목에 있으면 새 전개.
-    수치만 추가된 재서술(금액·인원 상세)은 새 전개로 보지 않는다."""
-    new_markers = set(NEW_DEV_RE.findall(new_text)) - set(NEW_DEV_RE.findall(prior_text))
-    return bool(new_markers)
+    """새 발언(이전에 없던 인용문) / 새 결정(이전에 없던 결정 동사) / 새 수치(이전에 없던 숫자 2개 이상)."""
+    new_quotes = {q.strip() for q in QUOTE_RE.findall(new_text)} - {q.strip() for q in QUOTE_RE.findall(prior_text)}
+    if new_quotes:
+        return True
+    if set(DECISION_RE.findall(new_text)) - set(DECISION_RE.findall(prior_text)):
+        return True
+    new_nums = set(NUM_RE.findall(new_text)) - set(NUM_RE.findall(prior_text))
+    return len(new_nums) >= 2
+
+
+_SUBJECT_NAMES: list[str] | None = None
+
+
+def _subject_names() -> list[str]:
+    global _SUBJECT_NAMES
+    if _SUBJECT_NAMES is None:
+        try:
+            import json
+            with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "facts.json"), encoding="utf-8") as f:
+                _SUBJECT_NAMES = list((json.load(f).get("인물_직함") or {}).keys())
+        except Exception:
+            _SUBJECT_NAMES = []
+    return _SUBJECT_NAMES
+
+
+def same_person_event(new_text: str, prior_text: str) -> bool:
+    """같은 사전 인물 + 사건 키워드(조사 제거 토큰) 2개 이상 겹치면 같은 사건."""
+    names = [n for n in _subject_names() if n in new_text and n in prior_text]
+    if not names:
+        return False
+    a = set(_tokens(new_text)) - set(names)
+    b = set(_tokens(prior_text)) - set(names)
+    shared = {x for x in a if any(x == y or x.startswith(y) or y.startswith(x) for y in b) and len(x) >= 2}
+    return len(shared) >= 2
 
 
 def match_prior(text: str, prior: list[dict], threshold: float = SIM_THRESHOLD) -> tuple[dict | None, float]:
@@ -103,6 +134,8 @@ def match_prior(text: str, prior: list[dict], threshold: float = SIM_THRESHOLD) 
     n = _norm(text)
     for p in prior:
         s = _sim(n, _norm(p["text"]), text, p["text"])
+        if same_person_event(text, p["text"]):
+            s = max(s, threshold)          # 같은 인물 + 사건 키워드 2개 → 기보도로 간주
         if s > score:
             best, score = p, s
     return (best, score) if score >= threshold else (None, score)

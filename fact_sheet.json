@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-10-11",
+  "last_updated": "2026-10-12",
   "president": {
     "current": "이재명",
     "order": "제21대",
@@ -314,10 +314,13 @@
       "name": "임은정",
       "correct_title": "광주중앙수사청장",
       "wrong_titles": [
+        "초대 청장",
+        "중수청 초대 청장",
+        "중앙수사본부 청장",
         "중수청장",
         "검사장"
       ],
-      "verified_on": "2026-10-11"
+      "verified_on": "2026-10-12"
     },
     {
       "name": "김지용",
@@ -373,6 +376,16 @@
       "must_search": false,
       "note": "2026-09-22 취임 보도 확인 — 미확인 해제",
       "verified_on": "2026-09-22"
+    }
+  },
+  "organizations": {
+    "디오션자산운용": {
+      "role": "SK오션플랜트 인수자",
+      "verified_on": "2026-10-12"
+    },
+    "SOOP": {
+      "role": "KOVO 여자부 신생팀 (한글 '숲' 표기 금지)",
+      "verified_on": "2026-10-12"
     }
   }
 }

@@ -143,7 +143,8 @@ VERIFY_PROMPT = """다음 문장이 최근 보도와 일치하는지 검색해 �
 반드시 아래 JSON 형식으로만 최종 응답할 것 (설명 금지):
 {{"verdict": "일치" 또는 "불일치" 또는 "확인불가",
  "corrected": "불일치면 보도에 부합하는 수정문 1문장, 확인불가면 원문을 '~로 전해졌다' 체로 완곡화한 1문장, 일치면 빈 문자열",
- "newest_pub_date": "확인한 보도 중 가장 최신 발행일 YYYY-MM-DD, 없으면 빈 문자열"}}"""
+ "newest_pub_date": "확인한 보도 중 가장 최신 발행일 YYYY-MM-DD, 없으면 빈 문자열",
+ "event_date": "문장이 서술하는 사건(공개·발표·출시·게시·결정 등)이 실제로 일어난 날짜 YYYY-MM-DD, 모르면 빈 문자열"}}"""
 
 
 NAMED_PROMPT = """다음 '실명 발언·행위' 문장이 최근 48시간 내 보도와 일치하는지 웹 검색으로 판정하라.
@@ -161,7 +162,8 @@ NAMED_PROMPT = """다음 '실명 발언·행위' 문장이 최근 48시간 내 �
  "matched_name": true/false,
  "matched_keywords": ["문장 핵심어 중 보도에서 확인된 것"],
  "newest_pub_date": "확인한 보도 중 가장 최신 발행일 YYYY-MM-DD, 없으면 빈 문자열",
- "person_exists": true/false/null}}"""
+ "person_exists": true/false/null,
+ "event_date": "문장이 서술하는 사건이 실제로 일어난 날짜 YYYY-MM-DD, 모르면 빈 문자열"}}"""
 
 SOURCE_PROMPT = """다음 수치 문장이 최근 보도와 일치하는지 웹 검색으로 판정하고, 수치의 '출처 기관'을 찾아라.
 방향(유입/유출, 증가/감소, 상승/하락)이 보도와 다르면 반드시 direction_ok=false.
@@ -173,7 +175,8 @@ SOURCE_PROMPT = """다음 수치 문장이 최근 보도와 일치하는지 웹 
 {{"verdict": "일치" 또는 "불일치" 또는 "확인불가",
  "direction_ok": true/false,
  "source_org": "수치를 집계·발표한 기관명(예: SoSoValue, 국가외환관리국 SAFE, 한국거래소). 모르면 빈 문자열",
- "corrected": "원문 문장에 출처 기관을 자연스럽게 병기한 1문장(수치·방향은 보도대로). 확인불가면 빈 문자열"}}"""
+ "corrected": "원문 문장에 출처 기관을 자연스럽게 병기한 1문장(수치·방향은 보도대로). 확인불가면 빈 문자열",
+ "event_date": "수치가 집계·발표된 날짜 YYYY-MM-DD, 모르면 빈 문자열"}}"""
 
 _STOP_TOKENS = {"대해", "관련", "위해", "통해", "대한", "이번", "오늘", "지난", "현재", "것으로", "것을", "등을",
                 "등이", "에서", "으로", "에게", "까지", "부터", "하며", "하고", "했다", "했음", "했음.", "했다.", "이라고"}
@@ -288,6 +291,21 @@ def tag_item(text: str, known_names: set) -> list[str]:
     return reasons
 
 
+# 사건 시점 검사 — 공개·발표·출시·게시류 서술의 '사건 발생일'이 오늘·전일이 아니면 제외 (기사 발행일이 최근이어도)
+EVENT_VERB_RE = re.compile(r"(공개|발표|출시|게시|발간|공표|선보|배포|개봉|상장)")
+
+
+def stale_event(text: str, event_date: str) -> bool:
+    if not event_date or not EVENT_VERB_RE.search(text or ""):
+        return False
+    try:
+        from timeliness import allowed_dates
+        d = datetime.strptime(event_date[:10], "%Y-%m-%d").date()
+        return d not in allowed_dates()
+    except Exception:
+        return False
+
+
 def is_mandatory(reasons: list[str]) -> bool:
     """상한과 무관하게 검색: 기록 주장·수치 출처 필요."""
     return any(r.startswith("기록 주장") or r == "수치 출처 필요" for r in reasons)
@@ -340,6 +358,8 @@ def _section_of(lines: list[str], line_no: int) -> str:
     except Exception:
         SECTION_HEADER_RE = re.compile(r'^(🏛️|💰|🤖|🎯|📌|🇰🇷|🟦|🟥|🎸|🌐)')
     for i in range(line_no, -1, -1):
+        if lines[i] is None:            # 제외 처리된 줄(None) 건너뜀 — 10/12 06:00 큐 적재 실패 원인
+            continue
         st = lines[i].strip()
         if SECTION_HEADER_RE.match(st):
             return re.sub(r"[^\w가-힣/ ·]", "", st).strip()[:40]
@@ -411,7 +431,8 @@ def _verify_with_search(client, text: str) -> dict:
             if verdict in ("일치", "불일치", "확인불가"):
                 newest = (data.get("newest_pub_date") or "").strip()
                 out = {"verdict": verdict, "corrected": (data.get("corrected") or "").strip(),
-                       "newest_pub_date": newest, "searches": searches}
+                       "newest_pub_date": newest, "searches": searches,
+                       "event_date": (data.get("event_date") or "").strip()}
                 if verdict == "일치" and newest:
                     try:
                         nd = datetime.strptime(newest, "%Y-%m-%d").replace(tzinfo=KST)
@@ -486,7 +507,7 @@ def verify_named_statement(client, text: str, names: list[str], keywords: list[s
         out = {"verdict": verdict, "corrected": (data.get("corrected") or "").strip(),
                "matched_name": bool(data.get("matched_name")), "matched_keywords": matched_kw,
                "newest_pub_date": newest, "person_exists": exists, "searches": searches,
-               "queries": queries}
+               "queries": queries, "event_date": (data.get("event_date") or "").strip()}
         # 사전 밖 인명+직함: 검색에서 그 조합이 0건(person_exists=false) 이거나,
         # 확인불가인데 인명조차 보도에서 안 잡히면 '존재 불명 인물' — 큐에 넣지 않고 즉시 제외
         if unregistered and (exists is False or (verdict == "확인불가" and not out["matched_name"])):
@@ -549,7 +570,8 @@ def verify_numeric_source(client, text: str) -> dict:
             verdict = next((v for v in ("불일치", "확인불가", "일치") if v in final_text), "오류")
         return {"verdict": verdict, "direction_ok": data.get("direction_ok", True) is not False,
                 "source_org": (data.get("source_org") or "").strip(),
-                "corrected": (data.get("corrected") or "").strip(), "searches": searches}
+                "corrected": (data.get("corrected") or "").strip(), "searches": searches,
+                "event_date": (data.get("event_date") or "").strip()}
     except Exception as e:
         logger.warning(f"[자가검증] 수치 출처 검증 호출 실패(통과 처리): {e}")
         return {"verdict": "오류", "direction_ok": True, "source_org": "", "corrected": "", "searches": 0}
@@ -723,6 +745,14 @@ def run_verify_pass_ex(briefing: str, briefing_type: str = "", enqueue: bool = T
             verdict = result["verdict"]
             corrected = (result.get("corrected") or "").strip().lstrip("▪").strip()
             title = text[:80]
+
+            # 사건 시점: 발표·공개·출시류인데 사건 발생일이 오늘·전일 밖 → 시의성 미달 제외
+            if verdict != "오류" and stale_event(text, result.get("event_date", "")):
+                stats["stale"] += 1
+                lines[line_no] = None
+                details["stale"].append(f"{title} (사건일 {result.get('event_date')})")
+                logger.warning(f"[자가검증] 사건 시점 미달 제외({result.get('event_date')}): {text[:40]}…")
+                continue
 
             # (g) 수치 출처: 방향 불일치 → 즉시 삭제 / 일치+기관 → 병기 / 확인불가 → 삭제 (큐 미적재)
             if source_needed and not named and verdict != "오류":

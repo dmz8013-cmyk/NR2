@@ -485,7 +485,7 @@ def generate_briefing_with_ai(
 
     text = _normalize_bullet_spacing(response.content[0].text.strip())
     # 문체·길이 회귀 방어: 해설 술어·200자 초과 항목만 1회 재작성 (실패 시 원문 유지)
-    text = _enforce_density(text, client, system_prompt)
+    text = _enforce_density(text, client, system_prompt, morning=("아침" in period))
     # 시세 줄 경제 섹션 고정 (결정론 후처리 — 모델이 다른 섹션에 둬도 교정)
     text = _pin_crypto_line(text, crypto_line)
     logger.info(f"AI 브리핑 생성 완료 — {len(text)}자")
@@ -515,8 +515,17 @@ COMPLETION_RE = re.compile(r"(발표|공개|출시|확정|체결|개최|발간|�
 FUTURE_OK_RE = re.compile(r"(할\s*예정|할\s*계획|예정임|예정이다|예정\.|계획임|계획이다|앞두고 있)")
 
 
-def is_future_completion(body: str) -> bool:
-    return bool(FUTURE_MARK_RE.search(body) and COMPLETION_RE.search(body) and not FUTURE_OK_RE.search(body))
+# 06:00 회차 — 당일 일정(국감·청문회·경기·회의)을 '진행/개최/질의'로 현재·완료형 서술하면 시제 위반 → '예정' 재작성
+SCHEDULE_RE = re.compile(r"(국정감사|국감|청문회|본회의|상임위|전체회의|회의|기자회견|토론회|경기|개막전|결승|시상식|발표회|집회|총회|공판|선고\s*공판)")
+PRESENT_RE = re.compile(r"(진행\.|진행됨|진행 중|진행하|개최\.|개최됨|열림|열려|열렸|질의\.|질의함|질의 중|질의하|치러짐|치러져|시작됨|실시\.|실시됨)")
+
+
+def is_future_completion(body: str, morning: bool = False) -> bool:
+    if FUTURE_MARK_RE.search(body) and COMPLETION_RE.search(body) and not FUTURE_OK_RE.search(body):
+        return True
+    if morning and SCHEDULE_RE.search(body) and PRESENT_RE.search(body) and not FUTURE_OK_RE.search(body):
+        return True
+    return False
 
 TENSE_FIXED_LAST: list[str] = []     # 직전 _enforce_density 에서 시제 재작성 요청한 항목 (회차 DM 용)
 
@@ -541,6 +550,8 @@ REWRITE_PROMPT = """다음 뉴스 브리핑 항목들이 문체 규칙을 위반
 - [시제] 예정·추진·계획 단계 이벤트(이달/내달/오는 N일 발표·공개·출시 등 아직 일어나지 않은 일)는
   "~할 예정" 으로만 쓰고, 완료형("발표.", "공개했음", "출시했음")으로 쓰지 말 것.
   이미 일어난 일이 분명하면 완료형을 유지하되 시점을 명시할 것.
+- [당일 일정] 아침 06:00 브리핑에서 오늘 열리는 국감·청문회·회의·경기는 "~ 예정"으로만 쓰고,
+  '진행·개최·질의·결과' 등 아직 일어나지 않은 내용을 서술하지 말 것.
 - 큰따옴표(") 사용 금지.
 
 [위반 항목]
@@ -549,7 +560,7 @@ REWRITE_PROMPT = """다음 뉴스 브리핑 항목들이 문체 규칙을 위반
 JSON 배열만 출력: [{{"i": 항목번호, "text": "수정문"}}]"""
 
 
-def _enforce_density(text: str, client, system_prompt: str) -> str:
+def _enforce_density(text: str, client, system_prompt: str, morning: bool = False) -> str:
     """해설 술어·200자 초과 ▪ 항목만 골라 1회 재작성 요청 후 치환.
 
     어떤 실패도 발행을 막지 않음 — 예외·파싱 실패·줄 불일치 시 원문 반환.
@@ -562,10 +573,10 @@ def _enforce_density(text: str, client, system_prompt: str) -> str:
             if not s.startswith("▪"):
                 continue
             body = s.lstrip("▪").strip()
-            if BANNED_PREDICATE_RE.search(body) or len(body) > MAX_ITEM_CHARS or is_future_completion(body):
+            if BANNED_PREDICATE_RE.search(body) or len(body) > MAX_ITEM_CHARS or is_future_completion(body, morning):
                 bad.append((i, body))
         global TENSE_FIXED_LAST
-        TENSE_FIXED_LAST = [b[:60] for _, b in bad if is_future_completion(b)]
+        TENSE_FIXED_LAST = [b[:60] for _, b in bad if is_future_completion(b, morning)]
         if not bad:
             return text
         logger.warning(f"[문체강제] 위반 항목 {len(bad)}건 재작성 요청 "
@@ -804,6 +815,30 @@ def send_briefing():
         except Exception as fc_err:
             logger.error(f"[팩트체크] 실행 실패 (브리핑은 그대로 발송): {fc_err}")
 
+        # 3.65) 검증 전 결정론 가드 — 검색 비용 지출 전에 제거·정리
+        #   (a) 전판 기보도 제거  (b) 코인 상한 1건·💰 고정  (c) 예측시장 방향 대조  (d) 스포츠 주체 충돌  (e) 구단 정식 명칭
+        try:
+            from prior_coverage import load_recent_items, filter_prior_coverage
+            prior = load_recent_items(exclude_type=btype_now)
+            briefing, pex, pkeep = filter_prior_coverage(briefing, prior)
+            report.prior_excluded, report.prior_kept = pex, pkeep
+        except Exception as pc_err:
+            logger.warning(f"[기보도] 제거 실패(무시): {pc_err}")
+        try:
+            from briefing_guards import enforce_coin_cap, enforce_prediction_market
+            briefing, report.coin_dropped, report.coin_moved = enforce_coin_cap(briefing)
+            titles = [a.get("title", "") for arts in categorized.values() for a in arts]
+            briefing, report.prediction_dropped = enforce_prediction_market(briefing, titles)
+        except Exception as g_err:
+            logger.warning(f"[가드] 코인/예측시장 실패(무시): {g_err}")
+        try:
+            from sports_names import fix_team_names, fix_subject_conflicts
+            _cl = anthropic.Anthropic(api_key=_env("ANTHROPIC_API_KEY")) if (anthropic is not None and _env("ANTHROPIC_API_KEY")) else None
+            briefing, report.sports_conflicts = fix_subject_conflicts(briefing, _cl)
+            briefing, report.name_fixes = fix_team_names(briefing)
+        except Exception as sn_err:
+            logger.warning(f"[구단명/주체] 실패(무시): {sn_err}")
+
         # 3.7) 발행 전 자가 검증 패스 — 고위험 항목만 웹검색 교차 검증.
         #      run_verify_pass 는 내부에서 모든 예외를 삼키지만, import 실패까지
         #      포함해 어떤 경우에도 발행을 중단시키지 않도록 이중 방어.
@@ -820,20 +855,6 @@ def send_briefing():
         except Exception as vp_err:
             logger.error(f"[자가검증] 패스 실행 실패 — 스킵하고 발행: {vp_err}")
 
-        # 3.7a) 전판 기보도 제거 — 직전 24h 어느 모듈이든 발행한 사건은 새 전개 없으면 제외
-        try:
-            from prior_coverage import load_recent_items, filter_prior_coverage
-            prior = load_recent_items(exclude_type=btype_now)
-            briefing, pex, pkeep = filter_prior_coverage(briefing, prior)
-            report.prior_excluded, report.prior_kept = pex, pkeep
-        except Exception as pc_err:
-            logger.warning(f"[기보도] 제거 실패(무시): {pc_err}")
-        # 3.7b) 구단 정식 명칭 교정 (facts.json 스포츠_구단명)
-        try:
-            from sports_names import fix_team_names
-            briefing, report.name_fixes = fix_team_names(briefing)
-        except Exception as sn_err:
-            logger.warning(f"[구단명] 교정 실패(무시): {sn_err}")
         report.record_dropped = vdetails.get("record_dropped", [])
         report.source_added = vdetails.get("source_added", [])
         report.source_dropped = vdetails.get("source_dropped", [])
@@ -853,7 +874,7 @@ def send_briefing():
             api_key = _env("ANTHROPIC_API_KEY")
             if api_key and anthropic is not None:
                 briefing = _enforce_density(
-                    briefing, anthropic.Anthropic(api_key=api_key), "")
+                    briefing, anthropic.Anthropic(api_key=api_key), "", morning=("아침" in period))
         except Exception as ed_err:
             logger.warning(f"[문체강제 2차] 실패 — 원문 유지: {ed_err}")
 

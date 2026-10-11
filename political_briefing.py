@@ -407,6 +407,15 @@ def send_political_briefing(is_afternoon=True):
     except Exception as fc_err:
         logger.error(f"[팩트체크] 실행 실패 (브리핑은 그대로 발송): {fc_err}")
 
+    # 전판 기보도 제거 (검증 전 — 검색 비용 지출 전에 제거)
+    try:
+        from prior_coverage import load_recent_items, filter_prior_coverage
+        prior = load_recent_items(exclude_type=btype)
+        briefing, pex, pkeep = filter_prior_coverage(briefing, prior)
+        report.prior_excluded, report.prior_kept = pex, pkeep
+    except Exception as pc_err:
+        logger.warning(f"[기보도] 제거 실패(무시): {pc_err}")
+
     # 발행 전 자가 검증 패스 — 실명 발언·사전 밖 인명 직함·수치 (회당 상한 14, 2026-10-07 추가)
     #   확인불가 실명 발언은 제외 + recheck_queue(politics) 적재, stale/존재 불명은 제외
     vdetails = {}
@@ -422,14 +431,6 @@ def send_political_briefing(is_afternoon=True):
     except Exception as vp_err:
         logger.error(f"[자가검증] 패스 실행 실패 — 스킵하고 발행: {vp_err}")
 
-    # 전판 기보도 제거 — 직전 24h 어느 모듈이든 발행한 사건은 새 전개 없으면 제외
-    try:
-        from prior_coverage import load_recent_items, filter_prior_coverage
-        prior = load_recent_items(exclude_type=btype)
-        briefing, pex, pkeep = filter_prior_coverage(briefing, prior)
-        report.prior_excluded, report.prior_kept = pex, pkeep
-    except Exception as pc_err:
-        logger.warning(f"[기보도] 제거 실패(무시): {pc_err}")
     report.record_dropped = vdetails.get("record_dropped", [])
     report.source_added = vdetails.get("source_added", [])
     report.source_dropped = vdetails.get("source_dropped", [])

@@ -29,6 +29,10 @@ class RunReport:
         self.section_moved: list[str] = []
         self.section_dropped: list[str] = []
         self.headline_fixed: list[str] = []
+        self.coin_dropped: list[str] = []
+        self.coin_moved: list[str] = []
+        self.prediction_dropped: list[str] = []
+        self.sports_conflicts: list[str] = []
         self.calls = 0
         self.searches = 0
         self.extra: list[str] = []
@@ -36,7 +40,7 @@ class RunReport:
     def summary_line(self) -> str:
         return (f"시의성 제외 {len(self.timeliness_excluded)} · 기보도 제외 {len(self.prior_excluded)} · "
                 f"기록·수치 삭제 {len(self.record_dropped) + len(self.source_dropped)} · "
-                f"섹션 이동 {len(self.section_moved)} · "
+                f"섹션 이동 {len(self.section_moved)} · 코인 정리 {len(self.coin_dropped) + len(self.coin_moved)} · "
                 f"미확인→큐 {len(self.queued)} · 큐 복귀 {len(self.restored)} · 폐기 {len(self.discarded)}")
 
     def text(self) -> str:
@@ -61,6 +65,10 @@ class RunReport:
         lines += [f"섹션 이동: {t}" for t in self.section_moved]
         lines += [f"섹션 삭제(대상 없음): {t}" for t in self.section_dropped]
         lines += [f"제목 귀속: {t}" for t in self.headline_fixed]
+        lines += [f"코인 상한 삭제: {t}" for t in self.coin_dropped]
+        lines += [f"코인 💰 이동: {t}" for t in self.coin_moved]
+        lines += [f"예측시장 삭제: {t}" for t in self.prediction_dropped]
+        lines += [f"스포츠 주체: {t}" for t in self.sports_conflicts]
         lines += self.extra
         if self.calls or self.searches:
             lines.append(f"검증 호출 {self.calls}회 · 검색 {self.searches}회")

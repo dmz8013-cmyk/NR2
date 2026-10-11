@@ -156,6 +156,8 @@ def filter_timely(articles: list[dict], now: datetime | None = None,
         a["pub_date_kst"] = dt.isoformat()
         a["pub_label"] = dt.strftime("%m/%d %H:%M")
         passed.append(a)
+    logger.info(f"[시의성] 입력 {len(articles)}건 → 통과 {len(passed)} · 제외 {len(excluded)} · 완화 {len(lenient)} "
+                f"(허용 {sorted(d.isoformat() for d in allowed)}, 보조 조회 잔여 {budget})")
     if excluded:
         logger.warning(f"[시의성] {len(articles)}건 중 {len(excluded)}건 제외 (허용 {sorted(allowed)})")
     if lenient:

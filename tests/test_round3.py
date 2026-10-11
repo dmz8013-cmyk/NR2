@@ -54,8 +54,8 @@ def test_prior_coverage():
     b = "🏛️ 정치/시사\n\n▪ 윤석열 전 대통령이 명태균 여론조사업체 운영 이력 인물 관련 혐의로 2심 무죄 판정. 재판부는 입증 부족 판단.\n▪ 누리호가 주탑재 위성 5기의 지상국 교신에 성공하면서 발사 '최종 성공'을 확정했음.\n▪ 한미약품이 국산 최초 GLP-1 비만약 허가를 획득했음."
     out, ex, kept = filter_prior_coverage(b, prior)
     assert len(ex) == 1 and ex[0].startswith("윤석열") and "윤석열" not in out
-    assert len(kept) == 1 and kept[0].startswith("누리호") and "한미약품" in out
-    assert is_new_development("법안이 가결됐음", "법안이 상정됐음") and not is_new_development("법안 상정 1건 2건", "법안이 상정됐음")
+    assert "누리호" in out and "한미약품" in out
+    assert is_new_development("법안이 가결됐음", "법안이 상정됐음") and not is_new_development("법안 상정 재확인", "법안이 상정됐음")
 
 def test_ambiguous_title_names():
     for t in ("중국의 9월 외환보유액이 3조 4002억 달러로 집계되어 감소폭이 시장 예상치를 상회했음.",
