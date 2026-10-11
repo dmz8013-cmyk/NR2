@@ -368,6 +368,22 @@ def send_political_briefing(is_afternoon=True):
         logger.error("브리핑 생성 실패")
         return
 
+    # 헤드라인 프레임 귀속 — 2번째 줄 정파 프레임 어휘에 발화 주체 부착(2회 실패 시 어휘 삭제)
+    try:
+        from headline_guard import apply_to_briefing as _fix_headline
+        _hl_client = None
+        try:
+            import anthropic as _an
+            _hl_client = _an.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
+        except Exception:
+            pass
+        briefing, hl_info = _fix_headline(briefing, _hl_client)
+        if hl_info.get("words"):
+            report.headline_fixed = [f"{hl_info['original'][:40]} → {'어휘 삭제' if hl_info.get('stripped') else '귀속 재생성'} "
+                                     f"({'·'.join(hl_info['words'])}, 시도 {hl_info.get('attempts', 0)})"]
+    except Exception as hl_err:
+        logger.warning(f"[제목귀속] 실패(무시): {hl_err}")
+
     # 팩트체크 — 발송 전 인물·직책 오류 자동 감지·수정
     try:
         from fact_checker import run_fact_check, auto_fix
@@ -417,6 +433,13 @@ def send_political_briefing(is_afternoon=True):
     report.record_dropped = vdetails.get("record_dropped", [])
     report.source_added = vdetails.get("source_added", [])
     report.source_dropped = vdetails.get("source_dropped", [])
+
+    # 당적 사전 기반 섹션 배치 검증 — 첫 실명 주체의 당적과 섹션 불일치면 이동, 대상 섹션 없으면 삭제
+    try:
+        from section_guard import enforce_sections
+        briefing, report.section_moved, report.section_dropped = enforce_sections(briefing)
+    except Exception as sg_err:
+        logger.warning(f"[섹션검증] 실패(무시): {sg_err}")
 
     # 큐 복귀 항목 삽입 (검증 직후·레이아웃 전)
     for sec, txt in restored_items:

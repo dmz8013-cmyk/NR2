@@ -26,6 +26,9 @@ class RunReport:
         self.prior_kept: list[str] = []
         self.name_fixes: list[str] = []
         self.tense_fixed: list[str] = []
+        self.section_moved: list[str] = []
+        self.section_dropped: list[str] = []
+        self.headline_fixed: list[str] = []
         self.calls = 0
         self.searches = 0
         self.extra: list[str] = []
@@ -33,6 +36,7 @@ class RunReport:
     def summary_line(self) -> str:
         return (f"시의성 제외 {len(self.timeliness_excluded)} · 기보도 제외 {len(self.prior_excluded)} · "
                 f"기록·수치 삭제 {len(self.record_dropped) + len(self.source_dropped)} · "
+                f"섹션 이동 {len(self.section_moved)} · "
                 f"미확인→큐 {len(self.queued)} · 큐 복귀 {len(self.restored)} · 폐기 {len(self.discarded)}")
 
     def text(self) -> str:
@@ -54,6 +58,9 @@ class RunReport:
         lines += [f"기보도·새 전개 유지: {t}" for t in self.prior_kept]
         lines += [f"구단명 교정: {t}" for t in self.name_fixes]
         lines += [f"시제 교정: {t}" for t in self.tense_fixed]
+        lines += [f"섹션 이동: {t}" for t in self.section_moved]
+        lines += [f"섹션 삭제(대상 없음): {t}" for t in self.section_dropped]
+        lines += [f"제목 귀속: {t}" for t in self.headline_fixed]
         lines += self.extra
         if self.calls or self.searches:
             lines.append(f"검증 호출 {self.calls}회 · 검색 {self.searches}회")

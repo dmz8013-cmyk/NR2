@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-10-07",
+  "last_updated": "2026-10-11",
   "president": {
     "current": "이재명",
     "order": "제21대",
@@ -285,6 +285,86 @@
       ],
       "verified_on": "2026-09-22",
       "note": "2026-09-22 취임"
+    },
+    {
+      "name": "박성준",
+      "correct_title": "더불어민주당 수석대변인",
+      "wrong_titles": [
+        "국민의힘 대변인"
+      ],
+      "verified_on": "2026-10-11"
+    },
+    {
+      "name": "김찬술",
+      "correct_title": "대전 대덕구청장",
+      "wrong_titles": [
+        "의원"
+      ],
+      "verified_on": "2026-10-11",
+      "note": "더불어민주당, 2026.7~"
+    },
+    {
+      "name": "송순호",
+      "correct_title": "지방시대위원회 부위원장",
+      "wrong_titles": [],
+      "verified_on": "2026-10-11",
+      "note": "2026-10-08 위촉"
+    },
+    {
+      "name": "임은정",
+      "correct_title": "광주중앙수사청장",
+      "wrong_titles": [
+        "중수청장",
+        "검사장"
+      ],
+      "verified_on": "2026-10-11"
+    },
+    {
+      "name": "김지용",
+      "correct_title": "중앙수사청장 후보자",
+      "wrong_titles": [
+        "중수청장",
+        "중앙수사청장",
+        "검찰 부국장",
+        "부국장"
+      ],
+      "verified_on": "2026-10-11",
+      "note": "임명 전"
+    },
+    {
+      "name": "이억원",
+      "correct_title": "금융위원장",
+      "wrong_titles": [
+        "금감원장"
+      ],
+      "verified_on": "2026-10-11"
+    },
+    {
+      "name": "송미령",
+      "correct_title": "농림축산식품부 장관",
+      "wrong_titles": [
+        "농식품부 차관"
+      ],
+      "verified_on": "2026-10-11"
+    },
+    {
+      "name": "주호영",
+      "correct_title": "국민의힘 국회의원",
+      "wrong_titles": [
+        "민주당 의원",
+        "국회부의장"
+      ],
+      "verified_on": "2026-10-11",
+      "note": "병역법 개정안 2026-10-07 대표발의"
+    },
+    {
+      "name": "김용민",
+      "correct_title": "더불어민주당 국회의원",
+      "wrong_titles": [
+        "국민의힘 의원",
+        "개혁신당 의원"
+      ],
+      "verified_on": "2026-10-11"
     }
   ],
   "unfilled_positions": {

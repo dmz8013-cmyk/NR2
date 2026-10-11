@@ -5,7 +5,8 @@ sys.path.insert(0, ROOT)
 
 def _head(title: str) -> str:
     t = re.split(r"\s[—(\[]|\s/\s", title, maxsplit=1)[0]
-    return t.replace("국회의원", "의원").replace("특별자치시장", "시장").replace(" ", "")
+    return (t.replace("국회의원", "의원").replace("특별자치시장", "시장").replace("광주중앙수사청장(광주중수청장)", "광주중앙수사청장")
+            .replace("중앙수사청장(중수청장) 후보자", "중앙수사청장 후보자").replace(" ", ""))
 
 def facts_diff():
     facts = json.load(open(os.path.join(ROOT, "config", "facts.json"), encoding="utf-8"))["인물_직함"]
@@ -24,9 +25,13 @@ def test_no_mismatch():
     rows, mism = facts_diff()
     assert mism == [], mism
 
-def test_no_kimjiyong():
-    for fn in ("config/facts.json", "fact_sheet.json", "config/fixed_facts.json"):
-        assert "김지용" not in open(os.path.join(ROOT, fn), encoding="utf-8").read(), fn
+def test_kimjiyong_is_nominee_only():
+    facts = json.load(open(os.path.join(ROOT, "config", "facts.json"), encoding="utf-8"))["인물_직함"]
+    assert facts["김지용"].startswith("중앙수사청장(중수청장) 후보자")
+    sheet = json.load(open(os.path.join(ROOT, "fact_sheet.json"), encoding="utf-8"))
+    kj = next(x for x in sheet["key_figures"] if x["name"] == "김지용")
+    assert "검찰 부국장" in kj["wrong_titles"] and "중수청장" in kj["wrong_titles"]
+    assert "김지용" not in open(os.path.join(ROOT, "config", "fixed_facts.json"), encoding="utf-8").read()
 
 def test_defense_minister_filled():
     facts = json.load(open(os.path.join(ROOT, "config", "facts.json"), encoding="utf-8"))

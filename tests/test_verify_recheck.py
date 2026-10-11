@@ -14,8 +14,8 @@ def test_named_statement_tagged():
     assert priority_of(r) == 0
 
 def test_unknown_person_title_in_middle():
-    r = tag_item("김지용 검찰 부국장 '과한 주장 제어' 발언으로 범여권 쪼개짐", KNOWN)
-    assert "미등재 인명+직함: 김지용 부국장" in r
+    r = tag_item("김모모 검찰 부국장 '과한 주장 제어' 발언으로 범여권 쪼개짐", KNOWN)
+    assert "미등재 인명+직함: 김모모 부국장" in r
 
 def test_org_not_person():
     r = tag_item("국회 법사위 위원장이 법안 상정을 촉구", KNOWN)
