@@ -29,7 +29,7 @@ COVERAGE_WINDOWS = {
     },
     "political_afternoon": {
         "description": "정치 오후 브리핑 (13:00)",
-        "max_age_hours": 6,         # 당일 09:00 ~ 13:00 = 4h + 여유 2h
+        "max_age_hours": 17,        # 전날 22:00 ~ 13:00 = 15h + 여유 2h (2026-10-12 창 확대)
     },
     "political_evening": {
         "description": "정치 저녁 브리핑 (22:00)",
@@ -38,7 +38,7 @@ COVERAGE_WINDOWS = {
 }
 
 # 절대 상한: 어떤 브리핑이든 이보다 오래된 기사는 무조건 제외
-MAX_STALENESS_HOURS = 48
+MAX_STALENESS_HOURS = 24   # 2026-10-12: 발행 24h 초과는 무조건 제외
 
 
 def is_within_window(

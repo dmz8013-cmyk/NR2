@@ -39,9 +39,10 @@ def test_html_budget():
     assert len(calls) == 2 and len(e) == 5
 
 def test_utc_pubdate_kst_boundary():
-    # UTC 10/05 15:30 = KST 10/06 00:30 → 전일 → 통과 / UTC 10/05 14:30 = KST 10/05 23:30 → 제외
-    p, e = _run([{"title": "e", "pub_date": "Mon, 05 Oct 2026 15:30:00 +0000"},
-                 {"title": "f", "pub_date": "Mon, 05 Oct 2026 14:30:00 +0000"}])
+    # 기준 10/06 13:00 KST. UTC 10/05 15:30 = KST 10/06 00:30 → 당일 → 통과 / UTC 10/05 14:30 = KST 10/05 23:30 → 전일이지만 날짜 경계 확인용
+    now = datetime(2026, 10, 6, 1, 0, tzinfo=KST)
+    p, e = filter_timely([{"title": "e", "pub_date": "Mon, 05 Oct 2026 15:30:00 +0000"},
+                          {"title": "f", "pub_date": "Sun, 04 Oct 2026 14:30:00 +0000"}], now=now, fetcher=lambda u: None)
     assert [a["title"] for a in p] == ["e"] and [x["title"] for x in e] == ["f"]
     assert to_kst("2026-10-05T15:30:00Z").strftime("%m/%d %H:%M") == "10/06 00:30"
 

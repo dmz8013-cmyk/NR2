@@ -78,7 +78,10 @@ def load_recent_items(hours: int = HOURS, exclude_type: str | None = None, now: 
         import psycopg2
         conn = psycopg2.connect(url); cur = conn.cursor()
         since = (now or datetime.now()).replace(tzinfo=None) - timedelta(hours=hours)
-        cur.execute("SELECT briefing_type, created_at, content FROM briefings WHERE created_at >= %s ORDER BY created_at", (since,))
+        cur.execute("""(SELECT briefing_type, created_at, content FROM briefings WHERE created_at >= %s)
+                       UNION
+                       (SELECT briefing_type, created_at, content FROM briefings ORDER BY created_at DESC LIMIT 3)
+                       ORDER BY created_at""", (since,))
         out = []
         for btype, created, content in cur.fetchall():
             if exclude_type and btype == exclude_type and created >= since + timedelta(hours=hours) - timedelta(minutes=30):
@@ -92,11 +95,20 @@ def load_recent_items(hours: int = HOURS, exclude_type: str | None = None, now: 
         return []
 
 
+def _quote_overlap(a: str, b: str) -> float:
+    A, B = _bigrams(_norm(a)), _bigrams(_norm(b))
+    return len(A & B) / min(len(A), len(B)) if A and B else 0.0
+
+
 def is_new_development(new_text: str, prior_text: str) -> bool:
     """새 발언(이전에 없던 인용문) / 새 결정(이전에 없던 결정 동사) / 새 수치(이전에 없던 숫자 2개 이상)."""
-    new_quotes = {q.strip() for q in QUOTE_RE.findall(new_text)} - {q.strip() for q in QUOTE_RE.findall(prior_text)}
-    if new_quotes:
-        return True
+    prior_q = [q.strip() for q in QUOTE_RE.findall(prior_text)]
+    new_q = [q.strip() for q in QUOTE_RE.findall(new_text)]
+    shared = any(q in pq or pq in q or _quote_overlap(q, pq) >= 0.6 for q in new_q for pq in prior_q)
+    if new_q and not prior_q and not shared:
+        return True                      # 이전에 인용이 전혀 없던 사건에 새 발언이 붙음
+    if shared:
+        pass                             # 같은 발언 건 — 추가 인용 조각은 새 전개가 아님
     if set(DECISION_RE.findall(new_text)) - set(DECISION_RE.findall(prior_text)):
         return True
     new_nums = set(NUM_RE.findall(new_text)) - set(NUM_RE.findall(prior_text))
@@ -129,13 +141,18 @@ def same_person_event(new_text: str, prior_text: str) -> bool:
     return len(shared) >= 2
 
 
+def shares_quote(a: str, b: str) -> bool:
+    qa = [q.strip() for q in QUOTE_RE.findall(a)]; qb = [q.strip() for q in QUOTE_RE.findall(b)]
+    return any(x in y or y in x or _quote_overlap(x, y) >= 0.6 for x in qa for y in qb)
+
+
 def match_prior(text: str, prior: list[dict], threshold: float = SIM_THRESHOLD) -> tuple[dict | None, float]:
     best, score = None, 0.0
     n = _norm(text)
     for p in prior:
         s = _sim(n, _norm(p["text"]), text, p["text"])
-        if same_person_event(text, p["text"]):
-            s = max(s, threshold)          # 같은 인물 + 사건 키워드 2개 → 기보도로 간주
+        if same_person_event(text, p["text"]) or shares_quote(text, p["text"]):
+            s = max(s, threshold)          # 같은 인물 + 사건 키워드 2개, 또는 같은 인용문 → 기보도로 간주
         if s > score:
             best, score = p, s
     return (best, score) if score >= threshold else (None, score)

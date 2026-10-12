@@ -22,6 +22,7 @@ KST = ZoneInfo("Asia/Seoul")
 
 HTML_TIMEOUT = 3.0
 HTML_BUDGET = 30
+MAX_AGE_HOURS = int(os.environ.get("TIMELINESS_MAX_AGE_HOURS", "24"))   # 발행 24h 초과는 날짜와 무관하게 제외
 _META_RES = [
     re.compile(r'<meta[^>]+property=["\']article:published_time["\'][^>]+content=["\']([^"\']+)["\']', re.I),
     re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']article:published_time["\']', re.I),
@@ -117,6 +118,8 @@ def filter_timely(articles: list[dict], now: datetime | None = None,
     전일 이전이면 메타를 신뢰해 제외한다(네이버 API 재색인 pubDate 가 '오늘' 로 찍히는 경우 대응).
     제외 항목: {title, source, pub_date(ISO|None), reason}"""
     allowed = allowed_dates(now)
+    now_kst = now.astimezone(KST) if now else datetime.now(KST)
+    max_age_hours = MAX_AGE_HOURS
     passed, excluded = [], []
     lenient: list[dict] = []
     budget = html_budget if allow_html else 0
@@ -152,6 +155,10 @@ def filter_timely(articles: list[dict], now: datetime | None = None,
         if dt.date() not in allowed:
             excluded.append({"title": a.get("title", ""), "source": source_of(a),
                              "pub_date": dt.isoformat(), "reason": f"발행일 {dt:%m/%d} — 전일 이전"})
+            continue
+        if (now_kst - dt).total_seconds() > max_age_hours * 3600:
+            excluded.append({"title": a.get("title", ""), "source": source_of(a),
+                             "pub_date": dt.isoformat(), "reason": f"발행 {int((now_kst - dt).total_seconds() // 3600)}시간 경과 — {max_age_hours}h 초과"})
             continue
         a["pub_date_kst"] = dt.isoformat()
         a["pub_label"] = dt.strftime("%m/%d %H:%M")

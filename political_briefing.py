@@ -56,6 +56,9 @@ def search_naver_news(query, display=10, sort='date'):
         return []
 
 
+import re as _re
+BREAKING_RE = _re.compile(r"(북한|미사일|합참|속보|단독|탄핵|계엄)")
+LAST_ARTICLES: list = []          # 직전 수집 기사 풀 (섹션 채움·출처 매칭·반박 보강용)
 LAST_TIMELINESS_EXCLUDED: list = []
 LAST_TIMELINESS_LENIENT: list = []
 
@@ -72,7 +75,7 @@ def collect_political_news(is_afternoon=True):
     seen_titles = set()
 
     for query in SEARCH_QUERIES:
-        items = search_naver_news(query, display=15, sort='date')
+        items = search_naver_news(query, display=40, sort='date')   # 창 확대(전판 마감 이후 전체)에 맞춰 40건
 
         for item in items:
             title = item.get('title', '').replace('<b>', '').replace('</b>', '').replace('&quot;', '"').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
@@ -91,16 +94,13 @@ def collect_political_news(is_afternoon=True):
             except Exception:
                 continue
 
-            today_9am = now.replace(hour=9, minute=0, second=0, microsecond=0)
-
+            # 수집 창 = 직전 판 마감 이후 전체 (2026-10-12): 13:00판 = 전날 22:00 ~ 지금, 22:00판 = 13:00 ~ 지금.
+            # 이전 판에 이미 실린 기사는 prior_coverage 가 제외한다.
             if is_afternoon:
-                start_time = today_9am
-                end_time = now.replace(hour=13, minute=0, second=0, microsecond=0)
+                start_time = (now - timedelta(days=1)).replace(hour=22, minute=0, second=0, microsecond=0)
             else:
                 start_time = now.replace(hour=13, minute=0, second=0, microsecond=0)
-                end_time = now.replace(hour=22, minute=0, second=0, microsecond=0)
-
-            start_time = start_time - timedelta(hours=1)
+            end_time = now
 
             if start_time <= pub_date_kst <= end_time:
                 all_articles.append({
@@ -109,10 +109,12 @@ def collect_political_news(is_afternoon=True):
                     'link': link,
                     'pub_date': pub_date_kst,
                     'query': query,
+                    'breaking': bool(BREAKING_RE.search(title)),
                 })
 
-    all_articles.sort(key=lambda x: x['pub_date'], reverse=True)
-    all_articles = all_articles[:40]
+    # 속보(북한·미사일·합참·속보·단독·탄핵·계엄) 우선 → 최신순. 상위 60건
+    all_articles.sort(key=lambda x: (not x.get('breaking', False), -x['pub_date'].timestamp()))
+    all_articles = all_articles[:60]
 
     # 시의성 필터 (공통): 발행일 ∈ {오늘, 전일} 만 통과 — 네이버 pubDate 가 재색인 시각일 때
     # 옛 기사가 '오늘' 로 들어오는 경우는 기사 HTML 메타(회당 ≤30건) 로 재확인
@@ -142,7 +144,10 @@ def collect_political_news(is_afternoon=True):
     except Exception as tf_err:
         logger.error(f"[타임라인 필터] 실행 실패: {tf_err}")
 
-    logger.info(f"수집된 정치 기사: {len(all_articles)}개 ({'오후' if is_afternoon else '저녁'})")
+    global LAST_ARTICLES
+    LAST_ARTICLES = list(all_articles)
+    logger.info(f"수집된 정치 기사: {len(all_articles)}개 ({'오후' if is_afternoon else '저녁'}, "
+                f"속보 {sum(1 for a in all_articles if a.get('breaking'))}건, 창 {start_time:%m/%d %H:%M}~{end_time:%H:%M})")
     return all_articles
 
 
@@ -159,12 +164,13 @@ def generate_political_briefing(articles, is_afternoon=True):
     now = datetime.now(KST)
     today_str = now.strftime('%y%m%d')
     time_label = "13:00" if is_afternoon else "22:00"
-    time_range = "09시~13시" if is_afternoon else "13시~22시"
+    time_range = "전날 22시~13시" if is_afternoon else "13시~22시"
 
     news_block = ""
     for i, article in enumerate(articles, 1):
         label = article.get('pub_label') or (article['pub_date'].strftime('%m/%d %H:%M') if article.get('pub_date') else '')
-        news_block += f"{i}. [{article['title']}] (발행 {label})\n   {article['description'][:150]}\n\n"
+        flag = "【속보·우선】 " if article.get('breaking') else ""
+        news_block += f"{i}. {flag}[{article['title']}] (발행 {label})\n   {article['description'][:150]}\n\n"
 
     # 팩트 컨텍스트 자동 주입
     try:
@@ -230,6 +236,10 @@ def generate_political_briefing(articles, is_afternoon=True):
 10. [팩트 정확도] 기사 제목과 요약에 명시된 내용만 사용하세요. 기사에 없는 감정("심기불편", "분노"), 반응, 발언을 지어내지 마세요. 사실 기반 서술만 허용됩니다.
 11. [시의성] 각 기사 제목 뒤 (발행 MM/DD HH:MM)은 발행 시각입니다. 오늘({now.strftime('%m/%d')})·전일 발행 기사만 쓰고,
     전일 이전 기사는 사용 금지. 기억 속 과거 사건·발언을 오늘 일처럼 쓰지 마세요. "최근", "지난달" 등 모호한 시점 대신 구체적 시점으로.
+11-1. [속보 우선] 【속보·우선】 표시 기사(북한·미사일·합참·속보·단독·탄핵·계엄)는 반드시 반영하고 해당 섹션의 1~2번째 항목으로 배치.
+     최상위 속보는 두 번째 줄 한줄 제목에도 반영할 것.
+11-2. [섹션 분량] 섹션마다 기사가 있으면 최소 2개, 최대 5개. 한 정당 섹션의 쟁점에 상대 당 반박 기사가 있으면 함께 실을 것.
+11-3. [문체] 항목 종결은 '~다/했다/밝혔다' 금지 — 명사형(…음/됨/임) 또는 사실 서술 술어만.
 12. [인명 규칙] 기사에 없는 인물·직책을 만들지 마세요. 발언 주체가 기사에 명시되지 않으면 이름을 빼고 직명·기관명만 쓰세요.
     사전에 없는 인물의 직함은 기사 원문 표기 그대로만 쓰고, 추측으로 채우지 마세요.
 
@@ -408,6 +418,7 @@ def send_political_briefing(is_afternoon=True):
         logger.error(f"[팩트체크] 실행 실패 (브리핑은 그대로 발송): {fc_err}")
 
     # 전판 기보도 제거 (검증 전 — 검색 비용 지출 전에 제거)
+    prior = []
     try:
         from prior_coverage import load_recent_items, filter_prior_coverage
         prior = load_recent_items(exclude_type=btype)
@@ -449,6 +460,33 @@ def send_political_briefing(is_afternoon=True):
             briefing = insert_into_section(briefing, sec, txt)
         except Exception as ie:
             logger.warning(f"[재검색큐] 복귀 삽입 실패: {ie}")
+
+    # 섹션 가드 (2026-10-12 13:00판 빈 섹션 사고): 출처 매칭 → 속보 강제 → 빈/부족 섹션 채움 → 반박 보강 → 상한 → 문체
+    try:
+        import section_fill as sf, style_fix
+        _gc = None
+        try:
+            import anthropic as _an2
+            _gc = _an2.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
+        except Exception:
+            pass
+        pool = list(LAST_ARTICLES) or list(articles)
+        briefing, report.source_dropped_items = sf.source_match_guard(briefing, pool)
+        briefing, report.breaking_notes = sf.enforce_breaking(briefing, pool, _gc)
+        prior_titles = [p["text"] for p in prior]
+        briefing, report.fill_notes = sf.fill_empty_sections(briefing, pool, _gc, prior_titles)
+        briefing, report.rebuttal_notes = sf.enforce_rebuttal(briefing, pool, _gc)
+        briefing, cap_notes = sf.cap_sections(briefing)
+        report.fill_notes += cap_notes
+        briefing, report.style_notes = style_fix.fix_style(briefing, _gc)
+        report.section_counts = sf.section_counts(briefing)
+        if any(sf.HARD_RE.search(a.get("title", "")) for a in pool):
+            from headline_guard import ensure_breaking_in_headline
+            briefing, hb = ensure_breaking_in_headline(briefing, [a.get("title", "") for a in pool if sf.HARD_RE.search(a.get("title", ""))][:1], _gc)
+            if hb:
+                report.headline_fixed.append(hb)
+    except Exception as sf_err:
+        logger.error(f"[섹션가드] 실패(무시): {sf_err}", exc_info=True)
 
     # 공용 레이아웃 — 헤더(출처 2링크)·푸터(참고 2링크)·섹션 간격 재조립
     # (config/briefing_layout.json, 정보공유방 브리핑과 동일 템플릿)

@@ -33,6 +33,12 @@ class RunReport:
         self.coin_moved: list[str] = []
         self.prediction_dropped: list[str] = []
         self.sports_conflicts: list[str] = []
+        self.source_dropped_items: list[str] = []
+        self.breaking_notes: list[str] = []
+        self.fill_notes: list[str] = []
+        self.rebuttal_notes: list[str] = []
+        self.style_notes: list[str] = []
+        self.section_counts: dict = {}
         self.calls = 0
         self.searches = 0
         self.extra: list[str] = []
@@ -69,6 +75,14 @@ class RunReport:
         lines += [f"코인 💰 이동: {t}" for t in self.coin_moved]
         lines += [f"예측시장 삭제: {t}" for t in self.prediction_dropped]
         lines += [f"스포츠 주체: {t}" for t in self.sports_conflicts]
+        if self.section_counts:
+            lines.append("섹션 항목 수: " + " · ".join(f"{k} {v}" for k, v in self.section_counts.items()))
+        lines += [f"출처 불명 삭제: {t}" for t in self.source_dropped_items]
+        lines += [f"속보: {t}" for t in self.breaking_notes]
+        lines += [f"섹션 채움: {t}" for t in self.fill_notes]
+        lines += [f"반박 보강: {t}" for t in self.rebuttal_notes]
+        if self.style_notes:
+            lines.append(f"문체 교정 {len(self.style_notes)}건")
         lines += self.extra
         if self.calls or self.searches:
             lines.append(f"검증 호출 {self.calls}회 · 검색 {self.searches}회")

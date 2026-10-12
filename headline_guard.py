@@ -127,3 +127,45 @@ def apply_to_briefing(briefing: str, client=None) -> tuple[str, dict]:
     if new != lines[idx].strip():
         lines[idx] = new
     return "\n".join(lines), info
+
+
+BREAK_PROMPT = """정치 브리핑 한줄 제목을 다시 써라. 아래 최상위 속보가 제목에 반영돼야 한다(사실 위주, 25자 내외 1줄, 프레임 어휘·큰따옴표 금지).
+[현재 제목] {headline}
+[최상위 속보 기사] {breaking}
+제목 1줄만 출력."""
+
+
+def ensure_breaking_in_headline(briefing: str, breaking_titles: list[str], client=None,
+                                model: str = "claude-haiku-4-5-20251001") -> tuple[str, str]:
+    """최상위 속보 기사 제목의 핵심 토큰(2개 이상)이 한줄 제목에 없으면 재생성. → (텍스트, 보고 줄 또는 빈 문자열)."""
+    if not breaking_titles:
+        return briefing, ""
+    lines = briefing.split("\n")
+    idx = None
+    for i, ln in enumerate(lines):
+        if ln.strip().startswith("🔥"):
+            for j in range(i + 1, min(i + 4, len(lines))):
+                if lines[j].strip():
+                    idx = j
+                    break
+            break
+    if idx is None:
+        return briefing, ""
+    head = lines[idx].strip()
+    top = breaking_titles[0]
+    key = {t for t in re.findall(r"[0-9A-Za-z가-힣]{2,}", top) if t in ("북한", "미사일", "합참", "탄핵", "계엄")}
+    if "北" in top or "북한" in top:
+        key |= {"북한", "北"}
+    if not key or any(k in head for k in key):
+        return briefing, ""
+    if client is None:
+        return briefing, f"속보 미반영(제목 유지): {head[:30]}"
+    try:
+        resp = client.messages.create(model=model, max_tokens=120, messages=[{"role": "user", "content": BREAK_PROMPT.format(headline=head, breaking=top)}])
+        cand = (resp.content[0].text or "").strip().split("\n")[0].strip().strip('"')
+        if cand and any(k in cand for k in key) and not unattributed_frames(cand):
+            lines[idx] = cand
+            return "\n".join(lines), f"속보 반영 재생성: {head[:30]} → {cand[:40]}"
+    except Exception as e:
+        logger.warning(f"[제목속보] 재생성 실패: {e}")
+    return briefing, f"속보 미반영(재생성 실패): {head[:30]}"
