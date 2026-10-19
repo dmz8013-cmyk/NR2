@@ -61,6 +61,7 @@ BREAKING_RE = _re.compile(r"(북한|미사일|합참|속보|단독|탄핵|계엄
 LAST_ARTICLES: list = []          # 직전 수집 기사 풀 (섹션 채움·출처 매칭·반박 보강용)
 LAST_TIMELINESS_EXCLUDED: list = []
 LAST_TIMELINESS_LENIENT: list = []
+LAST_AGE_DROPPED: list = []       # 24h 하드 필터로 제거된 기사 (회차 DM 표기용)
 
 
 def collect_political_news(is_afternoon=True):
@@ -143,6 +144,32 @@ def collect_political_news(is_afternoon=True):
             )
     except Exception as tf_err:
         logger.error(f"[타임라인 필터] 실행 실패: {tf_err}")
+
+    # 24h 하드 필터 (최종 방어선, 2026-10-19): 위 필터를 어떤 경로로 통과했든
+    # 발행 24h 초과 기사는 여기서 무조건 제거한다. 시각 미상은 완화 모드에서만 통과.
+    global LAST_AGE_DROPPED
+    LAST_AGE_DROPPED = []
+    try:
+        import timeliness as _tl2
+        kept = []
+        for a in all_articles:
+            pd = a.get("pub_date_kst") or a.get("pub_date_resolved") or a.get("pub_date")
+            if pd is None and a.get("timeliness_lenient"):
+                kept.append(a)
+                continue
+            if _tl2.within_max_age(pd, now):
+                kept.append(a)
+            else:
+                hrs = _tl2.age_hours(pd, now)
+                LAST_AGE_DROPPED.append({"title": a.get("title", ""),
+                                         "age_hours": round(hrs, 1) if hrs is not None else None})
+        if len(kept) < len(all_articles):
+            logger.warning(f"[24h 하드] {len(all_articles)}건 → {len(kept)}건 "
+                           f"(24h 초과 {len(all_articles) - len(kept)}건 제거: "
+                           f"{[d['title'][:26] for d in LAST_AGE_DROPPED[:3]]})")
+        all_articles = kept
+    except Exception as he:
+        logger.error(f"[24h 하드] 적용 실패: {he}")
 
     global LAST_ARTICLES
     LAST_ARTICLES = list(all_articles)
@@ -242,6 +269,17 @@ def generate_political_briefing(articles, is_afternoon=True):
 11-3. [문체] 항목 종결은 '~다/했다/밝혔다' 금지 — 명사형(…음/됨/임) 또는 사실 서술 술어만.
 12. [인명 규칙] 기사에 없는 인물·직책을 만들지 마세요. 발언 주체가 기사에 명시되지 않으면 이름을 빼고 직명·기관명만 쓰세요.
     사전에 없는 인물의 직함은 기사 원문 표기 그대로만 쓰고, 추측으로 채우지 마세요.
+13. [섹션 귀속] 항목을 넣을 섹션은 '기사에 등장한 정당'이 아니라 '발언·행위 주체의 소속'으로 정하세요.
+    · 국회의원 발언 → 그 의원의 소속 정당 섹션. 겨냥된 상대 당 섹션이 아닙니다.
+    · 공무원·검찰·법원(공소청장·검사·판사·대법원장 등) 주체 → 🌐 법조 및 국제 섹션. 정당 섹션 금지.
+    · 국정감사 항목은 질의한 의원의 소속으로 분류하고, 피감기관의 답변·해명이 주어인 항목은 법조 또는 이재명 정부로.
+14. [동사 과장 금지] 원문에 없는 동사로 강도를 올리지 마세요. '적발·폭로·전격·선언·강행·졸속'은
+    기사 원문에 그 단어가 있을 때만 사용하고, 없으면 원문이 쓴 동사(집계·확인·발표·지적·제기 등)를 그대로 쓰세요.
+    예: 원문이 '확정손실 집계'면 '적발'로 바꾸지 말 것. 원문에 없는 의혹 프레임('졸속 심사 의혹')을 덧붙이지 말 것.
+15. [수치 규칙] 숫자는 기사 원문 문자열에 그대로 있는 것만 쓰세요. 비율·금액·건수를 추정·환산·반올림해 새로
+    만들지 마세요. 원문에 없는 수치(예: '건조대금 10%')는 수치를 빼고 서술하거나 그 항목을 쓰지 마세요.
+16. [외신 고유명사] 외신·국제 항목의 인물명과 직함은 기사 원문 표기를 그대로 유지하세요. 직함을 한국어로
+    의역하지 마세요. 예: '가지야마 자민당 총무회장'을 '관리인'으로 바꾸면 오역입니다. 원 표기가 불확실하면 이름만 쓰세요.
 
 [오늘 {time_range} 정치 뉴스]
 {news_block}"""
@@ -350,6 +388,7 @@ def send_political_briefing(is_afternoon=True):
     articles = collect_political_news(is_afternoon=is_afternoon)
     report.timeliness_excluded = list(LAST_TIMELINESS_EXCLUDED)
     report.timeliness_lenient = list(LAST_TIMELINESS_LENIENT)
+    report.age_dropped = list(LAST_AGE_DROPPED)
 
     if not articles:
         logger.warning(f"수집된 기사 없음 - {period} 브리핑 건너뜀")
@@ -472,6 +511,12 @@ def send_political_briefing(is_afternoon=True):
             pass
         pool = list(LAST_ARTICLES) or list(articles)
         briefing, report.source_dropped_items = sf.source_match_guard(briefing, pool)
+        # 원문 대조 — 과장 동사(적발/폭로/전격/선언)·원문 밖 수치 교정 (2026-10-19)
+        try:
+            import grounding
+            briefing, report.grounding_notes = grounding.apply(briefing, pool)
+        except Exception as ge:
+            logger.warning(f"[원문대조] 실패(무시): {ge}")
         briefing, report.breaking_notes = sf.enforce_breaking(briefing, pool, _gc)
         prior_titles = [p["text"] for p in prior]
         briefing, report.fill_notes = sf.fill_empty_sections(briefing, pool, _gc, prior_titles)

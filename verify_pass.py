@@ -299,9 +299,15 @@ def stale_event(text: str, event_date: str) -> bool:
     if not event_date or not EVENT_VERB_RE.search(text or ""):
         return False
     try:
-        from timeliness import allowed_dates
+        from timeliness import allowed_dates, within_max_age
         d = datetime.strptime(event_date[:10], "%Y-%m-%d").date()
-        return d not in allowed_dates()
+        if d not in allowed_dates():
+            return True
+        # 24h 하드 필터 — 시각까지 있는 값만 적용 (날짜만 있으면 자정으로 해석돼
+        # '전일'이 항상 24h 초과가 되므로 날짜 의미를 유지한다). 2026-10-19
+        if len(event_date) > 10 and not within_max_age(event_date):
+            return True
+        return False
     except Exception:
         return False
 

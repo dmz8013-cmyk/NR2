@@ -38,6 +38,30 @@ def allowed_dates(now: datetime | None = None) -> set[date]:
     return {now.date(), (now - timedelta(days=1)).date()}
 
 
+def within_max_age(value, now: datetime | None = None,
+                   max_age_hours: int | None = None) -> bool:
+    """발행 시각이 MAX_AGE_HOURS 이내인가 — 날짜가 아니라 '시간' 기준 하드 필터.
+
+    allowed_dates()는 {오늘, 전일} 날짜 집합이라 13:00 발행 시점에 '전일 09:38'
+    (27h 경과) 기사를 통과시킨다. 24h 누수의 공통 원인이므로, 날짜 판정을 쓰는
+    모든 경로는 이 함수를 함께 통과해야 한다. 시각을 못 구하면 False(제외).
+    """
+    dt = to_kst(value)
+    if dt is None:
+        return False
+    now_kst = now.astimezone(KST) if now else datetime.now(KST)
+    limit = MAX_AGE_HOURS if max_age_hours is None else max_age_hours
+    return (now_kst - dt).total_seconds() <= limit * 3600
+
+
+def age_hours(value, now: datetime | None = None) -> float | None:
+    dt = to_kst(value)
+    if dt is None:
+        return None
+    now_kst = now.astimezone(KST) if now else datetime.now(KST)
+    return (now_kst - dt).total_seconds() / 3600
+
+
 def to_kst(value) -> datetime | None:
     """datetime / ISO8601 / RFC2822 문자열 → tz-aware KST datetime. 실패 시 None."""
     if value is None or value == "":

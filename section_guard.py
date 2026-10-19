@@ -1,6 +1,9 @@
 """section_guard.py — 당적 사전 기반 섹션 배치 검증 (정치 브리핑 13/22).
 
-각 ▪ 항목의 '첫 실명 주체'를 사전(config/facts.json 인물_직함 + fact_sheet.json key_figures)의 당적과 대조한다.
+각 ▪ 항목의 '발언·행위 주체'를 entity_registry(config/entity_registry.json)로 먼저 판정하고,
+등재 밖이면 사전(config/facts.json 인물_직함 + fact_sheet.json key_figures)의 당적으로 대조한다.
+레지스트리는 국회의원 당적을 고정하고 공무원·검찰·법원 주체를 법조로 강제하므로,
+'기사에 나온 정당'이 아니라 '주체의 소속'으로 배치된다 (2026-10-19 오분류 4건 반영).
   더불어민주당 → 🟦 / 국민의힘 → 🟥 / 조국혁신당·개혁신당·진보당·기본소득당·새로운미래·무소속 → 🎸
 당적 판정은 '정당 소속 정치인 직함'(의원·대표·원내대표·대변인·지사·시장·구청장 등)에만 적용하고,
 정부 직책(대통령·장관·총리·수석·청장·판사·검사 등)은 건드리지 않는다. 섹션이 다르면 해당 섹션 끝으로
@@ -16,7 +19,8 @@ FACTS_JSON_PATH = os.path.join(_HERE, "config", "facts.json")
 FACT_SHEET_PATH = os.path.join(_HERE, "fact_sheet.json")
 
 SECTION_OF_PARTY = {"민주": "더불어민주당", "국힘": "국민의힘", "기타": "비교섭단체"}
-SECTION_EMOJI = {"더불어민주당": "🟦", "국민의힘": "🟥", "비교섭단체": "🎸"}
+SECTION_EMOJI = {"더불어민주당": "🟦", "국민의힘": "🟥", "비교섭단체": "🎸",
+                 "이재명 정부": "🇰🇷", "법조": "🌐"}
 MINOR_PARTIES = ("조국혁신당", "개혁신당", "진보당", "기본소득당", "새로운미래", "사회민주당", "무소속")
 POLITICIAN_TITLES = ("의원", "대표", "원내대표", "최고위원", "대변인", "정책위의장", "사무총장", "지사", "시장", "구청장",
                      "군수", "교육감", "당대표", "비대위원장", "원내대변인", "시의원", "도의원")
@@ -87,6 +91,19 @@ def _section_key(header_line: str) -> str | None:
     return None
 
 
+def _expected_section(body: str, pm: dict[str, str]) -> tuple[str | None, str]:
+    """항목 1줄 → (기대 섹션, 근거). 레지스트리(주체 고정) 우선, 없으면 당적 사전."""
+    try:
+        from entity_registry import section_for_item
+        sec, why = section_for_item(body)
+        if sec:
+            return sec, why
+    except Exception as e:
+        logger.warning(f"[섹션검증] 주체사전 판정 실패 — 당적 사전으로 대체: {e}")
+    name = first_subject(body, pm)
+    return (pm[name], f"당적 사전 {name}") if name else (None, "판정 불가")
+
+
 def enforce_sections(briefing: str, party_map: dict[str, str] | None = None) -> tuple[str, list[str], list[str]]:
     """→ (텍스트, 이동 목록, 삭제 목록). 정치 브리핑 섹션(🟦/🟥/🎸)이 없으면 원문 그대로."""
     try:
@@ -112,13 +129,11 @@ def enforce_sections(briefing: str, party_map: dict[str, str] | None = None) -> 
     moved, dropped = [], []
     to_move: list[tuple[int, str, str]] = []
     for i, sec, body in item_sections:
-        name = first_subject(body, pm)
-        if not name:
-            continue
-        expected = pm[name]
-        if expected == sec:
+        expected, why = _expected_section(body, pm)
+        if not expected or expected == sec:
             continue
         to_move.append((i, expected, body))
+        logger.info(f"[섹션검증] {sec} → {expected} ({why}): {body[:40]}")
     if not to_move:
         return briefing, [], []
     # 제거 후 삽입 (줄 번호 변동 방지: 먼저 None 처리)

@@ -134,8 +134,9 @@ def process_queue(family: str, verify_fn, now: datetime | None = None,
     """pending 항목 재검색. → (복귀 [(section, text)], 폐기 [text], 결과 상세).
 
     verify_fn(text) -> {verdict, corrected, newest_pub_date, searches}. 일치 + 발행일이 {오늘, 전일}
-    이어야 복귀. MAX_ATTEMPTS 회 후에도 미확인이면 폐기."""
-    from timeliness import allowed_dates, to_kst
+    + 발행 24h 이내여야 복귀. MAX_ATTEMPTS 회 후에도 미확인이면 폐기.
+    (2026-10-19: 날짜만 보던 탓에 전일 오전 기사가 복귀하던 24h 누수 차단)"""
+    from timeliness import allowed_dates, to_kst, within_max_age
     restored, discarded, details = [], [], []
     for it in list_items(family=family, status="pending"):
         attempts = (it.get("attempts") or 0) + 1
@@ -145,7 +146,8 @@ def process_queue(family: str, verify_fn, now: datetime | None = None,
             res = {"verdict": "오류", "error": str(e)}
         verdict = res.get("verdict", "오류")
         newest = to_kst(res.get("newest_pub_date"))
-        timely = bool(newest) and newest.date() in allowed_dates(now)
+        # 24h 하드 필터: 날짜({오늘,전일})만으로는 '전일 09:38'(27h)이 통과한다.
+        timely = bool(newest) and newest.date() in allowed_dates(now) and within_max_age(newest, now)
         detail = {"id": it["id"], "text": it["item_text"], "verdict": verdict, "timely": timely, "attempts": attempts,
                   "searches": res.get("searches", 0)}
         details.append(detail)

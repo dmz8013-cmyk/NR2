@@ -38,13 +38,16 @@ class RunReport:
         self.fill_notes: list[str] = []
         self.rebuttal_notes: list[str] = []
         self.style_notes: list[str] = []
+        self.grounding_notes: list[str] = []      # 원문 대조 — 과장 동사·원문 밖 수치 (2026-10-19)
+        self.age_dropped: list[dict] = []         # 24h 하드 필터 제거 기사
         self.section_counts: dict = {}
         self.calls = 0
         self.searches = 0
         self.extra: list[str] = []
 
     def summary_line(self) -> str:
-        return (f"시의성 제외 {len(self.timeliness_excluded)} · 기보도 제외 {len(self.prior_excluded)} · "
+        return (f"시의성 제외 {len(self.timeliness_excluded)} · 24h 초과 {len(self.age_dropped)} · "
+                f"원문대조 교정 {len(self.grounding_notes)} · 기보도 제외 {len(self.prior_excluded)} · "
                 f"기록·수치 삭제 {len(self.record_dropped) + len(self.source_dropped)} · "
                 f"섹션 이동 {len(self.section_moved)} · 코인 정리 {len(self.coin_dropped) + len(self.coin_moved)} · "
                 f"미확인→큐 {len(self.queued)} · 큐 복귀 {len(self.restored)} · 폐기 {len(self.discarded)}")
@@ -78,6 +81,8 @@ class RunReport:
         if self.section_counts:
             lines.append("섹션 항목 수: " + " · ".join(f"{k} {v}" for k, v in self.section_counts.items()))
         lines += [f"출처 불명 삭제: {t}" for t in self.source_dropped_items]
+        lines += [f"24h 초과 제거: {(d.get('title') or '')[:40]} ({d.get('age_hours')}h)" for d in self.age_dropped]
+        lines += [f"원문대조: {t}" for t in self.grounding_notes]
         lines += [f"속보: {t}" for t in self.breaking_notes]
         lines += [f"섹션 채움: {t}" for t in self.fill_notes]
         lines += [f"반박 보강: {t}" for t in self.rebuttal_notes]
