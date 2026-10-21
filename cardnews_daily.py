@@ -45,7 +45,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("cardnews_daily")
 
-SELECT_MODEL = "claude-sonnet-4-6"
+SELECT_MODEL = "claude-sonnet-5-5"        # 2026-10-21 Sonnet 4.6 → 5.5
 NUM_ISSUES = 10          # 국내 콘텐츠 카드 수
 NUM_WORLD = 3            # 외신 카드 수 (표지+국내10+외신3+엔딩 = 총 15장)
 
@@ -305,8 +305,15 @@ def select_issues(briefing_text: str, n: int = NUM_ISSUES,
         resp = client.messages.create(
             model=SELECT_MODEL,
             max_tokens=8192,
+            # Sonnet 5.5: 생략 시 adaptive(켜짐) → 선별 작업엔 불필요하므로 끔
+            thinking={"type": "between_tools"},
             messages=[{"role": "user", "content": prompt_text}],
         )
+        try:
+            import api_usage
+            api_usage.record("cardnews_select", SELECT_MODEL, resp.usage)
+        except Exception:
+            pass
         try:
             data = _extract_json(resp.content[0].text)
             break

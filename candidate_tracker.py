@@ -185,7 +185,7 @@ def parse_candidate_updates(text):
     
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-5-5",
             max_tokens=600,
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}]

@@ -54,7 +54,7 @@ EMOJI_ONLY_RE = re.compile(r"^[\W\s\U0001F000-\U0001FAFF]+$")
 def _max_calls() -> int:
     # 기본 20: T1 4회×2배치 + T2 2회×4배치 + T3 1회×3배치 = 19회/일
     try:
-        return int(os.environ.get("LEADERS_MAX_CALLS", "20"))
+        return int(os.environ.get("LEADERS_MAX_CALLS", "30"))   # 2026-10-21: 실사용 19회/일 — 20은 여유 1회뿐
     except ValueError:
         return 20
 

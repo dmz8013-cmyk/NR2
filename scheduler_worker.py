@@ -354,6 +354,18 @@ def aesa_daily_summary_job():
     logger.info('[Scheduler] AESA 일간 요약본 발송 중...')
     send_daily_summary_email()
 
+@scheduler.scheduled_job('cron', hour=23, minute=50, id='api_usage_report', timezone='Asia/Seoul',
+                          misfire_grace_time=600, coalesce=True, max_instances=1)
+def api_usage_report_job():
+    """23:50 — 당일 Anthropic 호출·캐시 적중률·비용 집계 로그 (2026-10-21 B안 계측).
+    lazy import: 계측 실패가 스케줄러를 죽이지 않도록."""
+    try:
+        import api_usage
+        for mod in ("aesa_score", "signal_score", "cardnews_select"):
+            api_usage.log_summary(mod)
+    except Exception as e:
+        logger.error(f'[Scheduler] 사용량 집계 실패(무시): {e}')
+
 @scheduler.scheduled_job('cron', hour=7, minute=0, id='aesa_content_report', timezone='Asia/Seoul')
 def aesa_content_report_job():
     """매일 오전 7시 — 전날 기사 기반 영상 콘텐츠 후보 TOP3"""

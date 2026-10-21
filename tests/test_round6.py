@@ -148,7 +148,17 @@ def test_recheck_queue_applies_hard_filter():
 
 
 def test_stale_event_uses_hours_when_timestamped():
+    """시각이 있으면 24h 기준, 날짜만이면 {오늘,전일} 기준.
+
+    allowed_dates()가 실행 시점을 쓰므로 날짜를 하드코딩하면 다음 날 깨진다 —
+    '지금'에서 역산한다(2026-10-21 수정).
+    """
     import verify_pass as vp
-    assert vp.stale_event("신제품을 공개했음", "2026-10-18T09:38:00+09:00") is True
-    assert vp.stale_event("신제품을 공개했음", "2026-10-18T22:30:00+09:00") is False
-    assert vp.stale_event("신제품을 공개했음", "2026-10-18") is False     # 날짜만 → 날짜 의미 유지
+    from datetime import timedelta
+    now = datetime.now(KST)
+    over_24h = (now - timedelta(hours=27)).isoformat()       # 전일이지만 24h 초과
+    within_24h = (now - timedelta(hours=14)).isoformat()     # 전일이고 24h 이내
+    yesterday_date = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+    assert vp.stale_event("신제품을 공개했음", over_24h) is True
+    assert vp.stale_event("신제품을 공개했음", within_24h) is False
+    assert vp.stale_event("신제품을 공개했음", yesterday_date) is False   # 날짜만 → 날짜 의미 유지

@@ -60,7 +60,12 @@ RSS_FEEDS = {
 # Google News RSS 프록시를 사용하는 소스: entry.link가 Google 리다이렉트 URL일 수 있음
 GOOGLE_NEWS_SOURCES = {'Nikkei Asia', 'Reuters', 'Caixin Global', 'Brookings', 'CFR', 'Arab News'}
 
-PROMPT_TEMPLATE = """
+# 캐싱용 분리(2026-10-21): 고정부는 매 호출 동일 → cache_control 로 프리픽스 캐싱.
+# PROMPT_FIXED + PROMPT_ITEM 연결 결과는 기존 PROMPT_TEMPLATE 와 바이트 단위로 동일.
+SCORE_MODEL = "claude-sonnet-5-5"       # 2026-10-21 Sonnet 4.6 → 5.5 ($3/$15 → $2/$10)
+SYSTEM_PROMPT = "당신은 최고 수준의 국제정치, 기술 트렌드, 글로벌 금융 분석가입니다."
+
+PROMPT_FIXED = """
 다음 뉴스 기사를 분석하여 AESA 4개 렌즈 기준으로 0점부터 10점 사이의 점수를 매겨주세요.
 
 [AESA 4개 렌즈]
@@ -86,10 +91,14 @@ PROMPT_TEMPLATE = """
 * 한국 언론에서 아직 널리 보도되지 않은 각도(Angle)나 신선한 관점(Blind spot)이 존재하면 +2점 보너스
 * [D] 렌즈 해당 기사 중 한국 투자시장과 직접 연결고리가 있으면(예: Fed 금리→원달러→코스피, 원자재→한국 수출기업) +1점 보너스
 
-기사 제목: {title}
+"""
+
+PROMPT_ITEM = """기사 제목: {title}
 기사 요약: {summary}
 출처: {source}
 """
+
+PROMPT_TEMPLATE = PROMPT_FIXED + PROMPT_ITEM          # 하위 호환(테스트·검증 스크립트용)
 
 THREADS_PROMPT_TEMPLATE = """당신은 누렁이(AESA) 브랜드의 Threads 작성자입니다.
 아래 기사를 바탕으로 Threads 포스트 초안을 작성하세요.
@@ -261,7 +270,7 @@ def process_rss_feeds():
                             )
                             continue
 
-                    prompt = PROMPT_TEMPLATE.format(title=title, summary=summary_text[:1500], source=source_name)
+                    item_text = PROMPT_ITEM.format(title=title, summary=summary_text[:1500], source=source_name)
 
                     lenses = []
                     korea_link = False
@@ -271,12 +280,26 @@ def process_rss_feeds():
 
                     try:
                         response = client.messages.create(
-                            model="claude-sonnet-4-6",
+                            model=SCORE_MODEL,
                             max_tokens=1024,
-                            thinking={"type": "disabled"},
-                            system="당신은 최고 수준의 국제정치, 기술 트렌드, 글로벌 금융 분석가입니다.",
-                            messages=[{"role": "user", "content": prompt}]
+                            # Sonnet 5.5 는 thinking "disabled" 를 400 으로 거부하고,
+                            # 생략하면 adaptive(=켜짐)가 된다. 채점은 사고가 필요 없으므로
+                            # between_tools 로 끈다(effort high 이하에서만 허용 — 기본 high).
+                            thinking={"type": "between_tools"},
+                            system=SYSTEM_PROMPT,
+                            messages=[{"role": "user", "content": [
+                                # 고정부를 캐시 프리픽스로: system(≈30tok)+고정부(≈940tok)
+                                # = Sonnet 5.5 최소 캐시 길이 512tok 을 넘김.
+                                {"type": "text", "text": PROMPT_FIXED,
+                                 "cache_control": {"type": "ephemeral"}},
+                                {"type": "text", "text": item_text},
+                            ]}]
                         )
+                        try:
+                            import api_usage
+                            api_usage.record("aesa_score", SCORE_MODEL, response.usage)
+                        except Exception:
+                            pass
 
                         # 응답이 max_tokens로 잘리면 닫는 '}'가 빠져 조용한 score=0이 됨.
                         # 무증상으로 넘기지 않도록 경고+errors 집계 (1024로도 또 잘리면 상향 신호).

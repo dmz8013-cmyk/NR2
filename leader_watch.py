@@ -44,7 +44,7 @@ KST = ZoneInfo("Asia/Seoul")
 _HERE = os.path.dirname(os.path.abspath(__file__))
 WATCHLIST_PATH = os.path.join(_HERE, "config", "watchlist.json")
 
-SCORE_MODEL = "claude-sonnet-4-6"      # AESA 채점과 동일 모델
+SCORE_MODEL = "claude-sonnet-5-5"      # AESA 채점과 동일 모델 (2026-10-21 4.6→5.5)
 MIN_SCORE = 7
 MAX_ITEMS = 8                          # 텍스트 버전 총 5~8개 — 채우기용 중복 금지
 DRAFT_STATE_KEY = "leaders_draft"
@@ -234,18 +234,19 @@ def parse_manual_input(text: str) -> tuple[list[dict], int]:
 # ══════════════════════════════════════════════════
 #  4. 채점 + 카드 편집
 # ══════════════════════════════════════════════════
-SCORE_PROMPT = """당신은 '누렁이 시그널'(AI·지정학 큐레이션)의 편집자다.
+# 캐싱용 재배치(2026-10-21): 고정부(역할 + 인명 사전 + 규칙)를 맨 앞에 두고
+# 가변부(인물·발언)를 뒤로 보낸다. 기존 배치는 가변부가 앞이라 프리픽스 캐싱이
+# 원천적으로 불가능했다. 규칙부의 인물명 보간은 제거(사전 블록과 함께 고정).
+SCORE_PROMPT_FIXED = """당신은 '누렁이 시그널'(AI·지정학 큐레이션)의 편집자다.
 다음은 AI·지정학 거물급 인물의 X(트위터) 발언이다. 파급력을 채점하고
 한국 독자용 본문을 작성하라.
 
-인물: {name} ({affil})
-발언(원자료): {summary}
 {fact_names}
 [채점 0~10] 산업·시장·정책·외교에 미치는 파급력. 신제품/정책 발표·중대 입장 변화 8~10,
 의미 있는 발언 6~7, 일상·홍보·잡담 0~5.
 [본문 규칙 — 전부 준수]
 - 1~3문장, 공백 포함 120~200자. 통신사 데스크 톤(명사형·음슴체).
-- 본문에서 인물명({name}) 반복 금지 — 인물명은 카드 머리에 별도 표기됨.
+- 본문에서 인물명 반복 금지 — 인물명은 카드 머리에 별도 표기됨.
 - 발언 내용의 사실 전달만 — 해설·전망성 술어(풀이되-/예상되-/평가되- 등) 금지.
 - 원문에 없는 수치·내용 지어내기 금지. 미확인 전언은 "~로 전해짐" 완곡체,
   '[확인 중]' 같은 태그 금지.
@@ -256,6 +257,10 @@ SCORE_PROMPT = """당신은 '누렁이 시그널'(AI·지정학 큐레이션)의
 (원문 표기, 일반명사 금지).
 
 JSON만: {{"score": 0~10 정수, "summary_ko": "본문", "keywords": ["핵심어", ...]}}"""
+
+SCORE_PROMPT_ITEM = """인물: {name} ({affil})
+발언(원자료): {summary}
+"""
 
 
 _fact_names_cache = None
@@ -287,10 +292,22 @@ def score_items(items: list[dict]) -> list[dict]:
         try:
             resp = client.messages.create(
                 model=SCORE_MODEL, max_tokens=500,
-                messages=[{"role": "user", "content": SCORE_PROMPT.format(
-                    name=it["name"], affil=it.get("affil") or "소속 미상",
-                    summary=it["summary_raw"][:600],
-                    fact_names=_fact_names_block())}])
+                # Sonnet 5.5: thinking 생략 = adaptive(켜짐). 채점은 사고 불필요 → 끔.
+                thinking={"type": "between_tools"},
+                messages=[{"role": "user", "content": [
+                    # 고정부(인명 사전 ≈2,250tok 포함)를 캐시 프리픽스로
+                    {"type": "text",
+                     "text": SCORE_PROMPT_FIXED.format(fact_names=_fact_names_block()),
+                     "cache_control": {"type": "ephemeral"}},
+                    {"type": "text", "text": SCORE_PROMPT_ITEM.format(
+                        name=it["name"], affil=it.get("affil") or "소속 미상",
+                        summary=it["summary_raw"][:600])},
+                ]}])
+            try:
+                import api_usage
+                api_usage.record("signal_score", SCORE_MODEL, resp.usage)
+            except Exception:
+                pass
             t = resp.content[0].text
             data = json.loads(t[t.find("{"):t.rfind("}") + 1])
             it["score"] = max(0, min(10, int(data.get("score", 0))))

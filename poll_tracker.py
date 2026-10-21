@@ -243,7 +243,7 @@ def parse_poll_data_with_claude(prompt_context, text, poll_type):
     
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-5-5",
             max_tokens=500,
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}]

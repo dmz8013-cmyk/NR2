@@ -41,7 +41,7 @@ def rescore_one(client, article):
         source=article.source,
     )
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-5-5",
         max_tokens=400,
         system="당신은 최고 수준의 국제정치, 기술 트렌드, 글로벌 금융 분석가입니다.",
         messages=[{"role": "user", "content": prompt}],
