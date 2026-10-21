@@ -280,6 +280,15 @@ def generate_political_briefing(articles, is_afternoon=True):
     만들지 마세요. 원문에 없는 수치(예: '건조대금 10%')는 수치를 빼고 서술하거나 그 항목을 쓰지 마세요.
 16. [외신 고유명사] 외신·국제 항목의 인물명과 직함은 기사 원문 표기를 그대로 유지하세요. 직함을 한국어로
     의역하지 마세요. 예: '가지야마 자민당 총무회장'을 '관리인'으로 바꾸면 오역입니다. 원 표기가 불확실하면 이름만 쓰세요.
+17. [입장·단계 동사] 누가 무엇에 대해 어떤 입장이었는지 기사와 그대로 맞추세요.
+    · 반박/비판/옹호/지지/규탄은 기사에 그 동사가 있을 때만. 반박한 발언을 '비판'으로 바꾸지 말 것.
+    · '검토'를 '추진·확정·결정'으로 올리지 말 것. 기사가 쓴 단계 그대로.
+18. [대상 기준] 중앙정치·국회·정부·법조가 우선입니다. 지방의원·기초단체장의 단순 일정(현장 점검, 개소식,
+    간담회 참석, 위문, 축사 등)은 쓰지 마세요. 중앙 사안과 직접 얽힌 경우만 예외입니다.
+19. [여론조사] 지지율·여론조사 수치를 쓸 때는 조사기관명을 반드시 함께 쓰세요(예: '리얼미터 조사에서 42%').
+    조사기관을 알 수 없으면 그 수치를 쓰지 말고 항목 자체를 빼세요.
+20. [헤드라인] 두 번째 줄 한줄 제목도 기사에 있는 사실만 씁니다. 기사에 없는 동사로 강도·단계를 올리지 말고,
+    '~가다/~하다' 같은 어색한 종결로 끝내지 마세요.
 
 [오늘 {time_range} 정치 뉴스]
 {news_block}"""
@@ -521,9 +530,49 @@ def send_political_briefing(is_afternoon=True):
         prior_titles = [p["text"] for p in prior]
         briefing, report.fill_notes = sf.fill_empty_sections(briefing, pool, _gc, prior_titles)
         briefing, report.rebuttal_notes = sf.enforce_rebuttal(briefing, pool, _gc)
+
+        # ── 생성 단계(속보·채움·반박) 뒤 최종 관문 (2026-10-21 결함1·2·3·4)
+        #    이 세 단계는 LLM 이 새 항목을 만들어 넣는다. 기존에는 출처 매칭·원문 대조가
+        #    이보다 앞에서만 돌아, 생성 항목이 검증 없이 발행됐다(16건 중 6건 출처 불명).
+        try:
+            import entity_registry as _er
+            briefing, report.policy_notes = _er.policy_gate(briefing)
+        except Exception as pe:
+            logger.warning(f"[정책게이트] 실패(무시): {pe}")
+        try:
+            import grounding
+            briefing, gnotes2 = grounding.apply(briefing, pool)
+            report.grounding_notes += gnotes2
+        except Exception as ge2:
+            logger.warning(f"[원문대조2] 실패(무시): {ge2}")
+        try:
+            import source_bind
+            briefing, report.bound_items, report.unbound_dropped = source_bind.bind(briefing, pool)
+        except Exception as be:
+            logger.error(f"[출처결속] 실패(무시): {be}")
+        briefing, empty_notes = sf.mark_empty_sections(briefing)
+        report.fill_notes += empty_notes
+
         briefing, cap_notes = sf.cap_sections(briefing)
         report.fill_notes += cap_notes
         briefing, report.style_notes = style_fix.fix_style(briefing, _gc)
+        # 헤드라인은 style_fix(▪ 줄만)·headline_guard(프레임 어휘만) 어디서도
+        # 사실 대조를 받지 않았다 → 수집 풀과 동사·종결 대조 (결함5)
+        try:
+            from grounding import check_headline
+            _hl = [i for i, ln in enumerate(briefing.split("\n")) if ln.strip().startswith("🔥")]
+            if _hl:
+                _lines = briefing.split("\n")
+                for j in range(_hl[0] + 1, min(_hl[0] + 4, len(_lines))):
+                    if _lines[j].strip():
+                        fixed, hnotes = check_headline(_lines[j].strip(), pool)
+                        if hnotes:
+                            _lines[j] = fixed
+                            report.headline_fixed += hnotes
+                            briefing = "\n".join(_lines)
+                        break
+        except Exception as he:
+            logger.warning(f"[헤드라인 대조] 실패(무시): {he}")
         report.section_counts = sf.section_counts(briefing)
         if any(sf.HARD_RE.search(a.get("title", "")) for a in pool):
             from headline_guard import ensure_breaking_in_headline

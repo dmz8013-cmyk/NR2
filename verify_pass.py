@@ -292,7 +292,8 @@ def tag_item(text: str, known_names: set) -> list[str]:
 
 
 # 사건 시점 검사 — 공개·발표·출시·게시류 서술의 '사건 발생일'이 오늘·전일이 아니면 제외 (기사 발행일이 최근이어도)
-EVENT_VERB_RE = re.compile(r"(공개|발표|출시|게시|발간|공표|선보|배포|개봉|상장)")
+EVENT_VERB_RE = re.compile(r"(공개|발표|출시|게시|발간|공표|선보|배포|개봉|상장"
+                           r"|임용|임명|취임|선임|발령|내정|위촉|승진|해임|경질)")   # 2026-10-21: 인사류 추가
 
 
 def stale_event(text: str, event_date: str) -> bool:

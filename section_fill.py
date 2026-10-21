@@ -305,3 +305,24 @@ def cap_sections(briefing: str, max_items: int = MAX_ITEMS) -> tuple[str, list[s
 
 def section_counts(briefing: str) -> dict[str, int]:
     return {k: len([b for _, b in v["items"] if b != NO_NEWS.lstrip("▪ ").strip()]) for k, v in parse_sections(briefing).items()}
+
+
+def mark_empty_sections(briefing: str) -> tuple[str, list[str]]:
+    """항목이 0건인 섹션에 '금일 주요 보도 없음' 삽입 (LLM 호출 없음).
+
+    출처 결속 게이트가 항목을 떨어뜨린 뒤 헤더만 남는 것을 막는다.
+    근거 없는 항목을 채워 넣는 것보다 빈 섹션 표기가 낫다 (2026-10-21).
+    """
+    notes = []
+    for _ in range(len(SECTIONS) + 1):
+        secs = parse_sections(briefing)
+        target = next((k for k in SECTIONS if k in secs and not secs[k]["items"]), None)
+        if target is None:
+            break
+        lines = briefing.split("\n")
+        lines.insert(secs[target]["header_idx"] + 1, NO_NEWS)
+        briefing = "\n".join(lines)
+        notes.append(f"보도없음:{target}(결속 후 0건)")
+    if notes:
+        logger.warning(f"[빈섹션] {notes}")
+    return briefing, notes

@@ -32,7 +32,16 @@ OVERSTATED = {
 MODIFIERS = ("졸속", "무더기", "노골적", "전격")
 # 원문이 실제로 쓴 동사 후보 — 과장 동사 자리에 우선 끼워 넣는다
 SOURCE_VERBS = ("집계", "확인", "발표", "공개", "지적", "주장", "제기", "보고", "통보",
-                "밝힘", "설명", "요구", "추진", "의결", "발의", "접수", "신고", "제출")
+                "밝힘", "설명", "요구", "의결", "발의", "접수", "신고", "제출", "검토")
+
+# 입장·태도 동사 — 방향을 뒤집으면 전혀 다른 사실이 된다(2026-10-21: 대통령이 '반박'한
+# 발언을 '적법한 과정이라 비판'으로 출력). 원문에 같은 동사가 없으면 중립 동사로 내린다.
+STANCE_VERBS = {
+    "비판": "언급", "반박": "언급", "규탄": "언급", "옹호": "언급", "지지": "언급",
+    "질타": "언급", "성토": "언급", "찬성": "언급", "반대": "언급", "환영": "언급",
+}
+# 진행 단계 동사 — '검토'를 '추진'으로 올리는 유형(결함5 헤드라인)
+STAGE_VERBS = {"추진": "검토", "확정": "검토", "결정": "검토", "시행": "검토"}
 
 # (2) 수치 토큰 — 단위를 동반한 숫자만 검사 (연도·날짜·조문 번호는 제외)
 NUM_RE = re.compile(r"\d[\d,.]*\s*(?:%|퍼센트|조|억|만|천|원|달러|명|건|석|표|배|포인트|%p|p|km|㎞|t|톤)")
@@ -44,7 +53,13 @@ _STOP = {"있음", "없음", "했음", "밝힘", "대한", "관련", "이번", "
 
 
 def _toks(t: str) -> set[str]:
-    return {w for w in _TOKEN_RE.findall(t or "") if w not in _STOP}
+    """source_bind 의 토큰+어간 구현을 공유 — 조사 때문에 정상 항목이 미매칭되던 문제.
+    (2026-10-21: '장외집회를' vs '장외집회', '과정이라' vs '과정이라는')"""
+    try:
+        from source_bind import tokens
+        return tokens(t)
+    except Exception:
+        return {w for w in _TOKEN_RE.findall(t or "") if w not in _STOP}
 
 
 def source_text(a: dict) -> str:
@@ -110,6 +125,40 @@ def fix_verbs(body: str, src: str) -> tuple[str, list[str]]:
         if new != out and len(new) >= 10:
             notes.append(f"{verb} → {repl or '(삭제)'}")
             out = new
+    for verb, neutral in STANCE_VERBS.items():   # 입장 동사: 원문에 없으면 중립화
+        if verb in out and verb not in src:
+            new = out.replace(verb, neutral)
+            if len(new) >= 10:
+                notes.append(f"입장 동사 {verb} → {neutral}(원문 없음)")
+                out = new
+    for verb, down in STAGE_VERBS.items():       # 단계 동사: 원문이 아래 단계면 내림
+        if verb in out and verb not in src and down in src:
+            new = out.replace(verb, down)
+            if len(new) >= 10:
+                notes.append(f"단계 동사 {verb} → {down}(원문 기준)")
+                out = new
+    return out, notes
+
+
+# ── 헤드라인(2번째 줄) 전용 — style_fix 는 ▪ 줄만, headline_guard 는 프레임 어휘만
+#    검사해 헤드라인의 사실 오류·오타가 그대로 나갔다 (2026-10-21 결함5)
+BAD_HEADLINE_TAIL = re.compile(r"(가다|오다|하다|되다|보다|짓다|말다)\s*$")
+
+
+def check_headline(headline: str, articles: list[dict]) -> tuple[str, list[str]]:
+    """헤드라인을 수집 풀 제목 전체와 대조 — 과장·입장·단계 동사 교정 + 종결 오타 정리."""
+    notes: list[str] = []
+    src = " ".join(f"{a.get('title', '')} {(a.get('description') or '')[:120]}" for a in articles or [])
+    if not src.strip():
+        return headline, notes
+    out, vnotes = fix_verbs(headline, src)
+    notes += [f"헤드라인 {n}" for n in vnotes]
+    m = BAD_HEADLINE_TAIL.search(out)
+    if m:
+        trimmed = out[:m.start()].rstrip(" ,·…")
+        if len(trimmed) >= 8:
+            notes.append(f"헤드라인 종결 '{m.group(1)}' 삭제")
+            out = trimmed
     return out, notes
 
 
