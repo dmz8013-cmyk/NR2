@@ -45,7 +45,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("cardnews_daily")
 
-SELECT_MODEL = "claude-sonnet-5-5"        # 2026-10-21 Sonnet 4.6 → 5.5
+SELECT_MODEL = "claude-sonnet-4-6"        # 2026-10-25 롤백: 10/22 06:00 카드뉴스 실패
+                                         # (a2365e3 이후 첫 실행). 10/23·24 는 정상이라
+                                         # 간헐적 — 원인 미확정 상태의 보수적 원복
 NUM_ISSUES = 10          # 국내 콘텐츠 카드 수
 NUM_WORLD = 3            # 외신 카드 수 (표지+국내10+외신3+엔딩 = 총 15장)
 
@@ -305,8 +307,6 @@ def select_issues(briefing_text: str, n: int = NUM_ISSUES,
         resp = client.messages.create(
             model=SELECT_MODEL,
             max_tokens=8192,
-            # Sonnet 5.5: 생략 시 adaptive(켜짐) → 선별 작업엔 불필요하므로 끔
-            thinking={"type": "between_tools"},
             messages=[{"role": "user", "content": prompt_text}],
         )
         try:

@@ -39,11 +39,33 @@ FOOTER_CTA = "카카오톡 오픈채팅 \"누렁이 정보방\" 검색!"
 FOOTER_COPY = "ⓒ 누렁이 AESA"
 ENDING_LINK = "https://www.youtube.com/@NR2AESA"
 
-# 이미지 생성 모델 (flux-1.1-pro: 최고 품질. 장당 ~$0.04)
-# 주의: pro 계열은 dev 계열과 입력 스펙이 다름
-#   - 미지원: num_outputs / guidance / num_inference_steps / disable_safety_checker
-#   - 지원  : aspect_ratio / output_format / output_quality / prompt_upsampling / safety_tolerance
-FLUX_MODEL = "black-forest-labs/flux-1.1-pro"
+# 이미지 생성 모델 (2026-10-25 비용: flux-1.1-pro $0.040 → flux-schnell $0.003, 장당 -92%)
+# FLUX_MODEL 환경변수로 재배포 없이 전환 가능 — 품질이 아쉬우면 중간안 flux-dev($0.025).
+# 주의: pro 계열과 dev/schnell 계열은 입력 스펙이 다르다. 모델만 바꾸면 422 가 난다.
+#   - pro          : prompt_upsampling / safety_tolerance (num_inference_steps 미지원)
+#   - dev·schnell  : num_inference_steps / go_fast / megapixels (prompt_upsampling 미지원)
+FLUX_MODEL = os.environ.get("FLUX_MODEL", "black-forest-labs/flux-schnell")
+
+# 장당 단가(보고·로그용)
+FLUX_PRICE = {"black-forest-labs/flux-1.1-pro": 0.040,
+              "black-forest-labs/flux-dev": 0.025,
+              "black-forest-labs/flux-schnell": 0.003}
+
+
+def _flux_input(prompt: str) -> dict:
+    """모델 계열에 맞는 입력 dict. 공통 항목(프롬프트·해상도·포맷)은 동일하게 유지."""
+    base = {"prompt": prompt, "aspect_ratio": "1:1",
+            "output_format": "png", "output_quality": 95}
+    if FLUX_MODEL.endswith("flux-1.1-pro") or "/flux-pro" in FLUX_MODEL:
+        # 프롬프트 자동 확장은 하우스 스타일을 흐트러뜨리므로 비활성화
+        base.update({"prompt_upsampling": False, "safety_tolerance": 2})
+    else:
+        # schnell 은 4스텝 고정 설계, dev 는 28스텝이 기본 품질점
+        steps = 4 if FLUX_MODEL.endswith("schnell") else 28
+        base.update({"num_inference_steps": steps, "go_fast": True, "megapixels": "1"})
+        if not FLUX_MODEL.endswith("schnell"):
+            base["guidance"] = 3.0
+    return base
 
 # 편집만화 하우스 스타일 (모든 일러스트 프롬프트에 접미)
 STYLE_SUFFIX = (
@@ -94,18 +116,7 @@ def generate_illustration(scene_prompt: str, style_suffix: str | None = None) ->
     client = replicate.Client(api_token=token)
     for attempt in range(1, 4):
         try:
-            output = client.run(
-                FLUX_MODEL,
-                input={
-                    "prompt": full_prompt,
-                    "aspect_ratio": "1:1",
-                    "output_format": "png",
-                    "output_quality": 95,
-                    # 프롬프트 자동 확장은 하우스 스타일을 흐트러뜨리므로 비활성화
-                    "prompt_upsampling": False,
-                    "safety_tolerance": 2,
-                },
-            )
+            output = client.run(FLUX_MODEL, input=_flux_input(full_prompt))
             # replicate 반환: FileOutput(들) 또는 URL(들)
             item = output[0] if isinstance(output, (list, tuple)) else output
             if hasattr(item, "read"):            # FileOutput
@@ -113,7 +124,8 @@ def generate_illustration(scene_prompt: str, style_suffix: str | None = None) ->
             else:                                 # URL 문자열
                 import requests
                 data = requests.get(str(item), timeout=60).content
-            logger.info(f"[일러스트] 생성 완료 ({len(data)//1024}KB) — {scene_prompt[:40]}")
+            logger.info(f"[일러스트] 생성 완료 ({len(data)//1024}KB, {FLUX_MODEL.split('/')[-1]} "
+                        f"~${FLUX_PRICE.get(FLUX_MODEL, 0):.3f}) — {scene_prompt[:40]}")
             return data
         except Exception as e:
             is_rate = "429" in str(e) or "throttled" in str(e).lower()
