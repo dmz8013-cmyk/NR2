@@ -151,9 +151,8 @@ def test_headline_untouched_when_grounded():
 
 # ── 파이프라인 순서 회귀 ─────────────────────────────────────────────
 def test_gates_run_after_generation_steps():
-    """source_bind/policy_gate 가 enforce_rebuttal(마지막 생성 단계)보다 뒤에 있어야 한다."""
+    """gate.enforce 가 마지막 생성 단계(enforce_rebuttal)보다 뒤에 있어야 한다."""
     src = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                             "political_briefing.py"), encoding="utf-8").read()
-    assert src.index("enforce_rebuttal") < src.index("source_bind.bind")
-    assert src.index("enforce_rebuttal") < src.index("_er.policy_gate")
-    assert src.index("fill_empty_sections") < src.index("source_bind.bind")
+    assert src.index("enforce_rebuttal") < src.index("gate.enforce")
+    assert src.index("fill_empty_sections") < src.index("gate.enforce")

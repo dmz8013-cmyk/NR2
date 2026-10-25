@@ -285,3 +285,70 @@ def policy_gate(briefing: str) -> tuple[str, list[str]]:
     if notes:
         logger.warning(f"[정책게이트] {len(notes)}건: {notes[:5]}")
     return "\n".join(l for l in lines if l is not None), notes
+
+
+# ──────────────────────────────────────────────
+#  아침/저녁 브리핑 섹션 귀속 (2026-10-25)
+#  정치인의 정책 공방이 💰 경제/산업 같은 주제 섹션에 섞이던 문제
+#  (10/25 18:00판: 추미애·이준석 소방 재정 공방 → 경제/산업)
+# ──────────────────────────────────────────────
+GENERAL_POLITICS = "정치/시사"
+POLITICIAN_TITLE_HINTS = ("의원", "대표", "최고위원", "대변인", "정책위의장", "사무총장",
+                          "지사", "시장", "구청장", "군수", "비대위원장", "당")
+DISPUTE_WORDS = ("공방", "충돌", "설전", "맞서", "반박", "비판", "반발", "규탄", "겨냥",
+                 "질타", "성토", "날 세", "정면", "책임론", "공세")
+
+
+def is_politician(name: str) -> bool:
+    """정당 정치인·선출직인가 (부처 장관·법조는 제외 — 소관 섹션이 따로 있다)."""
+    reg = load_registry()
+    if name in reg["국회의원"]:
+        return True
+    t = reg["직함"].get(name, "")
+    if not t or any(g in t for g in ("장관", "청장", "총리", "대통령", "대법원장", "판사", "총재")):
+        return False
+    return any(h in t for h in POLITICIAN_TITLE_HINTS)
+
+
+def general_section_for_item(text: str) -> str | None:
+    """아침/저녁 브리핑 항목 → '정치/시사'로 옮겨야 하면 섹션명, 아니면 None.
+
+    조건: 등재 정치인이 주체이고 + 공방·대립 어휘가 있을 것.
+    정치인이 등장해도 단순 사실 보도면 원 섹션을 유지한다.
+    """
+    t = text or ""
+    if not any(w in t for w in DISPUTE_WORDS):
+        return None
+    return GENERAL_POLITICS if any(is_politician(n) for n in names_in(t)) else None
+
+
+def enforce_general_sections(briefing: str) -> tuple[str, list[str]]:
+    """💰/🤖/🎯 에 놓인 정치인 정책 공방 항목을 🏛️ 정치/시사로 이동. → (텍스트, 메모)."""
+    import re as _re
+    try:
+        from briefing_layout import SECTION_HEADER_RE
+    except Exception:
+        SECTION_HEADER_RE = _re.compile(r'^(🏛️|💰|🤖|🎯|📌|🇰🇷|🟦|🟥|🎸|🌐)')
+    lines = briefing.split("\n")
+    cur, moves = None, []
+    for i, ln in enumerate(lines):
+        s = ln.strip()
+        if SECTION_HEADER_RE.match(s):
+            cur = s
+            continue
+        if not s.startswith("▪") or cur is None or GENERAL_POLITICS.split("/")[0] in cur:
+            continue
+        body = s.lstrip("▪").strip()
+        if general_section_for_item(body) == GENERAL_POLITICS:
+            lines[i] = None
+            moves.append(body)
+    if not moves:
+        return briefing, []
+    text = "\n".join(l for l in lines if l is not None)
+    from recheck_queue import insert_into_section
+    notes = []
+    for body in moves:
+        text = insert_into_section(text, GENERAL_POLITICS, body)
+        notes.append(f"정치 공방 → 🏛️ 정치/시사: {body[:50]}")
+    logger.warning(f"[일반섹션] 이동 {len(notes)}건")
+    return text, notes

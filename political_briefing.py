@@ -515,60 +515,54 @@ def send_political_briefing(is_afternoon=True):
         except Exception as ie:
             logger.warning(f"[재검색큐] 복귀 삽입 실패: {ie}")
 
-    # 섹션 가드 (2026-10-12 13:00판 빈 섹션 사고): 출처 매칭 → 속보 강제 → 빈/부족 섹션 채움 → 반박 보강 → 상한 → 문체
+    # ── 생성 단계 (2026-10-25 [1-A]): 각 단계를 개별 try 로 감싼다.
+    #    기존에는 셋이 한 try 안이라 LLM 호출 하나가 터지면 뒤의 게이트까지
+    #    통째로 건너뛰었다 — 10/21·10/25 출처 불명·24h 누수의 구조적 원인.
+    pool = []
+    _gc = None
     try:
-        import section_fill as sf, style_fix
-        _gc = None
+        import section_fill as sf
         try:
             import anthropic as _an2
             _gc = _an2.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
         except Exception:
             pass
         pool = list(LAST_ARTICLES) or list(articles)
-        briefing, report.source_dropped_items = sf.source_match_guard(briefing, pool)
-        # 원문 대조 — 과장 동사(적발/폭로/전격/선언)·원문 밖 수치 교정 (2026-10-19)
-        try:
-            import grounding
-            briefing, report.grounding_notes = grounding.apply(briefing, pool)
-        except Exception as ge:
-            logger.warning(f"[원문대조] 실패(무시): {ge}")
-        briefing, report.breaking_notes = sf.enforce_breaking(briefing, pool, _gc)
         prior_titles = [p["text"] for p in prior]
-        briefing, report.fill_notes = sf.fill_empty_sections(briefing, pool, _gc, prior_titles)
-        briefing, report.rebuttal_notes = sf.enforce_rebuttal(briefing, pool, _gc)
+        steps = (
+            ("출처매칭", lambda b: sf.source_match_guard(b, pool), "source_dropped_items"),
+            ("속보",     lambda b: sf.enforce_breaking(b, pool, _gc), "breaking_notes"),
+            ("섹션채움", lambda b: sf.fill_empty_sections(b, pool, _gc, prior_titles), "fill_notes"),
+            ("반박보강", lambda b: sf.enforce_rebuttal(b, pool, _gc), "rebuttal_notes"),
+        )
+        for label, fn, attr in steps:
+            try:
+                briefing, notes = fn(briefing)
+                setattr(report, attr, notes)
+            except Exception as se:
+                logger.error(f"[섹션가드:{label}] 실패 — 건너뛰고 계속: {se}", exc_info=True)
+    except Exception as sf_err:
+        logger.error(f"[섹션가드] 초기화 실패(무시): {sf_err}", exc_info=True)
 
-        # ── 생성 단계(속보·채움·반박) 뒤 최종 관문 (2026-10-21 결함1·2·3·4)
-        #    이 세 단계는 LLM 이 새 항목을 만들어 넣는다. 기존에는 출처 매칭·원문 대조가
-        #    이보다 앞에서만 돌아, 생성 항목이 검증 없이 발행됐다(16건 중 6건 출처 불명).
-        try:
-            import entity_registry as _er
-            briefing, report.policy_notes = _er.policy_gate(briefing)
-        except Exception as pe:
-            logger.warning(f"[정책게이트] 실패(무시): {pe}")
-        try:
-            import grounding
-            briefing, gnotes2 = grounding.apply(briefing, pool)
-            report.grounding_notes += gnotes2
-        except Exception as ge2:
-            logger.warning(f"[원문대조2] 실패(무시): {ge2}")
-        try:
-            import source_bind
-            briefing, report.bound_items, report.unbound_dropped = source_bind.bind(briefing, pool)
-        except Exception as be:
-            logger.error(f"[출처결속] 실패(무시): {be}")
-        briefing, empty_notes = sf.mark_empty_sections(briefing)
-        report.fill_notes += empty_notes
+    # ── 최종 관문 — try 밖. 위 단계가 어떻게 끝났든 반드시 실행된다.
+    try:
+        import gate
+        briefing, _ginfo = gate.enforce(briefing, pool, btype, report)
+    except Exception as ge:
+        logger.error(f"[게이트] 호출 자체 실패 — 미검증 발행: {ge}", exc_info=True)
 
-        briefing, cap_notes = sf.cap_sections(briefing)
-        report.fill_notes += cap_notes
+    # ── 정리·서식 (게이트 통과분 대상)
+    try:
+        import section_fill as sf2, style_fix
+        briefing, empty_notes = sf2.mark_empty_sections(briefing)
+        briefing, cap_notes = sf2.cap_sections(briefing)
+        report.fill_notes = list(report.fill_notes) + empty_notes + cap_notes
         briefing, report.style_notes = style_fix.fix_style(briefing, _gc)
-        # 헤드라인은 style_fix(▪ 줄만)·headline_guard(프레임 어휘만) 어디서도
-        # 사실 대조를 받지 않았다 → 수집 풀과 동사·종결 대조 (결함5)
         try:
             from grounding import check_headline
-            _hl = [i for i, ln in enumerate(briefing.split("\n")) if ln.strip().startswith("🔥")]
+            _lines = briefing.split("\n")
+            _hl = [i for i, ln in enumerate(_lines) if ln.strip().startswith("🔥")]
             if _hl:
-                _lines = briefing.split("\n")
                 for j in range(_hl[0] + 1, min(_hl[0] + 4, len(_lines))):
                     if _lines[j].strip():
                         fixed, hnotes = check_headline(_lines[j].strip(), pool)
@@ -579,14 +573,15 @@ def send_political_briefing(is_afternoon=True):
                         break
         except Exception as he:
             logger.warning(f"[헤드라인 대조] 실패(무시): {he}")
-        report.section_counts = sf.section_counts(briefing)
-        if any(sf.HARD_RE.search(a.get("title", "")) for a in pool):
+        report.section_counts = sf2.section_counts(briefing)
+        if any(sf2.HARD_RE.search(a.get("title", "")) for a in pool):
             from headline_guard import ensure_breaking_in_headline
-            briefing, hb = ensure_breaking_in_headline(briefing, [a.get("title", "") for a in pool if sf.HARD_RE.search(a.get("title", ""))][:1], _gc)
+            briefing, hb = ensure_breaking_in_headline(
+                briefing, [a.get("title", "") for a in pool if sf2.HARD_RE.search(a.get("title", ""))][:1], _gc)
             if hb:
                 report.headline_fixed.append(hb)
-    except Exception as sf_err:
-        logger.error(f"[섹션가드] 실패(무시): {sf_err}", exc_info=True)
+    except Exception as fe:
+        logger.error(f"[정리·서식] 실패(무시): {fe}", exc_info=True)
 
     # 공용 레이아웃 — 헤더(출처 2링크)·푸터(참고 2링크)·섹션 간격 재조립
     # (config/briefing_layout.json, 정보공유방 브리핑과 동일 템플릿)

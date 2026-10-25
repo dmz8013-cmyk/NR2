@@ -951,6 +951,17 @@ def send_briefing():
         except Exception as ed_err:
             logger.warning(f"[문체강제 2차] 실패 — 원문 유지: {ed_err}")
 
+        # 3.85) 최종 관문 — 정치 브리핑과 **같은 게이트** (2026-10-25).
+        #       아침/저녁은 그동안 24h 결속 게이트가 없어 10/24 10:21 포스코 파업,
+        #       10/23 KF-21 기획 같은 24h 초과 항목이 그대로 나갔다.
+        #       pool 은 수집 단계의 categorized 를 평탄화해 쓴다(제목 기준 매칭).
+        try:
+            import gate
+            _pool = [a for arts in categorized.values() for a in arts]
+            briefing, _ginfo = gate.enforce(briefing, _pool, btype_now, report)
+        except Exception as ge:
+            logger.error(f"[게이트] 호출 자체 실패 — 미검증 발행: {ge}", exc_info=True)
+
         # 3.9) 공용 레이아웃 — 헤더(출처 2링크)·푸터(참고 2링크)·섹션 간격을
         #      config/briefing_layout.json 템플릿으로 재조립 (구식 출처·nr2 푸터 대체)
         try:

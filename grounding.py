@@ -43,6 +43,21 @@ STANCE_VERBS = {
 # 진행 단계 동사 — '검토'를 '추진'으로 올리는 유형(결함5 헤드라인)
 STAGE_VERBS = {"추진": "검토", "확정": "검토", "결정": "검토", "시행": "검토"}
 
+# 논평·추측형 서술 (2026-10-25 저녁판: '구조적 약세가 드러나고 있음',
+# '무기화 가능성이 제기되고 있음'). 기사에 없는 평가·전망을 LLM 이 덧붙이는 유형으로,
+# 과장 동사와 달리 **구절 단위**라 해당 절을 통째로 들어낸다.
+COMMENTARY_RE = re.compile(
+    r"(구조적\s*(?:약세|강세|한계|문제|요인)"
+    r"|가능성이\s*(?:제기|거론|대두)"
+    r"|본격화(?:되|하|할|될)"
+    r"|드러나고\s*있"
+    r"|관측(?:이|도)\s*(?:나오|제기)"
+    r"|분석(?:이|도)\s*(?:나오|제기)"
+    r"|평가(?:가|도)\s*(?:나오|제기)"
+    r"|우려(?:가|도)\s*(?:커지|제기)"
+    r"|전망(?:이|도)\s*(?:나오|우세)"
+    r"|해석(?:이|도)\s*(?:나오|제기))")
+
 # (2) 수치 토큰 — 단위를 동반한 숫자만 검사 (연도·날짜·조문 번호는 제외)
 NUM_RE = re.compile(r"\d[\d,.]*\s*(?:%|퍼센트|조|억|만|천|원|달러|명|건|석|표|배|포인트|%p|p|km|㎞|t|톤)")
 EXEMPT_RE = re.compile(r"(\d{4}\s*년|\d{1,2}\s*월\s*\d{1,2}\s*일|\d{1,2}/\d{1,2}|제\s*\d+\s*조|\d+\s*기|\d+\s*대\s*국회)")
@@ -102,7 +117,9 @@ def _strip_clause(body: str, token: str) -> str:
     parts = [p for p in _CLAUSE_SPLIT.split(body) if p and p.strip()]
     if len(parts) > 1:
         kept = [p for p in parts if token not in p]
-        if kept and len("".join(kept).strip()) >= 15:
+        # 12자: 한국어 완결 절의 하한. 15자면 '포스코 노조가 파업에 돌입'(14자) 같은
+        # 사실 절까지 1자 차이로 날아간다 (2026-10-25 조정).
+        if kept and len("".join(kept).strip()) >= 12:
             return re.sub(r"\s{2,}", " ", ", ".join(x.strip() for x in kept)).strip(" ,·")
     return ""
 
@@ -178,6 +195,29 @@ def apply(briefing: str, articles: list[dict]) -> tuple[str, list[str]]:
         body2, vnotes = fix_verbs(body, src)
         for n in vnotes:
             notes.append(f"동사 과장: {n} ({body[:28]}…)")
+
+        # 논평·추측형 절 — 원문에 같은 표현이 없으면 절 삭제 (2026-10-25)
+        # 절을 하나 들어낼 때마다 본문이 바뀌므로 매번 재탐색한다
+        # (고정된 finditer 목록을 쓰면 이미 사라진 구절을 또 지우려다 항목을 날린다).
+        seen: set[str] = set()
+        while True:
+            m = next((x for x in COMMENTARY_RE.finditer(body2)
+                      if x.group(0) not in src and x.group(0) not in seen), None)
+            if m is None:
+                break
+            phrase = m.group(0)
+            seen.add(phrase)
+            stripped = _strip_clause(body2, phrase)
+            if stripped:
+                notes.append(f"논평형 '{phrase}' 절 삭제 ({body2[:28]}…)")
+                body2 = stripped
+            else:
+                notes.append(f"논평형 '{phrase}' — 항목 삭제 ({body2[:40]}…)")
+                body2 = ""
+                break
+        if body2 == "":
+            lines[i] = None
+            continue
 
         for tok in missing_numbers(body2, src):
             stripped = _strip_clause(body2, tok)
