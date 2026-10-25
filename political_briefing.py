@@ -403,6 +403,12 @@ def send_political_briefing(is_afternoon=True):
         logger.warning(f"수집된 기사 없음 - {period} 브리핑 건너뜀")
         report.extra.append("수집 기사 0건 — 브리핑 생략")
         report.send()
+        # 조용한 실패 금지 (2026-10-25) — 회차 요약과 별개로 명시 경보
+        try:
+            from ai_briefing import _alert_zero_collection
+            _alert_zero_collection(f"{period} 정치", "네이버 수집 0건")
+        except Exception as ae:
+            logger.warning(f"[0건경보] 실패(무시): {ae}")
         return
 
     # 재검색 큐(politics) — 이전 회차 미확인 실명 발언 재검색 (생성 전)

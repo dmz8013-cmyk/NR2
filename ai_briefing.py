@@ -120,6 +120,69 @@ def _parse_pub_date(entry) -> datetime | None:
     return None
 
 
+# ── 네이버 API 폴백 (2026-10-25) ────────────────────────────────
+# Google News 가 Railway egress IP 를 503 차단하면 RSS 수집이 0건이 되고
+# 브리핑이 조용히 스킵된다(10/24 18:00 ~ 10/25 18:00 3회 미발행).
+# 같은 컨테이너에서 네이버 API 는 정상 동작한다(13:00 정치 브리핑이 근거).
+NAVER_FALLBACK_QUERIES = {
+    "정치/시사": ["정치", "국회", "대통령실"],
+    "경제/산업": ["경제", "증시", "산업"],
+    "AI/기술": ["인공지능", "반도체", "IT 기술"],
+    "기타(스포츠/연예)": ["스포츠", "연예"],
+}
+
+
+def _alert_zero_collection(period: str, detail: str) -> None:
+    """수집 0건으로 브리핑을 건너뛸 때 관리자 DM. 전송 실패는 로그만."""
+    try:
+        import requests as _rq
+        token = os.environ.get("TELEGRAM_BOT_TOKEN")
+        chat = os.environ.get("TELEGRAM_ADMIN_CHAT_ID", "5132309076")
+        if not token:
+            logger.warning(f"[0건경보] 토큰 없음 — 로그만: {period} {detail}")
+            return
+        _rq.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                 json={"chat_id": chat,
+                       "text": f"🚨 <b>{period} 브리핑 미발행</b>\n\n수집 0건으로 건너뜀.\n사유: {detail}\n\n"
+                               f"발행이 비어 있습니다 — 수집 경로 점검 필요.",
+                       "parse_mode": "HTML"}, timeout=10)
+    except Exception as e:
+        logger.warning(f"[0건경보] DM 실패(무시): {e}")
+
+
+def fetch_news_naver_fallback(start_time: datetime, end_time: datetime) -> dict[str, list[dict]]:
+    """Google News 수집 0건일 때의 대체 경로. 실패해도 예외를 올리지 않는다."""
+    out: dict[str, list[dict]] = {}
+    try:
+        from political_briefing import search_naver_news
+    except Exception as e:
+        logger.error(f"[폴백] 네이버 모듈 로드 실패: {e}")
+        return out
+    for category, queries in NAVER_FALLBACK_QUERIES.items():
+        articles: list[dict] = []
+        for q in queries:
+            for it in search_naver_news(q, display=30, sort='date') or []:
+                title = re.sub(r"<[^>]+>", "", it.get("title", "")).replace("&quot;", '"') \
+                          .replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").strip()
+                if not title or any(a["title"] == title for a in articles):
+                    continue
+                pub = None
+                try:
+                    pub = datetime.strptime(it.get("pubDate", ""),
+                                            '%a, %d %b %Y %H:%M:%S %z').astimezone(KST)
+                except Exception:
+                    pass
+                if pub is not None and (pub < start_time or pub > end_time):
+                    continue
+                articles.append({"title": title,
+                                 "link": it.get("originallink") or it.get("link", ""),
+                                 "published": pub.isoformat() if pub else None})
+        out[category] = articles[:MAX_ARTICLES_PER_CATEGORY]
+    logger.warning(f"[폴백] 네이버 재수집: " +
+                   " · ".join(f"{k} {len(v)}건" for k, v in out.items()))
+    return out
+
+
 def fetch_news_by_category(
     start_time: datetime,
     end_time: datetime,
@@ -742,6 +805,14 @@ def send_briefing():
         categorized = fetch_news_by_category(start, end)
         total_raw = sum(len(v) for v in categorized.values())
         logger.info(f"RSS 수집 완료: {total_raw}건")
+        # Google News 0건 → 네이버 폴백 (2026-10-25)
+        if total_raw == 0:
+            logger.warning("Google News 수집 0건 — 네이버 API 폴백 시도")
+            categorized = fetch_news_naver_fallback(start, end)
+            total_raw = sum(len(v) for v in categorized.values())
+            logger.info(f"폴백 수집 완료: {total_raw}건")
+            if total_raw:
+                report.extra.append(f"⚠️ Google News 0건 → 네이버 폴백으로 {total_raw}건 수집")
         report.timeliness_excluded = list(LAST_TIMELINESS_EXCLUDED)
         report.timeliness_lenient = list(LAST_TIMELINESS_LENIENT)
 
@@ -777,6 +848,8 @@ def send_briefing():
 
         if total == 0:
             logger.warning("수집된 뉴스가 없어 브리핑을 건너뜁니다.")
+            # 조용한 실패 금지 (2026-10-25): 10/24~25 3회 미발행을 아무도 몰랐다
+            _alert_zero_collection(period, "Google News + 네이버 폴백 모두 0건")
             return
 
         # 2.7) 시세 수집 (실패해도 파이프라인 계속 — 폴백: 시세 줄 생략)

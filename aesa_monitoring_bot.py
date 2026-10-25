@@ -62,6 +62,13 @@ GOOGLE_NEWS_SOURCES = {'Nikkei Asia', 'Reuters', 'Caixin Global', 'Brookings', '
 
 # 캐싱용 분리(2026-10-21): 고정부는 매 호출 동일 → cache_control 로 프리픽스 캐싱.
 # PROMPT_FIXED + PROMPT_ITEM 연결 결과는 기존 PROMPT_TEMPLATE 와 바이트 단위로 동일.
+# Google News 경유 소스는 폴링을 분리한다 (2026-10-25).
+# 5분 폴링 × 6소스 = 일 1,728 요청이 news.google.com 의 Railway IP 차단을 유발했고,
+# 그 여파로 ai_briefing 의 Google News 토픽 피드까지 죽어 브리핑이 3회 미발행됐다.
+# 이 소스들은 when:1d~3d 검색이라 5분 간격이 애초에 과잉이다.
+GNEWS_INTERVAL_MIN = int(os.environ.get("AESA_GNEWS_INTERVAL_MIN", "30"))
+_last_gnews_poll: datetime | None = None
+
 SCORE_MODEL = "claude-sonnet-5-5"       # 2026-10-21 Sonnet 4.6 → 5.5 ($3/$15 → $2/$10)
 SYSTEM_PROMPT = "당신은 최고 수준의 국제정치, 기술 트렌드, 글로벌 금융 분석가입니다."
 
@@ -200,6 +207,29 @@ def _clean_title(title):
     return title
 
 
+def _fetch_feed(url: str, attempts: int = 3):
+    """RSS 조회 + 503/429 지수 백오프 (2026-10-25).
+
+    Google News 는 과호출 시 503 을 돌려준다. 즉시 포기하면 일시적 스로틀링도
+    영구 실패처럼 보이므로 2·4초 간격으로 재시도한다. 그래도 실패면 None.
+    """
+    import time as _t
+    last = None
+    for i in range(attempts):
+        try:
+            last = requests.get(url, timeout=20, headers={
+                'User-Agent': 'Mozilla/5.0 (compatible; AESA-Monitor/1.0)'})
+            if last.status_code not in (429, 503):
+                return last
+            if i < attempts - 1:
+                _t.sleep(2 * (2 ** i))
+        except Exception as e:
+            logger.warning(f"[AESA] 피드 조회 예외({i + 1}/{attempts}) {url[:60]}: {e}")
+            if i < attempts - 1:
+                _t.sleep(2 * (2 ** i))
+    return last
+
+
 def process_rss_feeds():
     """5분마다 실행: RSS 수집 → Claude 채점 → DB 저장.
     9점 이상은 즉시 텔레그램 발송, 7~8점은 queued_batch로 대기.
@@ -211,14 +241,27 @@ def process_rss_feeds():
 
         stats = {}
 
+        # Google News 경유 소스는 GNEWS_INTERVAL_MIN 간격으로만 조회
+        global _last_gnews_poll
+        _now = datetime.now(KST)
+        _gnews_due = (_last_gnews_poll is None or
+                      (_now - _last_gnews_poll).total_seconds() >= GNEWS_INTERVAL_MIN * 60)
+        if _gnews_due:
+            _last_gnews_poll = _now
+
         for source_name, feed_url in RSS_FEEDS.items():
+            if source_name in GOOGLE_NEWS_SOURCES and not _gnews_due:
+                continue
             logger.info(f"[AESA] Polling RSS: {source_name}")
             source_stats = {'fetched': 0, 'skipped_dup': 0, 'scored': 0, 'urgent_sent': 0, 'queued': 0, 'low_score': 0, 'errors': 0}
 
             try:
-                resp = requests.get(feed_url, timeout=20, headers={
-                    'User-Agent': 'Mozilla/5.0 (compatible; AESA-Monitor/1.0)'
-                })
+                resp = _fetch_feed(feed_url)
+                if resp is None:
+                    logger.error(f"[AESA] {source_name}: 재시도 후에도 실패 — 이번 회차 건너뜀")
+                    source_stats['errors'] = 1
+                    stats[source_name] = source_stats
+                    continue
                 if resp.status_code != 200:
                     logger.error(f"[AESA] {source_name}: HTTP {resp.status_code} — RSS 피드 접근 실패")
                     source_stats['errors'] = 1
