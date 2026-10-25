@@ -270,13 +270,13 @@ def _leaders_safe(fn_name, *args):
     except Exception as e:
         logger.error(f'[Scheduler] 거두워치 {fn_name} 실패(기존 파이프라인 무영향): {e}')
 
-@scheduler.scheduled_job('cron', hour='6,12,18,22', minute=0, id='leaders_collect_t1',
+@scheduler.scheduled_job('cron', hour=6, minute=0, id='leaders_collect_t1',
                           timezone='Asia/Seoul', misfire_grace_time=600, coalesce=True, max_instances=1)
 def leaders_collect_t1():
     logger.info('[Scheduler] 거두워치 T1 수집...')
     _leaders_safe('collect_tier', 1)
 
-@scheduler.scheduled_job('cron', hour='6,18', minute=3, id='leaders_collect_t2',
+@scheduler.scheduled_job('cron', hour=6, minute=3, id='leaders_collect_t2',
                           timezone='Asia/Seoul', misfire_grace_time=600, coalesce=True, max_instances=1)
 def leaders_collect_t2():
     logger.info('[Scheduler] 거두워치 T2 수집...')
@@ -287,6 +287,13 @@ def leaders_collect_t2():
 def leaders_collect_t3():
     logger.info('[Scheduler] 거두워치 T3 수집...')
     _leaders_safe('collect_tier', 3)
+
+@scheduler.scheduled_job('cron', hour=6, minute=30, id='leaders_collect_backstop',
+                          timezone='Asia/Seoul', misfire_grace_time=600, coalesce=True, max_instances=1)
+def leaders_collect_backstop():
+    """06:30 — 06시 단일 스윕이 0건일 때만 T1 재수집 (2026-10-25 호출 19→9 감축의 안전장치)."""
+    logger.info('[Scheduler] 시그널 수집 백스톱 점검...')
+    _leaders_safe('collect_backstop')
 
 @scheduler.scheduled_job('cron', hour=6, minute=50, id='leaders_input_reminder',
                           timezone='Asia/Seoul', misfire_grace_time=600, coalesce=True, max_instances=1)

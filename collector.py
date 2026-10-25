@@ -41,7 +41,9 @@ KST = ZoneInfo("Asia/Seoul")
 # 2026-09: Live Search(chat/completions+search_parameters) 폐기(HTTP 410) →
 # Agent Tools API(/v1/responses + x_search 도구)로 전환
 XAI_URL = "https://api.x.ai/v1/responses"
-XAI_MODEL = os.environ.get("XAI_MODEL", "grok-4.6")
+# 2026-10-25 비용: 이 호출은 x_search 결과를 JSON 으로 추출하는 작업(추론 아님).
+# grok-4.6 $2/$6 → grok-4.3 $1.25/$2.50 per 1M tok. 토큰이 비용의 94%라 효과가 크다.
+XAI_MODEL = os.environ.get("XAI_MODEL", "grok-4.3")
 BATCH_SIZE = 20                                   # 쿼리당 핸들 상한 (스펙)
 CALLS_KEY_PREFIX = "leaders_api_calls_"
 COST_KEY_PREFIX = "leaders_cost_ticks_"        # 일별 / 월별(YYYY-MM) usd_ticks 누적
@@ -396,3 +398,45 @@ if __name__ == "__main__":
         monthly_report()
     else:
         collect_tier(int(sys.argv[sys.argv.index("--tier") + 1]) if "--tier" in sys.argv else 1)
+
+
+def collected_today() -> int:
+    """오늘 적재된 pending 건수. DB 불가 시 -1(판정 보류)."""
+    conn = db_conn()
+    if not conn:
+        return -1
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM leader_posts WHERE date = %s",
+                    (datetime.now(KST).date(),))
+        n = cur.fetchone()[0]
+        conn.close()
+        return int(n)
+    except Exception as e:
+        logger.warning(f"[수집] 당일 적재 집계 실패: {e}")
+        try:
+            conn.close()
+        except Exception:
+            pass
+        return -1
+
+
+def collect_backstop() -> None:
+    """06:30 백스톱 — 06시 단일 스윕이 0건이면 그때만 T1 재실행 (2026-10-25).
+
+    수집을 하루 1회로 줄이면서 생긴 단일 실패점을 막는다. 정상일에는 호출 0건이라
+    비용 증가가 없다. T1(최상위 33인)만 재시도해 비용 노출을 2콜로 제한한다.
+    """
+    try:
+        if not os.environ.get("XAI_API_KEY"):
+            return
+        n = collected_today()
+        if n != 0:
+            logger.info(f"[수집] 백스톱 불필요 — 당일 적재 {n}건")
+            return
+        logger.warning("[수집] 당일 적재 0건 — T1 백스톱 재실행")
+        collect_tier(1)
+        _send_admin(f"⚠️ <b>시그널 수집 백스톱 실행</b>\n"
+                    f"06시 스윕 적재 0건 → T1 재수집 (적재 {collected_today()}건)")
+    except Exception as e:
+        logger.error(f"[수집] 백스톱 실패(무시): {e}")

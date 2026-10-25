@@ -9,7 +9,9 @@ import urllib.parse
 
 logger = logging.getLogger(__name__)
 
-BOT_TOKEN = os.environ.get('SCHEDULE_BOT_TOKEN', '8734510853:AAHsqC3fQfC0K02-xrWEZgnh9ZDGUIi2P44')
+# 2026-10-25: 하드코딩 기본값 제거(공개 저장소 노출). 미설정이면 전송을 건너뛴다 —
+# 조용히 구 토큰으로 돌지 않도록 기본값을 두지 않는다.
+BOT_TOKEN = os.environ.get('SCHEDULE_BOT_TOKEN', '')
 CHAT_ID = '5132309076'
 SENT_FILE = '/tmp/vip_sent.json'
 
@@ -180,6 +182,9 @@ def check_and_send():
             )
 
             try:
+                if not BOT_TOKEN:
+                    logger.warning("[VIP] SCHEDULE_BOT_TOKEN 미설정 — 전송 생략")
+                    continue
                 url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
                 resp = requests.post(url, json={
                     'chat_id': CHAT_ID,
