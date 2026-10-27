@@ -60,6 +60,11 @@ def allowed_endings() -> list[str]:
     return load_layout()['allowed_endings']
 
 
+# 아침/저녁(정보공유방) 브리핑 4개 섹션 — 이모지로 식별한다.
+# 이름('기타')으로 맞추면 정치 브리핑의 '🎸 비교섭단체 및 기타 정치'와 충돌한다.
+GENERAL_SECTION_EMOJI = ('🏛️', '💰', '🤖', '🎯')
+EMPTY_SECTION_LINE = '▪ 이 시간대 주요 이슈 없음 — 속보 발생 시 즉시 공유'
+
 # 섹션 헤더: 두 봇의 섹션 이모지로 시작하는 줄
 SECTION_HEADER_RE = re.compile(r'^(🏛️|💰|🤖|🎯|📌|🇰🇷|🟦|🟥|🎸|🌐)')
 # 섹션 헤더 아래 구분선(─·—·– 만으로 된 줄) — ━(푸터)·⸻(섹션 구분)는 제외
@@ -81,6 +86,40 @@ _LEGACY_PATTERNS = (
 def _is_legacy(line: str) -> bool:
     s = line.strip()
     return bool(s) and any(p(s) for p in _LEGACY_PATTERNS)
+
+
+def fill_empty_general_sections(body: list[str]) -> list[str]:
+    """본문이 0건인 아침/저녁 섹션 헤더 아래에 안내 한 줄을 넣는다 (2026-10-27).
+
+    10/27 18:00 저녁판에서 '🏛️ 정치/시사' 가 헤더만 남고 비어 나갔다 — 수집은
+    15건 정상이었으나 초안의 정치 항목 4건이 전부 verify_pass 에서 제외됐고,
+    ai_briefing 에는 정치 브리핑의 mark_empty_sections 같은 장치가 없었다.
+
+    body 는 apply_layout 이 조립한 '헤더, 빈 줄, 항목…' 구조다. 헤더 블록을
+    통째로 다시 쌓아 간격이 어긋나지 않게 한다.
+    """
+    # 헤더 위치로 블록 분할
+    idx = [i for i, ln in enumerate(body) if SECTION_HEADER_RE.match(ln.strip())]
+    if not idx:
+        return body
+    out = body[:idx[0]]
+    for n, start in enumerate(idx):
+        stop = idx[n + 1] if n + 1 < len(idx) else len(body)
+        header = body[start]
+        rest = body[start + 1:stop]
+        is_general = header.strip().startswith(GENERAL_SECTION_EMOJI)
+        has_item = any(ln.strip().startswith('▪') for ln in rest)
+        if is_general and not has_item:
+            # rest 선두의 빈 줄은 헤더 간격, 그 뒤는 섹션 구분선 블록(''·⸻·'')이다.
+            # 구분선을 보존해야 섹션 경계가 유지된다.
+            lead = 0
+            while lead < len(rest) and not rest[lead].strip():
+                lead += 1
+            out += [header, '', EMPTY_SECTION_LINE] + rest[max(0, lead - 1):]
+            logger.warning(f'[레이아웃] 빈 섹션 안내 삽입: {header.strip()}')
+        else:
+            out += [header] + rest
+    return out
 
 
 def apply_layout(text: str) -> str:
@@ -128,6 +167,8 @@ def apply_layout(text: str) -> str:
             elif s == '-':
                 continue
             body.append(ln)
+
+        body = fill_empty_general_sections(body)
 
         out = title + ['']
         out += cfg['header_lines'] + ['']

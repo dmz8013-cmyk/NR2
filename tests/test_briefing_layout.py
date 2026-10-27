@@ -161,3 +161,41 @@ def test_banned_regex_catches_rumor_predicates():
         assert BANNED_PREDICATE_RE.search(s), s
     for s in ('국회가 법안을 가결했음', '검찰이 압수수색에 착수', '예산안 의결'):
         assert not BANNED_PREDICATE_RE.search(s), s
+
+
+# ── 빈 섹션 안내 (2026-10-27: 10/27 18:00 '🏛️ 정치/시사' 헤더만 발행) ──
+from briefing_layout import EMPTY_SECTION_LINE
+
+
+def test_empty_general_section_gets_notice():
+    """아침/저녁 4개 섹션은 항목 0건이면 안내 한 줄이 들어간다."""
+    src = ("🌆 저녁 브리핑 | 2026년 10월 27일 18:00\n\n"
+           "🏛️ 정치/시사\n\n⸻⸻⸻⸻\n\n"
+           "💰 경제/산업\n▪ 코스피가 4% 급등\n\n⸻⸻⸻⸻\n\n"
+           "🤖 AI/기술\n\n⸻⸻⸻⸻\n\n"
+           "🎯 기타\n▪ 해리 케인 발롱도르 수상")
+    out = apply_layout(src)
+    body = out[out.index("🏛️"):]
+
+    # 비어 있던 두 섹션에 안내가 들어갔고, 채워진 섹션에는 안 들어갔다
+    assert body.count(EMPTY_SECTION_LINE) == 2
+    pol = body[body.index("🏛️"):body.index("💰")]
+    ai = body[body.index("🤖"):body.index("🎯")]
+    econ = body[body.index("💰"):body.index("🤖")]
+    etc = body[body.index("🎯"):]
+    assert EMPTY_SECTION_LINE in pol and EMPTY_SECTION_LINE in ai
+    assert EMPTY_SECTION_LINE not in econ and EMPTY_SECTION_LINE not in etc
+
+    # 헤더 다음 빈 줄 1개 + 섹션 구분선 유지
+    assert "🏛️ 정치/시사\n\n" + EMPTY_SECTION_LINE in body
+    assert body.count("⸻⸻⸻⸻") == 3
+
+
+def test_political_sections_unaffected_by_notice():
+    """정치 브리핑 섹션(🇰🇷·🟦·🟥·🎸·🌐)은 이 안내를 받지 않는다.
+    '🎸 비교섭단체 및 기타 정치'가 이름의 '기타'로 오매칭되면 안 된다."""
+    src = ("🔥 제목\n\n🇰🇷 이재명 정부 🇰🇷\n\n⸻⸻⸻⸻\n\n"
+           "🎸 비교섭단체 및 기타 정치 🪕\n\n⸻⸻⸻⸻\n\n"
+           "🌐 법조 및 국제 🌐\n▪ 항목 하나")
+    out = apply_layout(src)
+    assert EMPTY_SECTION_LINE not in out
