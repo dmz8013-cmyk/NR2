@@ -74,13 +74,72 @@ def _count_items(text: str) -> int:
                if ln.strip().startswith("▪") and "금일 주요 보도 없음" not in ln)
 
 
+def _content_checks(briefing: str, pool: list[dict], bound: list[dict]) -> tuple[str, list[str]]:
+    """결속된 항목에 대해 시제 승격·수치 방향·여론조사 4종·회의체 조합을 검사 (2026-10-30).
+
+    bound 의 body 로 줄을 찾아 해당 기사 원문과 1:1 대조한다.
+    """
+    import grounding as gr
+    try:
+        import tense_guard
+    except Exception:
+        tense_guard = None
+    by_body = {b["body"]: b for b in bound}
+    lines = briefing.split("\n")
+    notes: list[str] = []
+    for i, ln in enumerate(lines):
+        s = (ln or "").strip()
+        if not s.startswith("▪"):
+            continue
+        body = s.lstrip("▪").strip()
+        b = by_body.get(body)
+        if not b:
+            continue
+        art = next((a for a in pool if (a.get("link") or a.get("url")) == b.get("url")), None)
+        src = f"{art.get('title','')} {art.get('description') or ''}" if art else ""
+
+        if tense_guard is not None:
+            new, note = tense_guard.check(body, src)
+            if note:
+                notes.append(f"시제: {note}")
+                if new == "":
+                    lines[i] = None
+                    continue
+                body = new
+
+        new, dnotes = gr.check_direction(body, src)
+        notes += [f"수치방향: {n}" for n in dnotes]
+        if new == "":
+            lines[i] = None
+            continue
+        body = new
+
+        missing = gr.check_poll(body)
+        if missing:
+            notes.append(f"여론조사 {'·'.join(missing)} 누락 — 삭제: {body[:36]}")
+            lines[i] = None
+            continue
+
+        bad = gr.check_forum(body, src)
+        if bad:
+            notes.append(f"회의체 불일치 {'·'.join(bad)} — 삭제: {body[:36]}")
+            lines[i] = None
+            continue
+
+        lines[i] = "▪ " + body
+    if notes:
+        logger.warning(f"[내용검사] {len(notes)}건: {notes[:4]}")
+    return "\n".join(l for l in lines if l is not None), notes
+
+
 def enforce(briefing: str, pool: list[dict], briefing_type: str,
             report=None) -> tuple[str, dict]:
     """→ (텍스트, {policy_notes, grounding_notes, bound_items, unbound_dropped}).
 
     report 를 주면 같은 필드를 report 에도 채운다(회차 DM 용).
     """
-    info = {"policy_notes": [], "grounding_notes": [], "bound_items": [], "unbound_dropped": []}
+    info = {"policy_notes": [], "grounding_notes": [], "bound_items": [], "unbound_dropped": [],
+            "content_notes": []}
     before = _count_items(briefing)
 
     try:
@@ -100,9 +159,11 @@ def enforce(briefing: str, pool: list[dict], briefing_type: str,
     except Exception as e:
         logger.warning(f"[게이트] 원문 대조 실패(계속): {e}")
 
+    # 시제·방향·여론조사·회의체 — 결속 기사와 1:1 로 대조해야 하므로 bind 결과를 쓴다
     try:
         import source_bind
         briefing, info["bound_items"], info["unbound_dropped"] = source_bind.bind(briefing, pool)
+        briefing, info["content_notes"] = _content_checks(briefing, pool, info["bound_items"])
     except Exception as e:
         logger.error(f"[게이트] 출처 결속 실패 — 미결속 상태로 발행: {e}")
         _alert(briefing_type, f"출처 결속 단계 예외 — 24h·근거 검증 없이 발행됨: {str(e)[:120]}")
@@ -127,4 +188,5 @@ def enforce(briefing: str, pool: list[dict], briefing_type: str,
         report.grounding_notes = list(getattr(report, "grounding_notes", [])) + info["grounding_notes"]
         report.bound_items = info["bound_items"]
         report.unbound_dropped = info["unbound_dropped"]
+        report.grounding_notes += info["content_notes"]
     return briefing, info

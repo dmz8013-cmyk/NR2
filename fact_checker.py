@@ -341,3 +341,47 @@ if __name__ == "__main__":
     else:
         print(f"알 수 없는 명령: {cmd}")
         sys.exit(1)
+
+
+# ══════════════════════════════════════════════════
+#  5. 직함 TTL — 유효기간 경과분 보고 (2026-10-30)
+# ══════════════════════════════════════════════════
+TTL_DEFAULT = {"정당지도부": 14, "장관": 30, "선출직": 90}
+
+
+def stale_titles(today: str | None = None) -> list[dict]:
+    """verified_on 이 TTL 을 넘긴 인물 목록. → [{name, title, category, verified_on, days}]
+
+    정당 지도부는 14일, 장관 30일, 선출직 90일. 카테고리가 없으면 30일로 본다.
+    재확인은 사람이 한다 — 여기서는 보고만 하고 브리핑을 막지 않는다.
+    """
+    from datetime import date, datetime as _dt
+    base = _dt.strptime(today, "%Y-%m-%d").date() if today else date.today()
+    try:
+        sheet = _load_fact_sheet()
+    except Exception as e:
+        logger.warning(f"[TTL] fact_sheet 로드 실패: {e}")
+        return []
+    ttl = sheet.get("ttl_days") or TTL_DEFAULT
+    out = []
+    for fig in sheet.get("key_figures", []):
+        v = fig.get("verified_on")
+        if not v:
+            continue
+        try:
+            days = (base - _dt.strptime(v[:10], "%Y-%m-%d").date()).days
+        except Exception:
+            continue
+        limit = ttl.get(fig.get("category") or "", 30)
+        if days > limit:
+            out.append({"name": fig["name"], "title": fig.get("correct_title", ""),
+                        "category": fig.get("category") or "(미분류)",
+                        "verified_on": v[:10], "days": days, "limit": limit})
+    return sorted(out, key=lambda x: -x["days"])
+
+
+def format_stale(rows: list[dict], limit: int = 10) -> str:
+    if not rows:
+        return "직함 TTL 경과 0건"
+    ex = " / ".join(f"{r['name']}({r['category']} {r['days']}일>{r['limit']})" for r in rows[:limit])
+    return f"⚠️ 직함 TTL 경과 {len(rows)}건: {ex}"

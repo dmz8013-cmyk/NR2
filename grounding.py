@@ -236,3 +236,60 @@ def apply(briefing: str, articles: list[dict]) -> tuple[str, list[str]]:
     if notes:
         logger.warning(f"[원문대조] 교정 {len(notes)}건: {notes[:6]}")
     return "\n".join(l for l in lines if l is not None), notes
+
+
+# ── 수치 방향 · 여론조사 · 회의체 고유명사 (2026-10-30) ──────────────
+DIRECTION_WORDS = ("상회", "하회", "부합", "웃돌", "밑돌", "최저치", "최고치",
+                   "격차 최소", "둔화", "반등")
+COMPARISON_RE = re.compile(r"(예상치|전망치|시장\s*예상|컨센서스|전월|전주|전년|전분기|"
+                           r"지난달|지난주|작년|직전|종전|기존|대비)")
+
+POLL_FIELDS = {
+    "조사기관": re.compile(r"(리얼미터|한국갤럽|갤럽|NBS|전국지표조사|KSOI|한국사회여론연구소|"
+                        r"조원씨앤아이|에이스리서치|한길리서치|미디어토마토|여론조사꽃|메타보이스|"
+                        r"엠브레인|입소스|케이스탯|코리아리서치|한국리서치|알앤써치|리서치뷰|"
+                        r"모노리서치|글로벌리서치|피플네트웍스)"),
+    "조사기간": re.compile(r"(\d{1,2}\s*[~∼-]\s*\d{1,2}\s*일|\d{1,2}월\s*\d{1,2}일|"
+                        r"\d{1,2}일\s*(?:간|부터)|사흘|이틀|양일|주간)"),
+    "표본":     re.compile(r"\d{3,5}\s*명"),
+    "오차":     re.compile(r"(표본오차|오차범위|±\s*\d|신뢰수준)"),
+}
+POLL_TRIGGER = re.compile(r"(지지율|여론조사|지지도|긍정\s*평가|부정\s*평가|국정\s*(?:수행\s*)?평가)")
+PCT = re.compile(r"\d{1,3}(?:\.\d)?\s*%")
+
+# 회의체·참가국 조합 — 모델이 조합을 바꾸면 사실이 달라진다
+# (10/29 한미 SCM(10/28) + ADMM-Plus(10/29) 혼합)
+FORUM_RE = re.compile(r"(한미일|한미|한일|한중일|한중|아세안|ASEAN|ADMM-Plus|ADMM|SCM|"
+                      r"APEC|G20|G7|NATO|유엔총회|안보리|한미연합|2\+2)")
+
+
+def check_direction(body: str, src: str) -> tuple[str, list[str]]:
+    """방향 표현의 비교 대상이 원문에 없으면 방향어를 지우고 수치만 남긴다."""
+    notes, out = [], body
+    for w in DIRECTION_WORDS:
+        if w not in out:
+            continue
+        if w in src and COMPARISON_RE.search(src):
+            continue                                   # 원문이 같은 방향을 말한다
+        new = re.sub(r"\s*(?:을|를|에)?\s*" + re.escape(w) + r"(했음|함|됨|한|하며|하고)?", "", out)
+        # 방향어를 지우면 비교 대상 명사가 허공에 남는다 ('…예상치.') → 함께 정리
+        new = re.sub(r"\s*(예상치|전망치|컨센서스|시장\s*예상)\s*$", "", new.rstrip(" .,·"))
+        new = re.sub(r"\s{2,}", " ", new).strip(" ,·")
+        if len(new) >= 12:
+            notes.append(f"방향 표현 '{w}' 삭제(원문에 비교 대상 없음)")
+            out = new
+        else:
+            return "", [f"방향 표현 '{w}' — 항목 삭제(원문 근거 없음)"]
+    return out, notes
+
+
+def check_poll(body: str) -> list[str]:
+    """여론조사 수치 항목에 기관·기간·표본·오차가 모두 있는가. → 누락 필드 목록."""
+    if not (POLL_TRIGGER.search(body) and PCT.search(body)):
+        return []
+    return [k for k, rx in POLL_FIELDS.items() if not rx.search(body)]
+
+
+def check_forum(body: str, src: str) -> list[str]:
+    """항목의 회의체·참가국 조합이 원문에 없으면 보고(불일치)."""
+    return [m for m in set(FORUM_RE.findall(body)) if m not in (src or "")]

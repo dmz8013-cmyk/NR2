@@ -420,18 +420,26 @@ def generate_briefing_with_ai(
         raise ImportError("anthropic 패키지가 설치되지 않았습니다. pip install anthropic")
 
     # 헤드라인 텍스트 조합
+    # [#id] 부여 — 모델이 항목마다 {src:#id} 를 달 수 있게 한다 (2026-10-30).
+    # 기존에는 제목만 넘겨 모델이 연결 서술을 지어낼 여지가 컸다.
     news_block = ""
     total_count = 0
+    flat_articles: list[dict] = []
     for cat, articles in categorized_news.items():
         news_block += f"\n[{cat}]\n"
         for a in articles:
-            label = a.get("pub_label") or ""
-            news_block += f"- {a['title']}" + (f" (발행 {label})" if label else "") + "\n"
             total_count += 1
+            flat_articles.append(a)
+            label = a.get("pub_label") or ""
+            news_block += f"[#{total_count}] {a['title']}" + (f" (발행 {label})" if label else "") + "\n"
 
     if total_count == 0:
         return None
 
+    try:
+        from src_bind import PROMPT_RULE as src_rule
+    except Exception:
+        src_rule = ""
     today_str = datetime.now(KST).strftime("%Y년 %m월 %d일")
 
     time_str = "06:00" if "아침" in period else "18:00"
@@ -463,6 +471,7 @@ def generate_briefing_with_ai(
     prompt = f"""{fact_context}당신은 '누렁이 정보공유방'의 뉴스 브리핑 AI입니다.
 아래 뉴스 헤드라인들을 바탕으로 {period} 브리핑을 작성하세요.
 
+{src_rule}
 [작성 규칙]
 1. 첫 줄(제목): "{period} 누렁이 정보공유방 브리핑 | {today_str} {time_str}"
 2. 출처·참고 링크 블록은 시스템이 발송 시 자동 삽입 — 본문에 '출처:'·URL 줄을
@@ -950,6 +959,16 @@ def send_briefing():
                     briefing, anthropic.Anthropic(api_key=api_key), "", morning=("아침" in period))
         except Exception as ed_err:
             logger.warning(f"[문체강제 2차] 실패 — 원문 유지: {ed_err}")
+
+        # 3.84) 출처 태그 정리 — 무출처 삭제·별건 혼합 분리 (2026-10-30)
+        try:
+            import src_bind
+            _cl2 = anthropic.Anthropic(api_key=_env("ANTHROPIC_API_KEY")) if anthropic else None
+            briefing, report.src_info = src_bind.enforce(
+                briefing, [a for arts in categorized.values() for a in arts], _cl2)
+            briefing = src_bind.strip_tags(briefing)
+        except Exception as sbe:
+            logger.error(f"[src바인딩] 실패(무시): {sbe}")
 
         # 3.85) 최종 관문 — 정치 브리핑과 **같은 게이트** (2026-10-25).
         #       아침/저녁은 그동안 24h 결속 게이트가 없어 10/24 10:21 포스코 파업,

@@ -125,6 +125,16 @@ def _looks_like_person(name: str, title: str = "", known: set | None = None) -> 
         return False                                              # '암호화폐 시장'·'리그 감독' — 3자 인명만 허용
     return True
 
+# 수치 방향 표현 — 비교 대상 없이 방향만 단언하는 유형 (2026-10-30).
+# 10/29 PCE '예상치 하회'(실제 부합), '여당 지지도 최저치'(대통령 항목에 정당 수치 결합).
+# 캐시를 무시하고 매번 검색한다 — 방향은 하루 사이에 뒤집히는 값이다.
+DIRECTION_RE = re.compile(r"(상회|하회|부합|웃돌|밑돌|최저치|최고치|최저|최고|"
+                          r"상승|하락|급등|급락|확대|축소|격차\s*최소|둔화|반등|"
+                          r"\d+\s*%p|\d+\s*포인트)")
+# 비교 대상 — 방향 표현이 있으면 이 중 하나가 기사 본문에 있어야 한다
+COMPARISON_RE = re.compile(r"(예상치|전망치|시장\s*예상|컨센서스|전월|전주|전년|전분기|"
+                           r"지난달|지난주|작년|직전|종전|기존|대비)")
+
 # (c) 구체 수치 + 단정 종결
 NUMBER_RE = re.compile(r"[0-9][0-9,.]*\s*(?:%|퍼센트|조|억|만|천|달러|원|명|건|배|년|개월|일|포인트|p|도|㎜|mm|km|㎞)")
 SOFTENERS = ["전해", "알려", "보인다", "보이", "전망", "예정", "추정", "관측", "가능성", "예상", "계획", "논의", "검토"]
@@ -281,6 +291,10 @@ def tag_item(text: str, known_names: set) -> list[str]:
     m = RECORD_RE.search(text)
     if m:
         reasons.append(f"기록 주장: {m.group(0)}")
+    # (i) 수치 방향 — 상회/하회/부합/최저/최고/%p. 필수 검색(캐시 무시) (2026-10-30)
+    m = DIRECTION_RE.search(text)
+    if m:
+        reasons.append(f"수치 방향: {m.group(0)}")
     # (h) 신규 출시·개시 주장 — 상한 내 검색(수치 그룹 우선순위)
     m = LAUNCH_RE.search(text)
     if m:
@@ -315,7 +329,8 @@ def stale_event(text: str, event_date: str) -> bool:
 
 def is_mandatory(reasons: list[str]) -> bool:
     """상한과 무관하게 검색: 기록 주장·수치 출처 필요."""
-    return any(r.startswith("기록 주장") or r == "수치 출처 필요" for r in reasons)
+    return any(r.startswith("기록 주장") or r == "수치 출처 필요"
+               or r.startswith("수치 방향") for r in reasons)
 
 
 def priority_of(reasons: list[str], briefing_type: str = "") -> int:
@@ -730,8 +745,9 @@ def run_verify_pass_ex(briefing: str, briefing_type: str = "", enqueue: bool = T
             record = any(r.startswith("기록 주장") for r in reasons)
             source_needed = "수치 출처 필요" in reasons
             mode = "S:" if (source_needed and not named) else ("N:" + ("U:" if unregistered else "") if named else "G:")
+            direction = any(r.startswith("수치 방향") for r in reasons)
             key = _item_key("v2:" + mode + text)
-            if key in cache:
+            if key in cache and not direction:
                 result = cache[key]
                 logger.info(f"[자가검증] 캐시 적중: {text[:30]}… → {result['verdict']}")
             else:

@@ -197,7 +197,8 @@ def generate_political_briefing(articles, is_afternoon=True):
     for i, article in enumerate(articles, 1):
         label = article.get('pub_label') or (article['pub_date'].strftime('%m/%d %H:%M') if article.get('pub_date') else '')
         flag = "【속보·우선】 " if article.get('breaking') else ""
-        news_block += f"{i}. {flag}[{article['title']}] (발행 {label})\n   {article['description'][:150]}\n\n"
+        news_block += (f"[#{i}] {flag}{article['title']} (발행 {label})\n"
+                       f"     {article['description'][:150]}\n\n")
 
     # 팩트 컨텍스트 자동 주입
     try:
@@ -213,6 +214,10 @@ def generate_political_briefing(articles, is_afternoon=True):
     except Exception:
         allowed_endings_str = '확정, 체결, 비판, 기각'
 
+    try:
+        from src_bind import PROMPT_RULE as src_rule
+    except Exception:
+        src_rule = ""
     prompt = f"""{fact_context}당신은 한국 정치 전문 뉴스 브리핑 AI입니다.
 아래 {len(articles)}개의 정치 뉴스 기사를 분석하여 텔레그램용 정치 브리핑을 작성하세요.
 
@@ -290,6 +295,7 @@ def generate_political_briefing(articles, is_afternoon=True):
 20. [헤드라인] 두 번째 줄 한줄 제목도 기사에 있는 사실만 씁니다. 기사에 없는 동사로 강도·단계를 올리지 말고,
     '~가다/~하다' 같은 어색한 종결로 끝내지 마세요.
 
+{src_rule}
 [오늘 {time_range} 정치 뉴스]
 {news_block}"""
 
@@ -543,6 +549,14 @@ def send_political_briefing(is_afternoon=True):
                 logger.error(f"[섹션가드:{label}] 실패 — 건너뛰고 계속: {se}", exc_info=True)
     except Exception as sf_err:
         logger.error(f"[섹션가드] 초기화 실패(무시): {sf_err}", exc_info=True)
+
+    # ── 출처 태그 정리 — 무출처 삭제·별건 혼합 분리 (2026-10-30)
+    try:
+        import src_bind
+        briefing, report.src_info = src_bind.enforce(briefing, pool, _gc)
+        briefing = src_bind.strip_tags(briefing)
+    except Exception as sbe:
+        logger.error(f"[src바인딩] 실패(무시): {sbe}")
 
     # ── 최종 관문 — try 밖. 위 단계가 어떻게 끝났든 반드시 실행된다.
     try:

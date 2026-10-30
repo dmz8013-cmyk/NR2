@@ -42,6 +42,7 @@ class RunReport:
         self.policy_notes: list[str] = []         # 직함 교정·지방 단순일정·여론조사 기관 (2026-10-21)
         self.bound_items: list[dict] = []         # 항목별 원문 URL·게시시각 (2026-10-21)
         self.unbound_dropped: list[str] = []      # 근거 없음·24h 초과로 제외
+        self.src_info: dict = {}                  # {src:#id} 바인딩 결과 (2026-10-30)
         self.age_dropped: list[dict] = []         # 24h 하드 필터 제거 기사
         self.section_counts: dict = {}
         self.calls = 0
@@ -90,6 +91,13 @@ class RunReport:
         lines += [f"원문대조: {t}" for t in self.grounding_notes]
         lines += [f"정책게이트: {t}" for t in self.policy_notes]
         lines += [f"결속 실패 제외: {t}" for t in self.unbound_dropped]
+        if self.src_info:
+            si = self.src_info
+            lines.append(f"출처태그: 유지 {si.get('kept',0)} · 분리 {len(si.get('split',[]))} "
+                         f"· 무출처 삭제 {len(si.get('dropped',[]))}"
+                         + (" · ⚠️태그 0건(모델 미준수)" if si.get("untagged_run") else ""))
+            lines += [f"  무출처 제외: {t}" for t in si.get("dropped", [])[:8]]
+            lines += [f"  별건 분리: {t}" for t in si.get("split", [])[:5]]
         if self.bound_items:
             from source_bind import format_bound
             lines.append("── 항목별 원문(결속) ──")
