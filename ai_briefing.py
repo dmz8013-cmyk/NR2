@@ -432,6 +432,10 @@ def generate_briefing_with_ai(
             flat_articles.append(a)
             label = a.get("pub_label") or ""
             news_block += f"[#{total_count}] {a['title']}" + (f" (발행 {label})" if label else "") + "\n"
+            # 본문 요약 동반 (2026-10-30 B) — 제목만 주면 모델이 연결 서술을 지어낸다.
+            desc = (a.get("description") or a.get("summary") or "").strip()
+            if desc:
+                news_block += f"      {desc[:150]}\n"
 
     if total_count == 0:
         return None
@@ -980,6 +984,16 @@ def send_briefing():
             briefing, _ginfo = gate.enforce(briefing, _pool, btype_now, report)
         except Exception as ge:
             logger.error(f"[게이트] 호출 자체 실패 — 미검증 발행: {ge}", exc_info=True)
+
+        # 3.87) 헤드라인 — 1번 섹션 1번 항목 기반 재생성 (2026-10-30 D)
+        try:
+            from headline_guard import regenerate_headline
+            _cl3 = anthropic.Anthropic(api_key=_env("ANTHROPIC_API_KEY")) if anthropic else None
+            briefing, _hn = regenerate_headline(briefing, _cl3)
+            if _hn:
+                report.headline_fixed.append(_hn)
+        except Exception as he:
+            logger.warning(f"[제목재생성] 실패(무시): {he}")
 
         # 3.9) 공용 레이아웃 — 헤더(출처 2링크)·푸터(참고 2링크)·섹션 간격을
         #      config/briefing_layout.json 템플릿으로 재조립 (구식 출처·nr2 푸터 대체)

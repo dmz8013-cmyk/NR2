@@ -572,21 +572,14 @@ def send_political_briefing(is_afternoon=True):
         briefing, cap_notes = sf2.cap_sections(briefing)
         report.fill_notes = list(report.fill_notes) + empty_notes + cap_notes
         briefing, report.style_notes = style_fix.fix_style(briefing, _gc)
+        # 헤드라인 — 수집 풀 대조·교정 대신 **1번 섹션 1번 항목**에서 재생성 (2026-10-30 D)
         try:
-            from grounding import check_headline
-            _lines = briefing.split("\n")
-            _hl = [i for i, ln in enumerate(_lines) if ln.strip().startswith("🔥")]
-            if _hl:
-                for j in range(_hl[0] + 1, min(_hl[0] + 4, len(_lines))):
-                    if _lines[j].strip():
-                        fixed, hnotes = check_headline(_lines[j].strip(), pool)
-                        if hnotes:
-                            _lines[j] = fixed
-                            report.headline_fixed += hnotes
-                            briefing = "\n".join(_lines)
-                        break
+            from headline_guard import regenerate_headline
+            briefing, _hn = regenerate_headline(briefing, _gc)
+            if _hn:
+                report.headline_fixed.append(_hn)
         except Exception as he:
-            logger.warning(f"[헤드라인 대조] 실패(무시): {he}")
+            logger.warning(f"[제목재생성] 실패(무시): {he}")
         report.section_counts = sf2.section_counts(briefing)
         if any(sf2.HARD_RE.search(a.get("title", "")) for a in pool):
             from headline_guard import ensure_breaking_in_headline

@@ -95,7 +95,8 @@ class RunReport:
             si = self.src_info
             lines.append(f"출처태그: 유지 {si.get('kept',0)} · 분리 {len(si.get('split',[]))} "
                          f"· 무출처 삭제 {len(si.get('dropped',[]))}"
-                         + (" · ⚠️태그 0건(모델 미준수)" if si.get("untagged_run") else ""))
+                         + (f" · ⚠️태그율 {si.get('tag_rate')}% → 역매칭 폴백"
+                            if si.get("fallback") else ""))
             lines += [f"  무출처 제외: {t}" for t in si.get("dropped", [])[:8]]
             lines += [f"  별건 분리: {t}" for t in si.get("split", [])[:5]]
         if self.bound_items:

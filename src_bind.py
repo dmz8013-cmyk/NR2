@@ -13,6 +13,7 @@
   · src 없음 → 무출처로 삭제 + 관리자 DM
 발행 전 {src:...} 는 제거한다. 실패해도 발행을 막지 않는다(태그 없으면 원문 유지).
 """
+import os
 import re
 import logging
 
@@ -65,6 +66,41 @@ def has_tags(briefing: str) -> bool:
     return bool(SRC_RE.search(briefing))
 
 
+TAG_RATE_FLOOR = int(os.environ.get("SRC_TAG_RATE_FLOOR", "50"))
+FALLBACK_MIN_OVERLAP = 4          # 역매칭 폴백 시 겹침 기준 (평시 2 → 4)
+
+
+def _fallback(briefing: str, pool: list[dict], info: dict) -> tuple[str, dict]:
+    """태그 미준수 회차 — 역매칭으로 보수적으로 거른다.
+
+    겹침 >= FALLBACK_MIN_OVERLAP 인 기사가 **정확히 1개**일 때만 유지한다.
+    0개면 무출처, 2개 이상이면 별건 혼합으로 보고 삭제한다.
+    """
+    try:
+        from source_bind import tokens
+    except Exception:
+        return briefing, info
+    lines = briefing.split("\n")
+    for i, ln in enumerate(lines):
+        s = (ln or "").strip()
+        if not s.startswith("▪") or any(h in s for h in NO_NEWS_HINTS):
+            continue
+        body = SRC_RE.sub("", s).lstrip("▪").strip()
+        bt = tokens(body)
+        hits = [a for a in (pool or [])
+                if len(bt & tokens(f"{a.get('title','')} {a.get('description') or ''}"))
+                >= FALLBACK_MIN_OVERLAP]
+        if len(hits) == 1:
+            lines[i] = "▪ " + body
+            info["kept"] += 1
+        else:
+            lines[i] = None
+            info["dropped"].append(f"{body[:40]} (폴백 매칭 {len(hits)}건)")
+    if info["dropped"]:
+        logger.warning(f"[src바인딩] 폴백 삭제 {len(info['dropped'])}건")
+    return "\n".join(l for l in lines if l is not None), info
+
+
 SPLIT_PROMPT = """다음 브리핑 항목은 서로 다른 기사 {n}건을 한 문장에 섞었다. 기사별로 항목을 나눠라.
 
 [항목] {body}
@@ -89,11 +125,18 @@ def enforce(briefing: str, pool: list[dict], client=None,
     태그가 전혀 없으면(구 프롬프트·모델 미준수) 아무것도 하지 않고 통과시킨다 —
     이 가드 때문에 브리핑이 통째로 비는 일이 없어야 한다.
     """
-    info = {"split": [], "dropped": [], "kept": 0, "untagged_run": False}
-    if not has_tags(briefing):
+    info = {"split": [], "dropped": [], "kept": 0, "untagged_run": False,
+            "tag_rate": None, "fallback": False}
+    parsed = parse(briefing)
+    if parsed:
+        info["tag_rate"] = round(100 * sum(1 for _, _, ids in parsed if ids) / len(parsed))
+    # 태그율이 낮으면 모델이 규칙을 안 지킨 회차다 — 전량 삭제하면 브리핑이 비므로
+    # 기존 역매칭으로 폴백하되 기준을 조인다 (2026-10-30 C).
+    if not parsed or (info["tag_rate"] or 0) < TAG_RATE_FLOOR:
         info["untagged_run"] = True
-        logger.warning("[src바인딩] {src:#id} 태그 0건 — 모델이 규칙을 따르지 않았다. 통과")
-        return briefing, info
+        info["fallback"] = True
+        logger.warning(f"[src바인딩] 태그율 {info['tag_rate']}% < {TAG_RATE_FLOOR}% — 역매칭 폴백")
+        return _fallback(briefing, pool, info)
 
     lines = briefing.split("\n")
     for ln_no, body, ids in parse(briefing):

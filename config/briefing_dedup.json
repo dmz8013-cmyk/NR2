@@ -1,0 +1,10 @@
+{
+  "_meta": {
+    "description": "브리핑 중복 병합 임계값 (2026-10-30 E). 1차는 결속 URL 일치 + 어간 겹침, 2차는 섹션 내 rapidfuzz token_set_ratio. rapidfuzz 미설치 시 2차는 difflib 로 대체.",
+    "updated": "2026-10-30"
+  },
+  "url_match_min_overlap": 4,
+  "token_set_ratio": 85,
+  "keep_rule": "entity_registry.section_for_item 이 지정한 섹션의 항목을 남긴다. 판정 불가면 첫 항목.",
+  "rebuttal_exempt": true
+}

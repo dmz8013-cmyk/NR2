@@ -361,6 +361,27 @@ def aesa_daily_summary_job():
     logger.info('[Scheduler] AESA 일간 요약본 발송 중...')
     send_daily_summary_email()
 
+@scheduler.scheduled_job('cron', day_of_week='mon', hour=7, minute=0, id='title_ttl_report',
+                          timezone='Asia/Seoul', misfire_grace_time=600, coalesce=True, max_instances=1)
+def title_ttl_report_job():
+    """월 07:00 — 직함 TTL 경과분 관리자 DM (2026-10-30 G).
+    정당지도부 14일/장관 30일/선출직 90일. 보고만 하고 브리핑을 막지 않는다."""
+    try:
+        import os, requests
+        from fact_checker import stale_titles, format_stale
+        rows = stale_titles()
+        msg = "📒 <b>직함 재확인 알림</b>\n\n" + format_stale(rows, limit=20)
+        if rows:
+            msg += "\n\nfacts.json·fact_sheet.json 양쪽을 함께 갱신하세요."
+        token = os.environ.get("TELEGRAM_BOT_TOKEN")
+        chat = os.environ.get("TELEGRAM_ADMIN_CHAT_ID", "5132309076")
+        if token:
+            requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
+                          json={"chat_id": chat, "text": msg, "parse_mode": "HTML"}, timeout=10)
+        logger.info(f"[직함TTL] 경과 {len(rows)}건 보고")
+    except Exception as e:
+        logger.error(f'[Scheduler] 직함 TTL 보고 실패(무시): {e}')
+
 @scheduler.scheduled_job('cron', hour=23, minute=50, id='api_usage_report', timezone='Asia/Seoul',
                           misfire_grace_time=600, coalesce=True, max_instances=1)
 def api_usage_report_job():

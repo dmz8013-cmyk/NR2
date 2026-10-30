@@ -251,8 +251,14 @@ POLL_FIELDS = {
                         r"모노리서치|글로벌리서치|피플네트웍스)"),
     "조사기간": re.compile(r"(\d{1,2}\s*[~∼-]\s*\d{1,2}\s*일|\d{1,2}월\s*\d{1,2}일|"
                         r"\d{1,2}일\s*(?:간|부터)|사흘|이틀|양일|주간)"),
-    "표본":     re.compile(r"\d{3,5}\s*명"),
-    "오차":     re.compile(r"(표본오차|오차범위|±\s*\d|신뢰수준)"),
+    "표본":     re.compile(r"\d{1,2},\d{3}\s*명|\d{3,5}\s*명"),
+    "오차":     re.compile(r"(±\s*\d+(?:\.\d+)?\s*%?p?|표본오차\s*±?\s*\d+(?:\.\d+)?\s*%?p?"
+                          r"|표본오차|오차범위|신뢰수준)"),
+}
+# 보강 시에는 라벨보다 **수치**를 우선한다 ('표본오차' 보다 '±3.1%p')
+POLL_VALUE_FIRST = {
+    "오차": re.compile(r"±\s*\d+(?:\.\d+)?\s*%?p?"),
+    "표본": re.compile(r"\d{1,2},\d{3}\s*명|\d{3,5}\s*명"),
 }
 POLL_TRIGGER = re.compile(r"(지지율|여론조사|지지도|긍정\s*평가|부정\s*평가|국정\s*(?:수행\s*)?평가)")
 PCT = re.compile(r"\d{1,3}(?:\.\d)?\s*%")
@@ -288,6 +294,40 @@ def check_poll(body: str) -> list[str]:
     if not (POLL_TRIGGER.search(body) and PCT.search(body)):
         return []
     return [k for k, rx in POLL_FIELDS.items() if not rx.search(body)]
+
+
+def _poll_window(src: str, half: int = 300) -> str:
+    """여론조사 맥락 주변만 잘라낸다 — 기관명 우선, 없으면 '조사' 첫 등장."""
+    m = POLL_FIELDS["조사기관"].search(src) or re.search(r"조사", src)
+    if not m:
+        return src[:1200]
+    return src[max(0, m.start() - half): m.start() + half]
+
+
+def augment_poll(body: str, src: str) -> tuple[str, str | None]:
+    """누락된 여론조사 4종을 결속 기사 본문에서 찾아 항목 끝에 병기 (2026-10-30 A).
+
+    즉시 삭제 대신 보강을 먼저 시도한다. 기사에서도 못 찾은 필드가 있으면
+    그때만 ("", 사유) 를 돌려 삭제한다.
+    → (보강문, 메모) / 보강 불필요면 (원문, None)
+    """
+    missing = check_poll(body)
+    if not missing:
+        return body, None
+    # 기사 전문에서 긁으면 네비게이션·다른 기사의 숫자를 집어온다(실측: '275명', '000명').
+    # 여론조사 맥락(기관명 또는 '조사') 주변 창으로 좁힌다.
+    win = _poll_window(src or "")
+    found, still = [], []
+    for k in missing:
+        m = (POLL_VALUE_FIRST.get(k) or POLL_FIELDS[k]).search(win)
+        if m is None and k in POLL_VALUE_FIRST:
+            m = POLL_FIELDS[k].search(win)            # 수치 없으면 라벨이라도
+        (found.append((k, m.group(0).strip())) if m else still.append(k))
+    if still:
+        return "", f"여론조사 {'·'.join(still)} — 기사에도 없어 삭제"
+    tail = ", ".join(v for _, v in found)
+    out = body.rstrip(" .·") + f" ({tail})"
+    return out, f"여론조사 보강: {'·'.join(k for k, _ in found)} → ({tail})"
 
 
 def check_forum(body: str, src: str) -> list[str]:

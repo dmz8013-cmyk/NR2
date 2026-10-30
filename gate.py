@@ -114,11 +114,13 @@ def _content_checks(briefing: str, pool: list[dict], bound: list[dict]) -> tuple
             continue
         body = new
 
-        missing = gr.check_poll(body)
-        if missing:
-            notes.append(f"여론조사 {'·'.join(missing)} 누락 — 삭제: {body[:36]}")
-            lines[i] = None
-            continue
+        new, pnote = gr.augment_poll(body, src)
+        if pnote:
+            notes.append(f"{pnote} ({body[:30]}…)")
+            if new == "":
+                lines[i] = None
+                continue
+            body = new
 
         bad = gr.check_forum(body, src)
         if bad:
@@ -164,6 +166,12 @@ def enforce(briefing: str, pool: list[dict], briefing_type: str,
         import source_bind
         briefing, info["bound_items"], info["unbound_dropped"] = source_bind.bind(briefing, pool)
         briefing, info["content_notes"] = _content_checks(briefing, pool, info["bound_items"])
+        try:
+            import briefing_dedup
+            briefing, _dn = briefing_dedup.dedup(briefing, info["bound_items"])
+            info["content_notes"] += [f"병합: {n}" for n in _dn]
+        except Exception as de:
+            logger.warning(f"[병합] 실패(계속): {de}")
     except Exception as e:
         logger.error(f"[게이트] 출처 결속 실패 — 미결속 상태로 발행: {e}")
         _alert(briefing_type, f"출처 결속 단계 예외 — 24h·근거 검증 없이 발행됨: {str(e)[:120]}")

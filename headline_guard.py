@@ -169,3 +169,75 @@ def ensure_breaking_in_headline(briefing: str, breaking_titles: list[str], clien
     except Exception as e:
         logger.warning(f"[제목속보] 재생성 실패: {e}")
     return briefing, f"속보 미반영(재생성 실패): {head[:30]}"
+
+
+# ── 발행 직전 헤드라인 재생성 (2026-10-30 D) ────────────────────
+# 수집 풀 대조·교정(grounding.check_headline)은 제거하고, 게이트를 통과한
+# **1번 섹션 1번 항목**에서 헤드라인을 만든다. 본문에 없는 말이 제목에 들어가는
+# 경로를 구조적으로 없앤다. 차단은 하지 않는다 — 생성 실패 시 원래 제목 유지.
+HEADLINE_MAX = 35
+GEN_PROMPT = """다음 브리핑 1번 항목으로 한줄 제목을 만들어라.
+
+[항목] {item}
+
+규칙: {maxlen}자 이내 1줄. 항목에 있는 사실만. 항목에 큰따옴표 인용이 있으면
+그 인용을 제목에 살려라. 새 어휘·추측·수식 금지. 제목 1줄만 출력."""
+
+_QUOTE_RE = re.compile(r'"([^"]{4,40})"')
+
+
+def _first_item(briefing: str) -> str | None:
+    try:
+        from briefing_layout import SECTION_HEADER_RE
+    except Exception:
+        SECTION_HEADER_RE = re.compile(r'^(🏛️|💰|🤖|🎯|📌|🇰🇷|🟦|🟥|🎸|🌐)')
+    seen_header = False
+    for ln in briefing.split("\n"):
+        s = ln.strip()
+        if SECTION_HEADER_RE.match(s):
+            seen_header = True
+            continue
+        if seen_header and s.startswith("▪") and "보도 없음" not in s and "이슈 없음" not in s:
+            return s.lstrip("▪").strip()
+    return None
+
+
+def regenerate_headline(briefing: str, client=None,
+                        model: str = "claude-haiku-4-5-20251001") -> tuple[str, str | None]:
+    """🔥 고정 줄 다음의 제목 줄을 1번 항목 기반으로 교체. → (텍스트, 메모)."""
+    lines = briefing.split("\n")
+    idx = None
+    for i, ln in enumerate(lines):
+        if ln.strip().startswith("🔥"):
+            for j in range(i + 1, min(i + 4, len(lines))):
+                if lines[j].strip():
+                    idx = j
+                    break
+            break
+    if idx is None:
+        return briefing, None
+    item = _first_item(briefing)
+    if not item:
+        return briefing, None
+
+    new = None
+    if client is not None:
+        try:
+            r = client.messages.create(model=model, max_tokens=120,
+                                       messages=[{"role": "user", "content": GEN_PROMPT.format(
+                                           item=item, maxlen=HEADLINE_MAX)}])
+            cand = (r.content[0].text or "").strip().split("\n")[0].strip()
+            if cand and len(cand) <= HEADLINE_MAX + 10:
+                new = cand
+        except Exception as e:
+            logger.warning(f"[제목재생성] 실패: {e}")
+    if new is None:
+        # 결정론 폴백 — 인용이 있으면 인용 우선, 없으면 항목 앞머리
+        q = _QUOTE_RE.search(item)
+        new = (f'"{q.group(1)}"' if q else item)[:HEADLINE_MAX].rstrip(" ,·…")
+    old = lines[idx].strip()
+    if new == old:
+        return briefing, None
+    lines[idx] = new
+    logger.info(f"[제목재생성] {old[:30]} → {new[:30]}")
+    return "\n".join(lines), f"1번 항목 기반 재생성: {old[:26]} → {new[:26]}"
