@@ -190,7 +190,13 @@ def title_of(name: str) -> str | None:
     return load_registry()["직함"].get(name)
 
 
-TITLE_SUFFIX = ("장", "관", "표", "원", "사", "령", "인", "재")
+# 직함 어미는 **두 글자 이상**만 둔다. '표'·'원' 같은 한 글자를 넣으면
+# '발표함'·'지원함' 이 직함 후보로 잡혀 서술어까지 치환된다(11/2 컨테이너 검증).
+TITLE_SUFFIX = ("장관", "차관", "단장", "실장", "처장", "청장", "총장", "본부장", "위원장",
+                "위원", "의원", "대표", "대변인", "총재", "지사", "시장", "구청장", "군수",
+                "판사", "검사", "검사장", "원장", "대통령", "총리", "비서관", "보좌관",
+                "사무총장", "부총장", "회장", "이사장", "사장", "국장", "과장", "소장",
+                "센터장", "수석", "간사", "최고위원", "정책위의장", "의장")
 NEAR_MIN_SIM = int(os.environ.get("TITLE_NEAR_MIN_SIM", "60"))
 _CHUNK_RE_T = r"\s*([가-힣]{2,12})(?:\s+([가-힣]{2,12}))?"
 
@@ -231,6 +237,8 @@ def _near_title(text: str, name: str, correct: str) -> tuple[str, str | None]:
                 break                        # 이미 올바른 직함
             if max(_sim(cand, correct), _sim(cand, tail_word)) < NEAR_MIN_SIM:
                 continue
+            if len(cand) > len(correct) + 6:
+                continue                     # 뒤 단어까지 삼킨 과대 매칭
             chunk = " ".join(words)
             end = text.index(words[-1], m.start()) + len(words[-1])
             fixed = f"{name} {correct}"

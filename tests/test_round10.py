@@ -136,6 +136,13 @@ def test_c_typo_title_corrected():
     assert "대통합추진단장" in out and "대통통" not in out and notes
 
 
+def test_c_predicate_not_swallowed_as_title():
+    # '발표함' 은 '표' 로 끝나지만 직함이 아니다 — 서술어까지 치환하면 안 된다
+    out, notes = er.enforce_titles("박범계 대통통추진단장이 발표함")
+    assert out == "박범계 더불어민주당 대통합추진단장이 발표함", out
+    assert notes
+
+
 def test_c_near_title_keeps_particle():
     out, _ = er.enforce_titles("강신철 국방부 차관이 회동에 참석함")
     assert out == "강신철 국방부 장관이 회동에 참석함"
