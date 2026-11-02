@@ -43,6 +43,8 @@ class RunReport:
         self.bound_items: list[dict] = []         # 항목별 원문 URL·게시시각 (2026-10-21)
         self.unbound_dropped: list[str] = []      # 근거 없음·24h 초과로 제외
         self.src_info: dict = {}                  # {src:#id} 바인딩 결과 (2026-10-30)
+        self.content_notes: list[str] = []        # 내용검사 A~E 상세 (2026-11-02)
+        self.check_counts: dict = {}              # 내용검사 A~E 건수 (2026-11-02)
         self.age_dropped: list[dict] = []         # 24h 하드 필터 제거 기사
         self.section_counts: dict = {}
         self.calls = 0
@@ -53,7 +55,8 @@ class RunReport:
         return (f"시의성 제외 {len(self.timeliness_excluded)} · 24h 초과 {len(self.age_dropped)} · "
                 f"출처결속 {len(self.bound_items)}/{len(self.bound_items) + len(self.unbound_dropped)} · "
                 f"정책게이트 {len(self.policy_notes)} · "
-                f"원문대조 교정 {len(self.grounding_notes)} · 기보도 제외 {len(self.prior_excluded)} · "
+                f"원문대조 교정 {len(self.grounding_notes)} · 내용검사 {sum(self.check_counts.values())} · "
+                f"기보도 제외 {len(self.prior_excluded)} · "
                 f"기록·수치 삭제 {len(self.record_dropped) + len(self.source_dropped)} · "
                 f"섹션 이동 {len(self.section_moved)} · 코인 정리 {len(self.coin_dropped) + len(self.coin_moved)} · "
                 f"미확인→큐 {len(self.queued)} · 큐 복귀 {len(self.restored)} · 폐기 {len(self.discarded)}")
@@ -90,6 +93,12 @@ class RunReport:
         lines += [f"24h 초과 제거: {(d.get('title') or '')[:40]} ({d.get('age_hours')}h)" for d in self.age_dropped]
         lines += [f"원문대조: {t}" for t in self.grounding_notes]
         lines += [f"정책게이트: {t}" for t in self.policy_notes]
+        if self.check_counts:
+            from gate import CHECK_LABELS
+            lines.append("내용검사: " + " · ".join(
+                f"{k}({CHECK_LABELS.get(k, k)}) {self.check_counts.get(k, 0)}"
+                for k in sorted(self.check_counts)))
+        lines += [f"  {t}" for t in self.content_notes[:12]]
         lines += [f"결속 실패 제외: {t}" for t in self.unbound_dropped]
         if self.src_info:
             si = self.src_info

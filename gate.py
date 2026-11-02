@@ -74,16 +74,32 @@ def _count_items(text: str) -> int:
                if ln.strip().startswith("▪") and "금일 주요 보도 없음" not in ln)
 
 
-def _content_checks(briefing: str, pool: list[dict], bound: list[dict]) -> tuple[str, list[str]]:
-    """결속된 항목에 대해 시제 승격·수치 방향·여론조사 4종·회의체 조합을 검사 (2026-10-30).
+CHECK_LABELS = {"A": "인용 실존", "B": "소스·사건 날짜", "C": "직함 사전",
+                "D": "증감 방향", "E": "따옴표 짝"}
 
-    bound 의 body 로 줄을 찾아 해당 기사 원문과 1:1 대조한다.
+
+def _opt(name: str):
+    """가드 모듈 선택적 로드 — 없거나 깨져도 발행은 진행한다."""
+    try:
+        return __import__(name)
+    except Exception as e:
+        logger.warning(f"[내용검사] {name} 로드 실패(건너뜀): {e}")
+        return None
+
+
+def _content_checks(briefing: str, pool: list[dict], bound: list[dict]
+                    ) -> tuple[str, list[str], dict]:
+    """결속된 항목을 원문과 1:1 로 대조한다. → (텍스트, 메모, A~E 건수).
+
+    2026-10-30: 시제 승격·수치 방향·여론조사 4종·회의체 조합
+    2026-11-02: A 인용 실존 · B 소스·사건 날짜 · D 증감 방향 · E 따옴표 짝
+                (C 직함 사전은 정책게이트에서 돌고 건수만 여기서 합산)
     """
     import grounding as gr
-    try:
-        import tense_guard
-    except Exception:
-        tense_guard = None
+    tense_guard = _opt("tense_guard")
+    quote_guard = _opt("quote_guard")
+    src_age_guard = _opt("src_age_guard")
+    counts = {k: 0 for k in CHECK_LABELS}
     by_body = {b["body"]: b for b in bound}
     lines = briefing.split("\n")
     notes: list[str] = []
@@ -98,6 +114,29 @@ def _content_checks(briefing: str, pool: list[dict], bound: list[dict]) -> tuple
         art = next((a for a in pool if (a.get("link") or a.get("url")) == b.get("url")), None)
         src = f"{art.get('title','')} {art.get('description') or ''}" if art else ""
 
+        # E(따옴표 짝) → A(인용 실존). 잘린 문장은 인용 대조가 무의미하므로 E 가 먼저다.
+        if quote_guard is not None:
+            new, qnotes = quote_guard.check(body, src)
+            for n in qnotes:
+                notes.append(n)
+                if "따옴표 홀수" in n:
+                    counts["E"] += 1
+                elif n.startswith("A ") and "판정 보류" not in n:
+                    counts["A"] += 1          # 인용 삭제·인용부호 해제 모두 A 발동
+            if new == "":
+                lines[i] = None
+                continue
+            body = new
+
+        # B — 결속 기사 36h 초과 · 항목이 말하는 사건이 7일 초과
+        if src_age_guard is not None and art is not None:
+            reason = src_age_guard.check(body, art)
+            if reason:
+                notes.append(f"{reason} — 삭제: {body[:36]}")
+                counts["B"] += 1
+                lines[i] = None
+                continue
+
         if tense_guard is not None:
             new, note = tense_guard.check(body, src)
             if note:
@@ -109,6 +148,7 @@ def _content_checks(briefing: str, pool: list[dict], bound: list[dict]) -> tuple
 
         new, dnotes = gr.check_direction(body, src)
         notes += [f"수치방향: {n}" for n in dnotes]
+        counts["D"] += sum(1 for n in dnotes if n.startswith("D "))
         if new == "":
             lines[i] = None
             continue
@@ -131,7 +171,7 @@ def _content_checks(briefing: str, pool: list[dict], bound: list[dict]) -> tuple
         lines[i] = "▪ " + body
     if notes:
         logger.warning(f"[내용검사] {len(notes)}건: {notes[:4]}")
-    return "\n".join(l for l in lines if l is not None), notes
+    return "\n".join(l for l in lines if l is not None), notes, counts
 
 
 def enforce(briefing: str, pool: list[dict], briefing_type: str,
@@ -141,7 +181,7 @@ def enforce(briefing: str, pool: list[dict], briefing_type: str,
     report 를 주면 같은 필드를 report 에도 채운다(회차 DM 용).
     """
     info = {"policy_notes": [], "grounding_notes": [], "bound_items": [], "unbound_dropped": [],
-            "content_notes": []}
+            "content_notes": [], "check_counts": {k: 0 for k in CHECK_LABELS}}
     before = _count_items(briefing)
 
     try:
@@ -165,7 +205,8 @@ def enforce(briefing: str, pool: list[dict], briefing_type: str,
     try:
         import source_bind
         briefing, info["bound_items"], info["unbound_dropped"] = source_bind.bind(briefing, pool)
-        briefing, info["content_notes"] = _content_checks(briefing, pool, info["bound_items"])
+        briefing, info["content_notes"], info["check_counts"] = _content_checks(
+            briefing, pool, info["bound_items"])
         try:
             import briefing_dedup
             briefing, _dn = briefing_dedup.dedup(briefing, info["bound_items"])
@@ -187,6 +228,9 @@ def enforce(briefing: str, pool: list[dict], briefing_type: str,
         _alert(briefing_type,
                f"출처 결속 대량 제외 — {before}항목 중 {before - after}건 탈락 "
                f"(잔여 {after}). 매칭 임계값 점검 필요")
+    info["check_counts"]["C"] = sum(1 for n in info["policy_notes"] if "직함 교정" in n)
+    logger.warning("[내용검사] " + " · ".join(
+        f"{k}({CHECK_LABELS[k]})={info['check_counts'][k]}" for k in sorted(CHECK_LABELS)))
     logger.info(f"[게이트] {briefing_type}: 항목 {before}→{after} · 결속 {len(info['bound_items'])} "
                 f"· 제외 {len(info['unbound_dropped'])} · 정책 {len(info['policy_notes'])} "
                 f"· 원문대조 {len(info['grounding_notes'])}")
@@ -196,5 +240,6 @@ def enforce(briefing: str, pool: list[dict], briefing_type: str,
         report.grounding_notes = list(getattr(report, "grounding_notes", [])) + info["grounding_notes"]
         report.bound_items = info["bound_items"]
         report.unbound_dropped = info["unbound_dropped"]
-        report.grounding_notes += info["content_notes"]
+        report.content_notes = info["content_notes"]
+        report.check_counts = info["check_counts"]
     return briefing, info

@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-10-30",
+  "last_updated": "2026-11-02",
   "president": {
     "current": "이재명",
     "order": "제21대",
@@ -109,6 +109,17 @@
       "correct_title": "기본소득당 전략기획부총장",
       "wrong_titles": [],
       "verified_on": "2026-10-07"
+    },
+    {
+      "name": "박범계",
+      "correct_title": "더불어민주당 대통합추진단장",
+      "wrong_titles": [
+        "대통통추진단장",
+        "법무부 장관"
+      ],
+      "verified_on": "2026-11-02",
+      "note": "前 법무부 장관(2021~2022)",
+      "category": "정당지도부"
     },
     {
       "name": "박성민",

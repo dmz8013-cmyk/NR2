@@ -286,7 +286,9 @@ def check_direction(body: str, src: str) -> tuple[str, list[str]]:
             out = new
         else:
             return "", [f"방향 표현 '{w}' — 항목 삭제(원문 근거 없음)"]
-    return out, notes
+    # D — 증감 표현은 비교 기준 수치·연도별 추이까지 본다 (2026-11-02)
+    out, tnotes = check_trend(out, src)
+    return out, notes + tnotes
 
 
 def check_poll(body: str) -> list[str]:
@@ -333,3 +335,93 @@ def augment_poll(body: str, src: str) -> tuple[str, str | None]:
 def check_forum(body: str, src: str) -> list[str]:
     """항목의 회의체·참가국 조합이 원문에 없으면 보고(불일치)."""
     return [m for m in set(FORUM_RE.findall(body)) if m not in (src or "")]
+
+
+# ──────────────────────────────────────────────
+#  D. 증감 표현 검증 (2026-11-02)
+#  11/2 적발: '2023년 1,066명 급증' — 원문의 연도별 수치는 그 뒤 감소였다.
+#  ① 비교 기준 수치가 2개 미만이면 강도 수식어를 뺀다(급증 → 증가).
+#  ② 원문에 연도별 수치가 있으면 **최신 2개 연도**로 방향을 재판정한다.
+#     주장 방향이 실제와 반대면 증감 표현 자체를 지운다(수치·연도는 사실이므로 남긴다).
+#     반대 방향 단어로 치환하지 않는 이유 — '1,066명 감소'처럼 새 거짓이 생긴다.
+# ──────────────────────────────────────────────
+TREND_UP = ("급증", "폭증", "급등", "증가", "늘어", "확대", "상승")
+TREND_DOWN = ("급감", "폭감", "급락", "감소", "줄어", "축소", "하락")
+TREND_DEMOTE = {"급증": "증가", "폭증": "증가", "급감": "감소", "폭감": "감소",
+                "급등": "상승", "급락": "하락"}
+_YEAR_RE = re.compile(r"(?:19|20)\d\d\s*년?")
+_NUM_RE = re.compile(r"\d[\d,.]*\s*(?:%|％|명|건|원|억|조|만|개|배|포인트|%p|%P)")
+# 값 뒤에 단위가 와야 한다 — '2021~2026년 7월' 같은 기간 표기가 (2026, 7) 로 잡힌다
+_YEAR_VAL_RE = re.compile(r"((?:19|20)\d\d)\s*년[^0-9]{0,14}([\d,]+)\s*(?:명|건|%|％|원|개|억|조|대|척|회)")
+# 증감 표현을 떼면 '…2023년 1,066명' 처럼 술어 없는 조각이 남을 수 있다 — 그건 발행하지 않는다
+_TREND_PRED_RE = re.compile(r"(했음|함|됨|밝힘|임|있음|없음|예정|요구|촉구|지적|집계|기록|달성)")
+
+
+def _compare_numbers(text: str) -> list[str]:
+    """비교 기준이 될 수 있는 수치 — 연도 표기는 제외한다."""
+    masked = _YEAR_RE.sub(" ", text or "")
+    return _NUM_RE.findall(masked) or [m.group(0) for m in _NUM_RE.finditer(masked)]
+
+
+def year_series(src: str, anchor: str | None = None, window: int = 150
+                ) -> list[tuple[int, float]]:
+    """원문의 (연도, 수치) 쌍 — 연도 오름차순.
+
+    기사 하나에 여러 계열이 섞여 있으면(11/2 검증: '10대 마약류 사범'·'학생 마약
+    사범'·'사이버도박' 3계열) 연도를 키로 합치는 순간 계열이 뒤섞여 방향이 뒤집힌다.
+    anchor(항목에 적힌 수치)가 원문에 있으면 그 주변 ±window 자만 읽어 한 계열로 좁힌다.
+    11/2 실측 — 같은 기사에서 250자는 두 계열이 섞이고 150자는 한 계열만 잡힌다.
+    """
+    text = src or ""
+    if anchor:
+        at = text.find(anchor)
+        if at >= 0:
+            text = text[max(0, at - window):at + window]
+    out = {}
+    for m in _YEAR_VAL_RE.finditer(text):
+        try:
+            out[int(m.group(1))] = float(m.group(2).replace(",", ""))
+        except ValueError:
+            continue
+    return sorted(out.items())
+
+
+def _strip_trend(body: str, w: str) -> str:
+    # 어미를 같이 떼야 '급증했다고' 에서 '했다고' 가 남지 않는다 — 긴 어미 먼저
+    out = re.sub(r"\s*(?:이|가|을|를|로|으로)?\s*" + re.escape(w)
+                 + r"(?:했다고|한다고|했으며|했다는|했다|한다|했음|했고|하며|하고|하는|했던|"
+                   r"한 것|함|됨|한|세|추세)?", " ", body)
+    return re.sub(r"\s{2,}", " ", out).strip(" ,·")
+
+
+def check_trend(body: str, src: str) -> tuple[str, list[str]]:
+    """→ (교정문, 메모). "" 면 항목 삭제."""
+    out, notes = body, []
+    nums = _NUM_RE.findall(_YEAR_RE.sub(" ", body)) or []
+    anchor = re.sub(r"[^\d,]", "", nums[0]) if nums else None
+    series = year_series(src, anchor)
+    actual = None
+    if len(series) >= 2:
+        (_, v0), (_, v1) = series[-2], series[-1]
+        actual = "up" if v1 > v0 else ("down" if v1 < v0 else "flat")
+    for w in TREND_UP + TREND_DOWN:
+        if w not in out:
+            continue
+        claimed = "up" if w in TREND_UP else "down"
+        if actual is not None and actual != claimed:
+            y0, y1 = series[-2][0], series[-1][0]
+            new = _strip_trend(out, w)
+            note = (f"D 방향 재판정 {y0}→{y1} {'증가' if actual == 'up' else '감소' if actual == 'down' else '보합'}"
+                    f"인데 '{w}' 주장")
+            if len(new) >= 12 and _TREND_PRED_RE.search(new):
+                notes.append(note + " — 증감 표현 삭제")
+                out = new
+                continue
+            return "", [note + " — 재구성 실패, 항목 삭제"]
+        if len(_compare_numbers(out)) >= 2:
+            continue                                   # 비교 기준 수치가 있다
+        rep = TREND_DEMOTE.get(w)
+        if rep:
+            out = out.replace(w, rep)
+            notes.append(f"D 비교 기준 수치 부족 — '{w}' → '{rep}'")
+    return out, notes

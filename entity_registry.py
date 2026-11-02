@@ -31,6 +31,31 @@ _DEFAULTS = {
 _CACHE: dict | None = None
 
 
+FACT_SHEET_PATH = os.path.join(_HERE, "fact_sheet.json")
+
+
+def _merge_fact_sheet(reg: dict) -> None:
+    """fact_sheet.json 의 correct_title 을 직함 사전에 합친다 (2026-11-02 C).
+
+    사전을 두 군데서 관리하면 한쪽만 갱신되는 일이 반복된다(11/2 '박범계' 누락).
+    충돌 시 레지스트리가 이긴다 — 당적·직함 고정은 레지스트리가 단일 기준이다.
+    """
+    try:
+        with open(FACT_SHEET_PATH, encoding="utf-8") as f:
+            figures = json.load(f).get("key_figures") or []
+        added = 0
+        for it in figures:
+            name, title = (it or {}).get("name"), (it or {}).get("correct_title")
+            if not name or not title or name in reg["직함"]:
+                continue
+            reg["직함"][name] = title
+            added += 1
+        if added:
+            logger.info(f"[주체사전] fact_sheet 직함 {added}명 합침 (총 {len(reg['직함'])}명)")
+    except Exception as e:
+        logger.warning(f"[주체사전] fact_sheet 직함 합치기 실패(무시): {e}")
+
+
 def load_registry(refresh: bool = False) -> dict:
     global _CACHE
     if _CACHE is not None and not refresh:
@@ -39,6 +64,7 @@ def load_registry(refresh: bool = False) -> dict:
         with open(REGISTRY_PATH, encoding="utf-8") as f:
             data = json.load(f)
         _CACHE = {k: data.get(k, v) for k, v in _DEFAULTS.items()}
+        _merge_fact_sheet(_CACHE)
     except Exception as e:
         logger.warning(f"[주체사전] 로드 실패 — 빈 사전 사용: {e}")
         _CACHE = {k: (dict(v) if isinstance(v, dict) else list(v)) for k, v in _DEFAULTS.items()}
@@ -164,6 +190,57 @@ def title_of(name: str) -> str | None:
     return load_registry()["직함"].get(name)
 
 
+TITLE_SUFFIX = ("장", "관", "표", "원", "사", "령", "인", "재")
+NEAR_MIN_SIM = int(os.environ.get("TITLE_NEAR_MIN_SIM", "60"))
+_CHUNK_RE_T = r"\s*([가-힣]{2,12})(?:\s+([가-힣]{2,12}))?"
+
+
+def _sim(a: str, b: str) -> float:
+    try:
+        from rapidfuzz import fuzz
+        return float(fuzz.ratio(a, b))
+    except Exception:
+        import difflib
+        return difflib.SequenceMatcher(None, a, b).ratio() * 100
+
+
+def _near_title(text: str, name: str, correct: str) -> tuple[str, str | None]:
+    """직함_토큰에 없는 **오타·근사 직함**을 사전값으로 교정 (2026-11-02 C).
+
+    11/2 적발: '박범계 대통통추진단장'. 토큰 목록에 없는 문자열이라 기존 정확
+    대조 패스가 통과시켰다. 이름 뒤 1~2 단어를 직함 후보로 보고, 직함 어미로
+    끝나면서 사전값과 NEAR_MIN_SIM 이상 닮았을 때만 바꾼다.
+    """
+    from source_bind import _stem
+    pat = re.compile(re.escape(name) + _CHUNK_RE_T)
+    tail_word = correct.split()[-1]
+    for m in pat.finditer(text):
+        prefix = text[max(0, m.start() - 4):m.start()]
+        if re.search(r"(전|전직|신임|차기)\s*$", prefix):
+            continue
+        # '국방부 차관'(2단어)과 '대통통추진단장'(1단어)을 모두 보려면 긴 쪽부터
+        # 시도해야 한다. 2단어로만 잡으면 뒤 단어가 직함이 아닐 때 1단어를 놓친다.
+        variants = [(m.group(1), m.group(2)), (m.group(1), None)] if m.group(2) else \
+                   [(m.group(1), None)]
+        for w1, w2 in variants:
+            words = [w for w in (w1, w2) if w]
+            cand = " ".join(_stem(w) for w in words)
+            if not cand or not cand.endswith(TITLE_SUFFIX):
+                continue
+            if cand == correct or cand == tail_word or cand in correct:
+                break                        # 이미 올바른 직함
+            if max(_sim(cand, correct), _sim(cand, tail_word)) < NEAR_MIN_SIM:
+                continue
+            chunk = " ".join(words)
+            end = text.index(words[-1], m.start()) + len(words[-1])
+            fixed = f"{name} {correct}"
+            # 어간 추출로 떼어낸 조사를 되붙인다 ('차관이' → '장관' + '이')
+            josa = words[-1][len(_stem(words[-1])):]
+            tail = _fix_particle(correct, josa + text[end:])
+            return text[:m.start()] + fixed + tail, f"{name} {chunk} → {fixed} (근사)"
+    return text, None
+
+
 def enforce_titles(text: str) -> tuple[str, list[str]]:
     """'<이름> <직함>' 이 사전과 다르면 교정. → (교정문, 메모).
 
@@ -177,6 +254,7 @@ def enforce_titles(text: str) -> tuple[str, list[str]]:
     for name, correct in titles.items():
         if name not in out:
             continue
+        matched = False          # 토큰 목록에서 직함을 찾았는가(옳든 틀리든)
         for tok in tokens:
             pat = re.compile(re.escape(name) + r"\s*" + re.escape(tok))
             for m in list(pat.finditer(out)):
@@ -184,6 +262,7 @@ def enforce_titles(text: str) -> tuple[str, list[str]]:
                 if re.search(r"(전|전직|신임|차기)\s*$", prefix):
                     continue
                 found = m.group(0)
+                matched = True
                 # 사전 직함의 '마지막 토큰'과 비교한다. endswith 로 보면
                 # '국민의힘 원내대표'가 '대표'를 포함해 '정점식 대표'를 통과시킨다.
                 if correct.split()[-1] == tok:
@@ -193,6 +272,13 @@ def enforce_titles(text: str) -> tuple[str, list[str]]:
                 out = out[:m.start()] + fixed + tail
                 notes.append(f"{found} → {fixed}")
                 break
+            if matched:
+                break
+        # 토큰 목록에 없는 직함(오타·신설 직책)은 근사 대조로 한 번 더 본다
+        if not matched:
+            out, note = _near_title(out, name, correct)
+            if note:
+                notes.append(note)
     return out, notes
 
 
