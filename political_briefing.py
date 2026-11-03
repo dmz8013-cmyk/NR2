@@ -581,12 +581,25 @@ def send_political_briefing(is_afternoon=True):
         except Exception as he:
             logger.warning(f"[제목재생성] 실패(무시): {he}")
         report.section_counts = sf2.section_counts(briefing)
-        if any(sf2.HARD_RE.search(a.get("title", "")) for a in pool):
-            from headline_guard import ensure_breaking_in_headline
-            briefing, hb = ensure_breaking_in_headline(
-                briefing, [a.get("title", "") for a in pool if sf2.HARD_RE.search(a.get("title", ""))][:1], _gc)
+        # 속보 반영 — 헤드라인 근거 기사는 36h 안쪽만 쓴다 (2026-11-03 G).
+        # 풀에 남은 낡은 기사가 제목으로 올라오던 경로(11/3 13:00: 10/30 기사).
+        import headline_guard as _hg
+        _hard = _hg.fresh([a for a in pool if sf2.HARD_RE.search(a.get("title", ""))])
+        if _hard:
+            briefing, hb = _hg.ensure_breaking_in_headline(
+                briefing, [a.get("title", "") for a in _hard][:1], _gc)
             if hb:
                 report.headline_fixed.append(hb)
+        # G — 제목 핵심 명사 3개 중 2개 이상이 본문에 없으면 1번 항목에서 재생성
+        briefing, _vn = _hg.verify_against_body(briefing, _gc)
+        report.check_counts = dict(report.check_counts or {})
+        report.check_counts.setdefault("G", 0)
+        if _vn:
+            report.headline_fixed.append(_vn)
+            report.content_notes = list(report.content_notes) + [_vn]
+            report.check_counts = dict(report.check_counts or {})
+            report.check_counts["G"] = report.check_counts.get("G", 0) + 1
+        logger.warning(f"[내용검사] G(헤드라인 정합)={1 if _vn else 0}")
     except Exception as fe:
         logger.error(f"[정리·서식] 실패(무시): {fe}", exc_info=True)
 

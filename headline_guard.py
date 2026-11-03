@@ -241,3 +241,101 @@ def regenerate_headline(briefing: str, client=None,
     lines[idx] = new
     logger.info(f"[제목재생성] {old[:30]} → {new[:30]}")
     return "\n".join(lines), f"1번 항목 기반 재생성: {old[:26]} → {new[:26]}"
+
+
+# ── 헤드라인-본문 정합 · 헤드라인 소스 36h 가드 (2026-11-03 G) ────
+# regenerate_headline 은 1번 항목에서 제목을 만들지만, 그 뒤에 도는
+# ensure_breaking_in_headline 은 **기사 풀**에서 제목을 다시 쓴다. 풀에 낡은
+# 기사가 남아 있으면 본문에 없는 제목이 올라간다(11/3 13:00: 10/30 기사).
+#   · fresh(): 헤드라인 재생성에 쓸 기사를 36h 안으로 제한
+#   · body_missing(): 제목 핵심 명사 3개 중 2개 이상이 본문에 없으면 부정합
+HEADLINE_MAX_AGE_H = int(os.environ.get("HEADLINE_MAX_AGE_H", "36"))
+CORE_NOUNS = 3
+MISSING_FAIL = 2
+
+_NOUN_RE = re.compile(r"[0-9A-Za-z가-힣]{2,}")
+# 제목에 흔한 기능어·수식어 — 핵심 명사로 세면 안 된다
+_NOUN_STOP = {"관련", "대한", "이번", "지난", "오늘", "내일", "전날", "최근", "그간",
+              "대해", "위해", "통해", "따라", "모두", "가운데", "속에", "두고", "놓고",
+              "다시", "함께", "강조", "언급", "밝힘", "있음", "없음", "예정", "여부",
+              "방침", "입장", "상황", "논란", "공방", "비판", "지적", "요구", "촉구"}
+
+
+def core_nouns(headline: str, k: int = CORE_NOUNS) -> list[str]:
+    """제목에서 핵심 명사 후보 k개. 긴 것부터 — 고유명사·복합명사가 먼저 걸린다."""
+    try:
+        from source_bind import _stem
+    except Exception:
+        def _stem(w):
+            return w
+    seen, out = set(), []
+    for w in _NOUN_RE.findall(headline or ""):
+        st = _stem(w)
+        if len(st) < 2 or st in _NOUN_STOP or w in _NOUN_STOP or st in seen:
+            continue
+        seen.add(st)
+        out.append(st)
+    out.sort(key=len, reverse=True)
+    return out[:k]
+
+
+def _body_text(briefing: str) -> str:
+    return " ".join(ln.strip().lstrip("▪").strip() for ln in (briefing or "").split("\n")
+                    if ln.strip().startswith("▪"))
+
+
+def body_missing(headline: str, briefing: str) -> list[str]:
+    """본문 ▪ 항목에 등장하지 않는 핵심 명사 목록."""
+    body = _body_text(briefing)
+    if not body:
+        return []
+    return [n for n in core_nouns(headline) if n not in body]
+
+
+def _headline_index(briefing: str) -> int | None:
+    lines = (briefing or "").split("\n")
+    for i, ln in enumerate(lines):
+        if ln.strip().startswith("🔥"):
+            for j in range(i + 1, min(i + 4, len(lines))):
+                if lines[j].strip():
+                    return j
+            break
+    return None
+
+
+def verify_against_body(briefing: str, client=None) -> tuple[str, str | None]:
+    """제목 핵심 명사 3개 중 2개 이상이 본문에 없으면 1번 항목에서 재생성.
+    → (텍스트, 메모). 차단은 하지 않는다."""
+    idx = _headline_index(briefing)
+    if idx is None:
+        return briefing, None
+    head = briefing.split("\n")[idx].strip()
+    nouns = core_nouns(head)
+    missing = body_missing(head, briefing)
+    if len(nouns) < MISSING_FAIL or len(missing) < MISSING_FAIL:
+        return briefing, None
+    out, note = regenerate_headline(briefing, client)
+    tail = f"본문 부재 {'·'.join(missing)} ({len(missing)}/{len(nouns)})"
+    if note is None:
+        return briefing, f"G 헤드라인 부정합 — 재생성 불가(제목 유지): {head[:26]} / {tail}"
+    logger.warning(f"[제목정합] {tail} → 재생성")
+    return out, f"G 헤드라인 부정합 재생성: {tail} / {note}"
+
+
+def fresh(articles: list[dict], now=None, max_h: int | None = None) -> list[dict]:
+    """헤드라인 근거로 쓸 기사를 max_h 안으로 제한. 게시시각 불명은 제외한다."""
+    cap = HEADLINE_MAX_AGE_H if max_h is None else max_h
+    out = []
+    for a in articles or []:
+        try:
+            from src_age_guard import src_age_hours
+            age = src_age_hours(a, now)
+        except Exception:
+            age = None
+        if age is None or age > cap:
+            logger.warning(f"[제목소스] {cap}h 가드 제외"
+                           f"({'시각불명' if age is None else f'{age:.0f}h'}): "
+                           f"{(a.get('title') or '')[:40]}")
+            continue
+        out.append(a)
+    return out

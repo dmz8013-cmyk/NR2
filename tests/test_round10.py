@@ -6,7 +6,7 @@
 import sys
 import os
 import types
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -216,14 +216,17 @@ def test_gate_counts_a_to_e():
              '▪ 김준혁 의원이 10월 7일 국정감사에서 받은 자료를 공개함',
              '▪ 박범계 대통통추진단장이 2023년 1,066명으로 급증했다고 밝힘']
     briefing = "🏛️ 정치/시사\n" + "\n".join(items)
+    # 게시시각은 실행 시점 기준 — 날짜를 박아두면 source_bind 의 24h 게이트에
+    # 걸려 다음 날부터 테스트가 전부 0건이 된다(11/3 확인).
+    _pub = (datetime.now(KST) - timedelta(hours=2)).isoformat()
     pool = [{"title": "홍준표 전 대구시장 예산안 전면 재검토 요구", "description": SRC,
-             "link": "http://a/1", "pub_date_kst": "2026-11-02T04:00:00+09:00"},
+             "link": "http://a/1", "pub_date_kst": _pub},
             {"title": "국민의힘 예산 공방", "description": SRC, "link": "http://a/2",
-             "pub_date_kst": "2026-11-02T04:00:00+09:00"},
+             "pub_date_kst": _pub},
             {"title": "김준혁 의원 자료 공개", "description": "국정감사 자료를 공개했다. " + YEARS,
-             "link": "http://a/3", "pub_date_kst": "2026-11-02T04:00:00+09:00"},
+             "link": "http://a/3", "pub_date_kst": _pub},
             {"title": "박범계 통합 방안", "description": "통합 방안을 발표했다. " + YEARS,
-             "link": "http://a/4", "pub_date_kst": "2026-11-02T04:00:00+09:00"}]
+             "link": "http://a/4", "pub_date_kst": _pub}]
     out, info = gate.enforce(briefing, pool, "ai_아침")
     c = info["check_counts"]
     assert c["A"] >= 1 and c["B"] == 1 and c["C"] == 1 and c["D"] == 1 and c["E"] == 1, c
@@ -235,4 +238,5 @@ def test_gate_counts_a_to_e():
 
 
 def test_gate_labels_cover_all_checks():
-    assert sorted(gate.CHECK_LABELS) == ["A", "B", "C", "D", "E"]
+    assert sorted(gate.CHECK_LABELS) == ["A", "B", "C", "D", "E", "F", "G"]
+    assert gate.GATE_CHECKS == ("A", "B", "C", "D", "E", "F")   # G 는 헤드라인 단계

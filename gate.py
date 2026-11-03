@@ -75,7 +75,11 @@ def _count_items(text: str) -> int:
 
 
 CHECK_LABELS = {"A": "인용 실존", "B": "소스·사건 날짜", "C": "직함 사전",
-                "D": "증감 방향", "E": "따옴표 짝"}
+                "D": "증감 방향", "E": "따옴표 짝", "F": "빈 출처 잔여물",
+                "G": "헤드라인 정합"}
+# F 는 게이트 입구에서, G 는 게이트 뒤 헤드라인 단계에서 센다 — 게이트가 집계하는
+# 범위는 A~F 다. G 는 호출부(political_briefing)가 report.check_counts 에 더한다.
+GATE_CHECKS = ("A", "B", "C", "D", "E", "F")
 
 
 def _opt(name: str):
@@ -99,7 +103,7 @@ def _content_checks(briefing: str, pool: list[dict], bound: list[dict]
     tense_guard = _opt("tense_guard")
     quote_guard = _opt("quote_guard")
     src_age_guard = _opt("src_age_guard")
-    counts = {k: 0 for k in CHECK_LABELS}
+    counts = {k: 0 for k in ("A", "B", "C", "D", "E")}
     by_body = {b["body"]: b for b in bound}
     lines = briefing.split("\n")
     notes: list[str] = []
@@ -181,8 +185,21 @@ def enforce(briefing: str, pool: list[dict], briefing_type: str,
     report 를 주면 같은 필드를 report 에도 채운다(회차 DM 용).
     """
     info = {"policy_notes": [], "grounding_notes": [], "bound_items": [], "unbound_dropped": [],
-            "content_notes": [], "check_counts": {k: 0 for k in CHECK_LABELS}}
+            "content_notes": [], "check_counts": {k: 0 for k in GATE_CHECKS}}
     before = _count_items(briefing)
+
+    # F — 빈 출처 표기 잔여물. 다른 검사보다 **먼저** 떼야 한다: 항목 끝의 `{}` 가
+    #     남아 있으면 결속 본문·토큰·따옴표 짝 판정까지 전부 오염된다 (2026-11-03).
+    _srg = _opt("src_render_guard")
+    if _srg is not None:
+        briefing, _nempty, _nitems = _srg.clean(briefing)
+        info["check_counts"]["F"] = _nempty
+        info["src_empty"] = _nempty
+        if _nempty:
+            info["content_notes"].append(f"F 빈 출처 표기 제거 {_nempty}/{_nitems}항목")
+        if _srg.over_rate(_nempty, _nitems):
+            _alert(briefing_type,
+                   f"빈 출처 표기 {_nempty}/{_nitems}항목 — 출처 결속·태그 경로 점검 필요")
 
     try:
         import entity_registry as _er
@@ -205,8 +222,10 @@ def enforce(briefing: str, pool: list[dict], briefing_type: str,
     try:
         import source_bind
         briefing, info["bound_items"], info["unbound_dropped"] = source_bind.bind(briefing, pool)
-        briefing, info["content_notes"], info["check_counts"] = _content_checks(
-            briefing, pool, info["bound_items"])
+        # F 는 게이트 입구에서 이미 세어 넣었다 — 덮어쓰지 말고 합친다.
+        briefing, _cnotes, _ccounts = _content_checks(briefing, pool, info["bound_items"])
+        info["content_notes"] += _cnotes
+        info["check_counts"].update(_ccounts)
         try:
             import briefing_dedup
             briefing, _dn = briefing_dedup.dedup(briefing, info["bound_items"])
@@ -230,7 +249,8 @@ def enforce(briefing: str, pool: list[dict], briefing_type: str,
                f"(잔여 {after}). 매칭 임계값 점검 필요")
     info["check_counts"]["C"] = sum(1 for n in info["policy_notes"] if "직함 교정" in n)
     logger.warning("[내용검사] " + " · ".join(
-        f"{k}({CHECK_LABELS[k]})={info['check_counts'][k]}" for k in sorted(CHECK_LABELS)))
+        f"{k}({CHECK_LABELS[k]})={info['check_counts'][k]}" for k in GATE_CHECKS)
+        + f" · src_empty: {info.get('src_empty', 0)}")
     logger.info(f"[게이트] {briefing_type}: 항목 {before}→{after} · 결속 {len(info['bound_items'])} "
                 f"· 제외 {len(info['unbound_dropped'])} · 정책 {len(info['policy_notes'])} "
                 f"· 원문대조 {len(info['grounding_notes'])}")

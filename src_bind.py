@@ -19,14 +19,19 @@ import logging
 
 logger = logging.getLogger("src_bind")
 
-SRC_RE = re.compile(r"\{src:\s*((?:#\d+\s*[,·]?\s*)+)\}")
+# 바깥 중괄호가 두 겹으로 올 수 있다 — PROMPT_RULE 이 f-string 에 **값으로** 꽂히던
+# 동안(10/30~11/3) 모델이 예시의 {{…}} 를 그대로 베껴 `{{src:#12}}` 를 달았고,
+# 한 겹만 떼어내 항목 끝에 `{}` 가 남았다(11/2 저녁~11/3 전 회차).
+SRC_RE = re.compile(r"\{{1,2}src:\s*((?:#\d+\s*[,·]?\s*)+)\}{1,2}")
 ID_RE = re.compile(r"#(\d+)")
 NO_NEWS_HINTS = ("금일 주요 보도 없음", "주요 이슈 없음")
 
 PROMPT_RULE = (
     "[출처 표기 — 반드시 지킬 것]\n"
     "각 기사 앞에 [#번호]가 붙어 있습니다. 모든 '▪' 항목은 **문장 끝에** 그 항목의 근거\n"
-    "기사 번호를 {{src:#번호}} 형식으로 붙이세요. 예: ▪ 국회가 예산안을 의결했음. {{src:#12}}\n"
+    # 이 문자열은 f-string 에 **값으로** 들어간다 — 중괄호를 두 겹으로 쓰면 모델에게
+    # 그대로 `{{src:#번호}}` 로 보인다. 한 겹으로 적어야 한다.
+    "기사 번호를 {src:#번호} 형식으로 붙이세요. 예: ▪ 국회가 예산안을 의결했음. {src:#12}\n"
     "· 근거 기사가 없으면 그 항목을 쓰지 마세요. 번호를 지어내지 마세요.\n"
     "· **한 항목에는 기사 하나만** 씁니다. 서로 다른 사건을 한 문장에 합치지 마세요.\n"
     "  (두 기사를 합쳐야 할 것 같으면 항목을 둘로 나누세요.)\n"
@@ -53,13 +58,19 @@ def parse(briefing: str) -> list[tuple[int, str, list[int]]]:
 
 
 def strip_tags(briefing: str) -> str:
-    """발행본에서 {src:...} 제거 + 남은 공백 정리."""
+    """발행본에서 {src:...} 제거 + 남은 공백·빈 중괄호 정리."""
     out = []
     for ln in briefing.split("\n"):
         if SRC_RE.search(ln):
             ln = re.sub(r"\s*" + SRC_RE.pattern, "", ln).rstrip()
         out.append(ln)
-    return "\n".join(out)
+    text = "\n".join(out)
+    try:
+        import src_render_guard
+        text, _n, _t = src_render_guard.clean(text)
+    except Exception as e:
+        logger.warning(f"[src바인딩] 빈 출처 정리 실패(무시): {e}")
+    return text
 
 
 def has_tags(briefing: str) -> bool:
