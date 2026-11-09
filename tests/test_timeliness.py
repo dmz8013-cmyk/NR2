@@ -76,6 +76,39 @@ def test_format_exclusions():
     line = format_exclusions(e)
     assert line.startswith("시의성 제외 1건:") and "09/18" in line and "news.example.co.kr" in line
 
+def test_published_at_set_in_kst():
+    p, _ = _run([{"title": "h", "pub_date": "Wed, 07 Oct 2026 02:00:00 +0000"}])
+    assert p[0]["published_at"] == "2026-10-07T11:00:00+09:00"
+
+def test_24h_boundary():
+    p, e = _run([{"title": "in", "published": "2026-10-06T13:00:00+09:00"},
+                 {"title": "out", "published": "2026-10-06T12:59:00+09:00"}])
+    assert [a["title"] for a in p] == ["in"] and [x["title"] for x in e] == ["out"]
+
+def test_undated_tagged_and_queued():
+    import timeliness as tl, recheck_queue
+    _, e = _run([{"title": "무날짜", "link": "https://x.test/u"}])
+    assert e[0]["title"] == "[날짜미상] 무날짜" and e[0]["undated"] is True
+    calls, orig = [], recheck_queue.enqueue_undated
+    recheck_queue.enqueue_undated = lambda *a: calls.append(a) or 1
+    try:
+        assert tl.queue_undated(e + [{"title": "dated"}], "politics") == 1
+    finally:
+        recheck_queue.enqueue_undated = orig
+    assert calls[0][:2] == ("politics", "[날짜미상] 무날짜")
+
+def test_cross_check_reindexed_within_yesterday():
+    fk = lambda u: datetime(2026, 10, 6, 9, 0, tzinfo=KST)     # 28h 전 = 전일이지만 24h 초과
+    arts = [{"title": "재색인", "link": "https://x.test/y", "pub_date": datetime(2026, 10, 7, 11, 0, tzinfo=KST)}]
+    p, e = _run(arts, fetcher=fk, cross_check=True)
+    assert p == [] and "재색인 의심" in e[0]["reason"]
+
+def test_prompts_have_date_rule():
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for f in ("ai_briefing.py", "political_briefing.py"):
+        assert "[날짜 표현]" in open(os.path.join(root, f), encoding="utf8").read()
+
+
 if __name__ == "__main__":
     import inspect
     fails = 0

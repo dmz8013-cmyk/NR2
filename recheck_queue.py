@@ -79,6 +79,31 @@ def enqueue(family: str, section: str, item_text: str, entities=None, first_run:
         return None
 
 
+def enqueue_undated(family: str, title: str, link: str = "", source: str = "") -> int | None:
+    """발행일을 못 구한 기사 적재. status='undated' 라 process_queue(자동 복귀) 대상이 아니다.
+    같은 기사(제목)는 한 번만 적재한다. 조회: list_items(status='undated')."""
+    if family not in FAMILIES:
+        family = family_of(family)
+    conn = _conn()
+    if not conn:
+        return None
+    try:
+        cur = conn.cursor(); cur.execute(DDL)
+        cur.execute("SELECT 1 FROM recheck_queue WHERE status='undated' AND item_text=%s LIMIT 1", (title.strip(),))
+        if cur.fetchone():
+            conn.close()
+            return None
+        cur.execute("""INSERT INTO recheck_queue (family, section, item_text, entities, first_run, status)
+                       VALUES (%s,'날짜미상',%s,%s,%s,'undated') RETURNING id""",
+                    (family, title.strip(), json.dumps({"link": link, "source": source}, ensure_ascii=False),
+                     datetime.now(KST).strftime("%Y-%m-%d %H:%M")))
+        rid = cur.fetchone()[0]; conn.commit(); conn.close()
+        return rid
+    except Exception as e:
+        logger.warning(f"[재검색큐] 날짜미상 적재 실패: {e}")
+        return None
+
+
 def list_items(family: str | None = None, status: str | None = "pending") -> list[dict]:
     conn = _conn()
     if not conn:

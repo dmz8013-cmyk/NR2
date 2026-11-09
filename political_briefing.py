@@ -93,7 +93,7 @@ def collect_political_news(is_afternoon=True):
                 pub_date = datetime.strptime(pub_date_str, '%a, %d %b %Y %H:%M:%S %z')
                 pub_date_kst = pub_date.astimezone(KST)
             except Exception:
-                continue
+                pub_date_kst = None     # 버리지 않고 시의성 필터로 넘긴다(HTML 메타 조회 → 실패 시 [날짜미상] 큐)
 
             # 수집 창 = 직전 판 마감 이후 전체 (2026-10-12): 13:00판 = 전날 22:00 ~ 지금, 22:00판 = 13:00 ~ 지금.
             # 이전 판에 이미 실린 기사는 prior_coverage 가 제외한다.
@@ -103,7 +103,7 @@ def collect_political_news(is_afternoon=True):
                 start_time = now.replace(hour=13, minute=0, second=0, microsecond=0)
             end_time = now
 
-            if start_time <= pub_date_kst <= end_time:
+            if pub_date_kst is None or start_time <= pub_date_kst <= end_time:
                 all_articles.append({
                     'title': title,
                     'description': description,
@@ -114,7 +114,7 @@ def collect_political_news(is_afternoon=True):
                 })
 
     # 속보(북한·미사일·합참·속보·단독·탄핵·계엄) 우선 → 최신순. 상위 60건
-    all_articles.sort(key=lambda x: (not x.get('breaking', False), -x['pub_date'].timestamp()))
+    all_articles.sort(key=lambda x: (not x.get('breaking', False), -(x['pub_date'].timestamp() if x['pub_date'] else 0)))
     all_articles = all_articles[:60]
 
     # 시의성 필터 (공통): 발행일 ∈ {오늘, 전일} 만 통과 — 네이버 pubDate 가 재색인 시각일 때
@@ -126,6 +126,10 @@ def collect_political_news(is_afternoon=True):
         import timeliness as _tl
         all_articles, LAST_TIMELINESS_EXCLUDED = _tl.filter_timely(all_articles, cross_check=True)
         LAST_TIMELINESS_LENIENT = list(_tl.LAST_LENIENT)
+        _tl.queue_undated(LAST_TIMELINESS_EXCLUDED, "politics")
+        for a in all_articles:                 # HTML 메타로 복구된 발행시각을 이후 단계에 넘긴다
+            if a.get('pub_date') is None and a.get('published_at'):
+                a['pub_date'] = _tl.to_kst(a['published_at'])
     except Exception as te:
         logger.error(f"[시의성] 필터 실패 — 윈도우 필터만 적용: {te}")
 
@@ -268,6 +272,7 @@ def generate_political_briefing(articles, is_afternoon=True):
 10. [팩트 정확도] 기사 제목과 요약에 명시된 내용만 사용하세요. 기사에 없는 감정("심기불편", "분노"), 반응, 발언을 지어내지 마세요. 사실 기반 서술만 허용됩니다.
 11. [시의성] 각 기사 제목 뒤 (발행 MM/DD HH:MM)은 발행 시각입니다. 오늘({now.strftime('%m/%d')})·전일 발행 기사만 쓰고,
     전일 이전 기사는 사용 금지. 기억 속 과거 사건·발언을 오늘 일처럼 쓰지 마세요. "최근", "지난달" 등 모호한 시점 대신 구체적 시점으로.
+11-0. [날짜 표현] 기사 본문의 날짜가 오늘({now.strftime('%m/%d')} KST)이 아니면 그 기사로 쓰는 항목에 '오늘'·'금일'·'확정' 표현 금지.
 11-1. [속보 우선] 【속보·우선】 표시 기사(북한·미사일·합참·속보·단독·탄핵·계엄)는 반드시 반영하고 해당 섹션의 1~2번째 항목으로 배치.
      최상위 속보는 두 번째 줄 한줄 제목에도 반영할 것.
 11-2. [섹션 분량] 섹션마다 기사가 있으면 최소 2개, 최대 5개. 한 정당 섹션의 쟁점에 상대 당 반박 기사가 있으면 함께 실을 것.

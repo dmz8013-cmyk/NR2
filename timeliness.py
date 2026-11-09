@@ -5,7 +5,7 @@
   1) RSS / 네이버 API pubDate (article['pub_date'|'published'|'pubDate'])
   2) 없으면 기사 HTML 의 article:published_time / og:published_time / og:updated_time /
      JSON-LD datePublished 메타 (타임아웃 3초, 회당 최대 30건 보조 조회)
-  3) 그래도 없으면 제외 (허용 아님)
+  3) 그래도 없으면 제외 (허용 아님) — [날짜미상] 태그를 붙여 별도 큐로 보낸다 (2026-11-09)
 어떤 실패도 수집을 멈추지 않는다 — 해석 불가 기사는 '제외' 로 분류될 뿐이다.
 """
 import os
@@ -23,6 +23,7 @@ KST = ZoneInfo("Asia/Seoul")
 HTML_TIMEOUT = 3.0
 HTML_BUDGET = 30
 MAX_AGE_HOURS = int(os.environ.get("TIMELINESS_MAX_AGE_HOURS", "24"))   # 발행 24h 초과는 날짜와 무관하게 제외
+UNDATED_TAG = "[날짜미상]"
 _META_RES = [
     re.compile(r'<meta[^>]+property=["\']article:published_time["\'][^>]+content=["\']([^"\']+)["\']', re.I),
     re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']article:published_time["\']', re.I),
@@ -160,7 +161,8 @@ def filter_timely(articles: list[dict], now: datetime | None = None,
         elif dt is not None and cross_check and budget > 0 and link:
             budget -= 1
             meta = fetcher(link)
-            if meta and meta.date() not in allowed and (dt - meta) > timedelta(days=1):
+            # 메타가 24h 초과인데 pubDate 만 새것이면 재색인. '전일' 재색인도 잡도록 날짜가 아니라 시간으로 본다.
+            if meta and (now_kst - meta).total_seconds() > max_age_hours * 3600 and (dt - meta) > timedelta(hours=1):
                 excluded.append({"title": a.get("title", ""), "source": source_of(a),
                                  "pub_date": meta.isoformat(), "reason": f"HTML 메타 발행일 {meta:%m/%d} (API pubDate {dt:%m/%d} 재색인 의심)"})
                 continue
@@ -173,8 +175,8 @@ def filter_timely(articles: list[dict], now: datetime | None = None,
                                 "reason": "발행시각 없음 — TIMELINESS_STRICT=0 통과"})
                 passed.append(a)
                 continue
-            excluded.append({"title": a.get("title", ""), "source": source_of(a),
-                             "pub_date": None, "reason": "발행시각 없음"})
+            excluded.append({"title": f"{UNDATED_TAG} {a.get('title', '')}", "source": source_of(a),
+                             "pub_date": None, "reason": "발행시각 없음", "undated": True, "link": link or ""})
             continue
         if dt.date() not in allowed:
             excluded.append({"title": a.get("title", ""), "source": source_of(a),
@@ -184,6 +186,7 @@ def filter_timely(articles: list[dict], now: datetime | None = None,
             excluded.append({"title": a.get("title", ""), "source": source_of(a),
                              "pub_date": dt.isoformat(), "reason": f"발행 {int((now_kst - dt).total_seconds() // 3600)}시간 경과 — {max_age_hours}h 초과"})
             continue
+        a["published_at"] = dt.isoformat()
         a["pub_date_kst"] = dt.isoformat()
         a["pub_label"] = dt.strftime("%m/%d %H:%M")
         passed.append(a)
@@ -204,6 +207,19 @@ LAST_LENIENT: list[dict] = []     # 직전 filter_timely 에서 완화 통과한
 def strict_mode() -> bool:
     """TIMELINESS_STRICT (기본 1). 0/false/no 면 완화 모드."""
     return str(os.environ.get("TIMELINESS_STRICT", "1")).strip().lower() not in ("0", "false", "no", "off")
+
+
+def queue_undated(excluded: list[dict], family: str) -> int:
+    """발행일 파싱 실패 기사를 [날짜미상] 큐로 보낸다. → 신규 적재 건수. 실패해도 수집은 계속."""
+    undated = [e for e in excluded if e.get("undated")]
+    if not undated:
+        return 0
+    try:
+        import recheck_queue
+        return sum(1 for e in undated if recheck_queue.enqueue_undated(family, e["title"], e.get("link", ""), e.get("source", "")))
+    except Exception as e:
+        logger.warning(f"[시의성] 날짜미상 큐 적재 실패: {e}")
+        return 0
 
 
 def format_lenient(lenient: list[dict], max_examples: int = 3) -> str:
