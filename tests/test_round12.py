@@ -41,7 +41,9 @@ def test_resolution_and_bill():
 
 
 def test_prompt_rules_injected():
+    import publish_guard                       # 2026-11-10: 규칙 문안은 publish_guard 한 곳에서 주입
+    s = publish_guard.prompt_rules("11/10")
+    assert "[주어 검증]" in s and "[발언 주체 / 대상자 / 발언 내용]" in s
+    assert "[시제 검증]" in s and "완료형은 기사 본문에 과거형 서술" in s
     for f in ("political_briefing.py", "ai_briefing.py"):
-        s = open(os.path.join(ROOT, f), encoding="utf8").read()
-        assert "[주어 검증]" in s and "[발언 주체 / 대상자 / 발언 내용]" in s
-        assert "[시제 검증]" in s and "'개최·의결·발의' 완료형" in s
+        assert "{pg_rules}" in open(os.path.join(ROOT, f), encoding="utf8").read()

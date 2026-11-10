@@ -105,8 +105,10 @@ def test_cross_check_reindexed_within_yesterday():
 
 def test_prompts_have_date_rule():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    import publish_guard
+    assert "[날짜 표현]" in publish_guard.prompt_rules("11/09")
     for f in ("ai_briefing.py", "political_briefing.py"):
-        assert "[날짜 표현]" in open(os.path.join(root, f), encoding="utf8").read()
+        assert "{pg_rules}" in open(os.path.join(root, f), encoding="utf8").read()
 
 
 if __name__ == "__main__":

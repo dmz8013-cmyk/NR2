@@ -446,6 +446,8 @@ def generate_briefing_with_ai(
     except Exception:
         src_rule = ""
     today_str = datetime.now(KST).strftime("%Y년 %m월 %d일")
+    from publish_guard import prompt_rules
+    pg_rules = prompt_rules(today_str)
 
     time_str = "06:00" if "아침" in period else "18:00"
 
@@ -535,12 +537,7 @@ def generate_briefing_with_ai(
 13. [시의성] 각 헤드라인 끝의 (발행 MM/DD HH:MM)은 그 기사의 발행 시각입니다. 오늘({today_str})과 전일에
     발행된 기사만 쓰고, 전일 이전 기사는 사용 금지. 기억 속 과거 사건·발언을 '오늘' 일처럼 쓰지 마세요.
     "최근", "지난달" 등 모호한 시점 대신 구체적 시점으로 작성하세요.
-13-1. [날짜 표현] 기사 본문의 날짜가 오늘({today_str} KST)이 아니면 그 기사로 쓰는 항목에 '오늘'·'금일'·'확정' 표현 금지.
-13-2. [주어 검증] 비판·의혹·고발 기사는 요약 전에 [발언 주체 / 대상자 / 발언 내용]을 먼저 추출하고(출력하지 말 것), 요약문 주어는 반드시 '발언 주체'로 쓸 것.
-    대상자가 주어로 오면 재작성. 예: 'A 최고위원, B 대표의 의혹 제기를 비판' → 주어는 A. 'B 대표, 의혹 제기'로 쓰면 오류.
-13-3. [시제 검증] 기사 본문에 '예정·앞두고·개최한다·전망'이 있으면 요약문도 미래형('~ 예정')으로 쓸 것.
-    '개최·의결·발의' 완료형은 기사 본문에 과거형 서술(개최했다·의결됐다·발의했다 등)이 있을 때만 허용.
-14. [수치·날짜 임의생성 금지] 팩트 컨텍스트와 [시세 데이터]로 제공된 값 외에는 구체적 수치(가격·지수·통계·퍼센트), 날짜, 인과관계('~때문에', 'A가 B를 초래')를 지어내지 마세요. 헤드라인에 숫자가 없으면 숫자를 쓰지 말고, 제공되지 않은 시세·지표는 언급하지 마세요.
+{pg_rules}14. [수치·날짜 임의생성 금지] 팩트 컨텍스트와 [시세 데이터]로 제공된 값 외에는 구체적 수치(가격·지수·통계·퍼센트), 날짜, 인과관계('~때문에', 'A가 B를 초래')를 지어내지 마세요. 헤드라인에 숫자가 없으면 숫자를 쓰지 말고, 제공되지 않은 시세·지표는 언급하지 마세요.
 15. [섹션 고정] 암호화폐·코인 관련 항목(시세·ETF·규제·거래소 포함)은 예외 없이 💰 경제/산업 섹션에만 배치하고, 브리핑 전체에서 ▪ 항목 기준 최대 1건만 다루세요(별도 제공되는 [시세 데이터] 줄은 이 제한과 무관). 코인 소재가 여러 건이면 파급력이 가장 큰 1건만 선택하세요.
 
 {crypto_context}[오늘의 뉴스 헤드라인]
@@ -990,6 +987,15 @@ def send_briefing():
             briefing, _ginfo = gate.enforce(briefing, _pool, btype_now, report)
         except Exception as ge:
             logger.error(f"[게이트] 호출 자체 실패 — 미검증 발행: {ge}", exc_info=True)
+
+        # 3.89) 공통 발행 관문 — 4슬롯 공통. 게이트·문체 단계 뒤, 헤드라인 재생성 앞 (2026-11-10)
+        try:
+            import publish_guard
+            _pool_pg = [a for arts in categorized.values() for a in arts]
+            briefing, _pgn = publish_guard.final_pass(briefing, _pool_pg, btype_now, report=report)
+        except Exception as pge:
+            logger.error(f"[발행관문] 실패 — 미검증 발행: {pge}", exc_info=True)
+            _alert_zero_collection(period, f"공통 발행 관문 예외 — 24h·시제·종목명 검사 없이 발행: {str(pge)[:120]}")
 
         # 3.87) 헤드라인 — 1번 섹션 1번 항목 기반 재생성 (2026-10-30 D)
         try:

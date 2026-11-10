@@ -222,6 +222,8 @@ def generate_political_briefing(articles, is_afternoon=True):
         from src_bind import PROMPT_RULE as src_rule
     except Exception:
         src_rule = ""
+    from publish_guard import prompt_rules
+    pg_rules = prompt_rules(now.strftime('%m/%d'))
     prompt = f"""{fact_context}당신은 한국 정치 전문 뉴스 브리핑 AI입니다.
 아래 {len(articles)}개의 정치 뉴스 기사를 분석하여 텔레그램용 정치 브리핑을 작성하세요.
 
@@ -272,12 +274,7 @@ def generate_political_briefing(articles, is_afternoon=True):
 10. [팩트 정확도] 기사 제목과 요약에 명시된 내용만 사용하세요. 기사에 없는 감정("심기불편", "분노"), 반응, 발언을 지어내지 마세요. 사실 기반 서술만 허용됩니다.
 11. [시의성] 각 기사 제목 뒤 (발행 MM/DD HH:MM)은 발행 시각입니다. 오늘({now.strftime('%m/%d')})·전일 발행 기사만 쓰고,
     전일 이전 기사는 사용 금지. 기억 속 과거 사건·발언을 오늘 일처럼 쓰지 마세요. "최근", "지난달" 등 모호한 시점 대신 구체적 시점으로.
-11-0. [날짜 표현] 기사 본문의 날짜가 오늘({now.strftime('%m/%d')} KST)이 아니면 그 기사로 쓰는 항목에 '오늘'·'금일'·'확정' 표현 금지.
-11-5. [주어 검증] 비판·의혹·고발 기사는 요약 전에 [발언 주체 / 대상자 / 발언 내용]을 먼저 추출하고(출력하지 말 것), 요약문 주어는 반드시 '발언 주체'로 쓸 것.
-    대상자가 주어로 오면 재작성. 예: 'A 최고위원, B 대표의 의혹 제기를 비판' → 주어는 A. 'B 대표, 의혹 제기'로 쓰면 오류.
-11-6. [시제 검증] 기사 본문에 '예정·앞두고·개최한다·전망'이 있으면 요약문도 미래형('~ 예정')으로 쓸 것.
-    '개최·의결·발의' 완료형은 기사 본문에 과거형 서술(개최했다·의결됐다·발의했다 등)이 있을 때만 허용.
-11-1. [속보 우선] 【속보·우선】 표시 기사(북한·미사일·합참·속보·단독·탄핵·계엄)는 반드시 반영하고 해당 섹션의 1~2번째 항목으로 배치.
+{pg_rules}11-1. [속보 우선] 【속보·우선】 표시 기사(북한·미사일·합참·속보·단독·탄핵·계엄)는 반드시 반영하고 해당 섹션의 1~2번째 항목으로 배치.
      최상위 속보는 두 번째 줄 한줄 제목에도 반영할 것.
 11-2. [섹션 분량] 섹션마다 기사가 있으면 최소 2개, 최대 5개. 한 정당 섹션의 쟁점에 상대 당 반박 기사가 있으면 함께 실을 것.
 11-3. [문체] 항목 종결은 '~다/했다/밝혔다' 금지 — 명사형(…음/됨/임) 또는 사실 서술 술어만.
@@ -581,6 +578,25 @@ def send_political_briefing(is_afternoon=True):
         briefing, cap_notes = sf2.cap_sections(briefing)
         report.fill_notes = list(report.fill_notes) + empty_notes + cap_notes
         briefing, report.style_notes = style_fix.fix_style(briefing, _gc)
+    except Exception as fe:
+        logger.error(f"[정리·서식] 실패(무시): {fe}", exc_info=True)
+
+    # 공통 발행 관문 — 4슬롯 공통. 정리·서식(LLM 문체 재작성) 뒤·헤드라인 재생성 앞 (2026-11-10)
+    try:
+        import publish_guard
+        briefing, _pgn = publish_guard.final_pass(briefing, pool or list(articles), btype, report=report)
+    except Exception as pge:
+        logger.error(f"[발행관문] 실패 — 미검증 발행: {pge}", exc_info=True)
+        try:
+            from ai_briefing import _alert_zero_collection
+            _alert_zero_collection(f"{period} 정치", f"공통 발행 관문 예외 — 검사 없이 발행: {str(pge)[:120]}")
+        except Exception:
+            pass
+
+    # ── 헤드라인 (공통 관문 통과분의 1번 항목 기준)
+    try:
+        import section_fill as sf2
+        import headline_guard as _hg
         # 헤드라인 — 수집 풀 대조·교정 대신 **1번 섹션 1번 항목**에서 재생성 (2026-10-30 D)
         try:
             from headline_guard import regenerate_headline
@@ -610,7 +626,7 @@ def send_political_briefing(is_afternoon=True):
             report.check_counts["G"] = report.check_counts.get("G", 0) + 1
         logger.warning(f"[내용검사] G(헤드라인 정합)={1 if _vn else 0}")
     except Exception as fe:
-        logger.error(f"[정리·서식] 실패(무시): {fe}", exc_info=True)
+        logger.error(f"[헤드라인] 실패(무시): {fe}", exc_info=True)
 
     # 공용 레이아웃 — 헤더(출처 2링크)·푸터(참고 2링크)·섹션 간격 재조립
     # (config/briefing_layout.json, 정보공유방 브리핑과 동일 템플릿)

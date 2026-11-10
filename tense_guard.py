@@ -38,23 +38,30 @@ def article_is_future(src_text: str) -> str | None:
 
 
 def _demote_completion(body: str, src_text: str, cfg: dict) -> tuple[str, str | None]:
-    """'개최·의결·발의' 완료형은 기사에 과거형이 있을 때만 허용 (2026-11-10).
+    """'개최·주최·진행·열려·의결·발의' 완료형은 기사에 과거형이 있을 때만 허용 (2026-11-10).
 
     기사가 '개최한다'면 banned_predicates 의 '기사에도 있으면 승격 아님' 예외에 걸려
     통과했다(이주영 토론회). 그래서 동사 원형이 아니라 **과거형**의 존재로 판정한다."""
     comp = cfg.get("completion") or {}
     src = src_text or ""
     future = "|".join(map(re.escape, comp.get("future_words", ["예정"])))
+    past_forms = comp.get("past_forms") or {}
+    demote_to = comp.get("demote_to") or {}
+    clause_end = set(comp.get("clause_end_only") or [])
     for verb in comp.get("verbs", []):
         if verb not in body:
             continue
-        if any(verb + suf in src for suf in comp.get("past_suffixes", [])):
+        if any(verb + suf in src for suf in comp.get("past_suffixes", [])) or \
+           any(f in src for f in past_forms.get(verb, [])):
             continue                           # 기사에 과거형 서술 → 완료형 허용
-        pat = re.compile(re.escape(verb) + r"(?!\s*(?:" + future + r"))(?:했음|됐음|함|됨)?")
+        # 동사 뒤가 절 끝이어야 한다 — '공동주최로', '진행자', '열려 의료계…' 같은 활용·연결형은 건드리지 않는다
+        end = r"(?=$|[…·,.;:!?)\]}])" if verb in clause_end else r"(?=$|[\s…·,.;:!?)\]}{])"
+        pat = re.compile(re.escape(verb) + r"(?!\s*(?:" + future + r"))(?:했음|됐음|함|됨)?" + end)
         if not pat.search(body):
             continue
-        new = pat.sub(verb + " 예정", body)
-        return new, f"완료형 '{verb}' → '{verb} 예정' (기사에 과거형 없음)"
+        rep = demote_to.get(verb, verb + " 예정")
+        new = pat.sub(rep, body)
+        return new, f"완료형 '{verb}' → '{rep}' (기사에 과거형 없음)"
     return body, None
 
 
