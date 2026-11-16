@@ -129,8 +129,16 @@ URL: {url}
 Threads 초안만 출력하세요. 다른 설명 없이 본문만 작성하세요."""
 
 
+def threads_draft_enabled():
+    """THREADS_DRAFT_ENABLED (기본 false) — 2026-11-16 비용 절감으로 중단.
+    true/1/yes/on 일 때만 초안 생성. 별도 스케줄 잡은 없고 9점 긴급 발송 경로에서만 호출된다."""
+    return os.environ.get('THREADS_DRAFT_ENABLED', 'false').strip().lower() in ('1', 'true', 'yes', 'on')
+
+
 def generate_threads_draft(title, korean_summary, lenses, url):
-    """Claude API로 AESA 스타일 Threads 초안 생성"""
+    """Claude API로 AESA 스타일 Threads 초안 생성. 플래그가 꺼져 있으면 API 를 부르지 않는다."""
+    if not threads_draft_enabled():
+        return None
     try:
         client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'), timeout=25.0)
         lens_str = ', '.join(f'[{l}]' for l in lenses) if lenses else '[?]'
@@ -479,8 +487,9 @@ def process_rss_feeds():
                                 lenses=lenses, korea_link=korea_link,
                                 is_urgent=True, korea_insight=korea_insight
                             )
-                            # Threads 초안 생성 및 발송 (SOB Scrap 채널 전용)
-                            threads_draft = generate_threads_draft(title, summary, lenses, url)
+                            # Threads 초안 생성 및 발송 (SOB Scrap 채널 전용) — THREADS_DRAFT_ENABLED 일 때만
+                            threads_draft = (generate_threads_draft(title, summary, lenses, url)
+                                             if threads_draft_enabled() else None)
                             if threads_draft:
                                 threads_msg = f"✍️ *Threads 초안 (복사용)*\n"
                                 threads_msg += "━" * 20 + "\n\n"
