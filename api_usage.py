@@ -4,7 +4,8 @@
 호출부에서 `record(module, model, resp.usage)` 한 줄만 부르면 된다.
 
   · 로그: 회차마다 캐시 적중률·비용 한 줄 (railway logs 로 즉시 확인)
-  · 집계: g2b_state 에 `apiuse:<YYYY-MM-DD>:<module>` JSON 누적
+  · 집계: api_usage_daily 테이블 (day, label, model) 행에 원자적 누적 (2026-11-24 부터.
+          그 전 기록은 g2b_state 의 `apiuse:<YYYY-MM-DD>:<module>` 키)
           (로그 보존 기간이 짧아 24h 비교는 이쪽을 근거로 삼는다)
 
 어떤 실패도 본 파이프라인을 막지 않는다 — 계측은 전부 try/except 삼킴.
@@ -56,27 +57,61 @@ def cost_usd(model: str, f: dict) -> float:
             + f["out"] * pout) / 1e6 + f.get("ws", 0) * WEB_SEARCH_USD
 
 
+USAGE_DDL = """CREATE TABLE IF NOT EXISTS api_usage_daily (
+    day    DATE NOT NULL,
+    label  TEXT NOT NULL,
+    model  TEXT NOT NULL,
+    calls  INT    DEFAULT 0,
+    tok_in BIGINT DEFAULT 0,
+    tok_out BIGINT DEFAULT 0,
+    cw     BIGINT DEFAULT 0,
+    cr     BIGINT DEFAULT 0,
+    ws     INT    DEFAULT 0,
+    usd    DOUBLE PRECISION DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT NOW(),
+    PRIMARY KEY (day, label, model)
+)"""
+_DDL_DONE = False
+
+
 def record(module: str, model: str, usage, day: str | None = None) -> dict:
-    """1회 호출 사용량 누적. → 이번 호출의 {in,out,cw,cr,usd} (실패 시 빈 dict)."""
+    """1회 호출 사용량 누적. → 이번 호출의 {in,out,cw,cr,ws,usd} (실패 시 빈 dict).
+
+    2026-11-24: g2b_state(key VARCHAR(60)) 대신 전용 테이블 api_usage_daily 에 원자적
+    UPSERT 로 더한다 — 긴 '파일.함수@모델' 라벨 수용 + 동시 호출 시 증분 유실 방지.
+    module 에 '@모델' 이 붙어 있으면 라벨에서 떼어 model 컬럼으로 둔다."""
+    global _DDL_DONE
     try:
         f = _fields(usage)
         f["usd"] = cost_usd(model, f)
         day = day or datetime.now(KST).strftime("%Y-%m-%d")
-        key = f"{KEY_PREFIX}{day}:{module}"
-        from g2b_tracker import state_get, state_set
-        try:
-            acc = json.loads(state_get(key) or "{}")
-        except Exception:
-            acc = {}
-        acc["model"] = model
-        acc["calls"] = int(acc.get("calls", 0)) + 1
-        for k in ("in", "out", "cw", "cr", "ws"):
-            acc[k] = int(acc.get(k, 0)) + f[k]
-        acc["usd"] = round(float(acc.get("usd", 0.0)) + f["usd"], 6)
-        state_set(key, json.dumps(acc))
+        label = module.rsplit("@", 1)[0] if module.endswith("@" + model) else module
+        from g2b_tracker import db_conn
+        conn = db_conn()
+        if not conn:
+            return f
+        cur = conn.cursor()
+        if not _DDL_DONE:
+            cur.execute(USAGE_DDL)
+            _DDL_DONE = True
+        cur.execute("""INSERT INTO api_usage_daily
+                (day, label, model, calls, tok_in, tok_out, cw, cr, ws, usd, updated_at)
+            VALUES (%s,%s,%s,1,%s,%s,%s,%s,%s,%s,NOW())
+            ON CONFLICT (day, label, model) DO UPDATE SET
+                calls = api_usage_daily.calls + 1,
+                tok_in = api_usage_daily.tok_in + EXCLUDED.tok_in,
+                tok_out = api_usage_daily.tok_out + EXCLUDED.tok_out,
+                cw = api_usage_daily.cw + EXCLUDED.cw,
+                cr = api_usage_daily.cr + EXCLUDED.cr,
+                ws = api_usage_daily.ws + EXCLUDED.ws,
+                usd = api_usage_daily.usd + EXCLUDED.usd,
+                updated_at = NOW()""",
+                    (day, label[:200], model, f["in"], f["out"], f["cw"], f["cr"], f["ws"], f["usd"]))
+        conn.commit()
+        conn.close()
         return f
     except Exception as e:
-        logger.debug(f"[사용량] 기록 실패(무시): {e}")
+        logger.warning(f"[사용량] 기록 실패(무시): {e}")
         return {}
 
 
@@ -165,7 +200,7 @@ def install() -> bool:
 
 
 def day_totals(day: str | None = None) -> tuple[dict, dict]:
-    """→ (합계 {calls,in,out,cw,cr,ws,usd}, 모듈별 {label: acc}). g2b_state 의 당일 키 전부."""
+    """→ (합계 {calls,in,out,cw,cr,ws,usd}, 라벨별 {'라벨@모델': acc}). api_usage_daily 당일 행 전부."""
     day = day or datetime.now(KST).strftime("%Y-%m-%d")
     total = {"calls": 0, "in": 0, "out": 0, "cw": 0, "cr": 0, "ws": 0, "usd": 0.0}
     per = {}
@@ -175,22 +210,21 @@ def day_totals(day: str | None = None) -> tuple[dict, dict]:
         if not conn:
             return total, per
         cur = conn.cursor()
-        cur.execute("SELECT key, value FROM g2b_state WHERE key LIKE %s",
-                    (f"{KEY_PREFIX}{day}:%",))
+        cur.execute(USAGE_DDL)
+        cur.execute("""SELECT label, model, calls, tok_in, tok_out, cw, cr, ws, usd
+                       FROM api_usage_daily WHERE day=%s""", (day,))
         rows = cur.fetchall()
+        conn.commit()
         conn.close()
     except Exception as e:
         logger.warning(f"[사용량] 일 합계 조회 실패: {e}")
         return total, per
-    for key, val in rows:
-        try:
-            a = val if isinstance(val, dict) else json.loads(val or "{}")
-        except Exception:
-            continue
-        per[key.split(":", 2)[2]] = a
+    for label, model, calls, ti, to, cw, cr, ws, usd in rows:
+        a = {"calls": calls, "in": ti, "out": to, "cw": cw, "cr": cr, "ws": ws, "usd": float(usd or 0)}
+        per[f"{label}@{model}"] = a
         for k in ("calls", "in", "out", "cw", "cr", "ws"):
-            total[k] += int(a.get(k, 0) or 0)
-        total["usd"] += float(a.get("usd", 0) or 0)
+            total[k] += int(a[k] or 0)
+        total["usd"] += a["usd"]
     return total, per
 
 

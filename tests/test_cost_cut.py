@@ -117,6 +117,50 @@ def test_install_records_every_call_with_caller_label():
                          "claude-haiku-5-5")]
 
 
+class _Cur:
+    def __init__(self, log): self.log = log
+    def execute(self, sql, args=None): self.log.append((sql, args))
+    def fetchall(self): return [("aesa.score", "claude-haiku-5-5", 3, 30, 15, 0, 0, 0, 0.01)]
+
+
+class _Conn:
+    def __init__(self, log): self.log = log
+    def cursor(self): return _Cur(self.log)
+    def commit(self): pass
+    def close(self): pass
+
+
+def test_record_upserts_long_label_into_own_table():
+    import g2b_tracker
+    log, orig = [], g2b_tracker.db_conn
+    g2b_tracker.db_conn = lambda: _Conn(log)
+    api_usage._DDL_DONE = False
+    try:
+        label = "aesa_monitoring_bot.process_rss_feeds@claude-haiku-5-5"   # 60자 초과 키였던 라벨
+        f = api_usage.record(label, "claude-haiku-5-5",
+                             NS(input_tokens=1000, output_tokens=100, cache_creation_input_tokens=0,
+                                cache_read_input_tokens=0, server_tool_use=NS(web_search_requests=1)))
+        t, per = api_usage.day_totals("2026-11-24")
+    finally:
+        g2b_tracker.db_conn = orig
+    ins = [a for sql, a in log if "INSERT INTO api_usage_daily" in sql][0]
+    assert ins[1] == "aesa_monitoring_bot.process_rss_feeds" and ins[2] == "claude-haiku-5-5"
+    assert abs(f["usd"] - (1000 * 0.10 + 100 * 0.50) / 1e6 - 0.01) < 1e-12
+    assert t["calls"] == 3 and "aesa.score@claude-haiku-5-5" in per
+
+
+def test_usage_sql_parses_as_postgres():
+    try:
+        import pglast
+    except ImportError:
+        return
+    import inspect, re
+    pglast.parse_sql(api_usage.USAGE_DDL)
+    src = inspect.getsource(api_usage.record)
+    sql = re.search(r'"""(INSERT INTO api_usage_daily.*?)"""', src, re.S).group(1).replace("%s", "1")
+    pglast.parse_sql(sql)
+
+
 def test_url_normalize_and_unique():
     a = "http://www.Example.com/news/1/?utm_source=x&id=3#top"
     b = "https://example.com/news/1?id=3&fbclid=zz"
