@@ -385,12 +385,12 @@ def title_ttl_report_job():
 @scheduler.scheduled_job('cron', hour=23, minute=50, id='api_usage_report', timezone='Asia/Seoul',
                           misfire_grace_time=600, coalesce=True, max_instances=1)
 def api_usage_report_job():
-    """23:50 — 당일 Anthropic 호출·캐시 적중률·비용 집계 로그 (2026-10-21 B안 계측).
+    """23:50 — 당일 Anthropic 전 호출 합계 한 줄(호출 수·토큰·검색·비용·상위 3곳).
+    2026-11-24: api_usage.install() 전역 계측으로 모든 호출부가 '파일.함수@모델' 키에 쌓인다.
     lazy import: 계측 실패가 스케줄러를 죽이지 않도록."""
     try:
         import api_usage
-        for mod in ("aesa_score", "signal_score", "cardnews_select"):
-            api_usage.log_summary(mod)
+        logger.info(api_usage.daily_line())
     except Exception as e:
         logger.error(f'[Scheduler] 사용량 집계 실패(무시): {e}')
 

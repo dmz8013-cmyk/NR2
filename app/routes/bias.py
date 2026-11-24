@@ -371,12 +371,14 @@ def _analyze_with_ai(title, body_text, source=''):
         "2. 지정학축 (geopolitical): 친중(-100) ↔ 친미(+100)\n"
         "3. 경제축 (economic): 노동친화(-100) ↔ 대기업친화(+100)\n\n"
         '반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트 없이 JSON만 출력하세요:\n'
-        '{"political": 점수, "geopolitical": 점수, "economic": 점수, "summary": "2~3문장 요약"}'
+        '{"political": 점수, "geopolitical": 점수, "economic": 점수, "summary": "2문장 요약"}'
     )
 
     payload = {
-        "model": "claude-haiku-4-5-20251001",
-        "max_tokens": 500,
+        # 2026-11-24: 편향 점수 분류 → 최저가 Haiku 5.5, 상한 300. thinking 기본 켜짐이라 끔.
+        "model": "claude-haiku-5-5",
+        "max_tokens": 300,
+        "thinking": {"type": "disabled"},
         "messages": [{"role": "user", "content": prompt}],
     }
     # ensure_ascii=False → 한글을 그대로 UTF-8 출력 (서로게이트 이미 제거됨)
@@ -394,8 +396,14 @@ def _analyze_with_ai(title, body_text, source=''):
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
         message = json.loads(resp.read().decode('utf-8'))
+    try:                                     # raw HTTP 라 SDK 전역 계측을 안 거친다 → 직접 기록
+        import api_usage
+        api_usage.record(api_usage.label_for(payload["model"], "bias._analyze_with_ai"),
+                         payload["model"], message.get("usage") or {})
+    except Exception:
+        pass
 
-    raw = message['content'][0]['text'].strip()
+    raw = "".join(b.get("text", "") for b in message.get('content', []) if b.get("type") == "text").strip()
     # JSON 블록 추출
     if '```' in raw:
         raw = raw.split('```')[1]

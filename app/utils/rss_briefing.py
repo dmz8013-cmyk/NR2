@@ -75,18 +75,20 @@ def analyze_article_with_claude(article):
     user_message = f"기사 제목: {article['title']}\n기사 내용: {article['summary']}"
     
     try:
+        # 2026-11-24: 분류 작업 → 최저가 Haiku 5.5. thinking 은 기본 켜짐이라 명시적으로 끔.
+        # temperature 는 API 2026-10-21 부터 400 이라 제거.
         response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
+            model="claude-haiku-5-5",
             max_tokens=300,
+            thinking={"type": "disabled"},
             system=SYSTEM_PROMPT,
             messages=[
                 {"role": "user", "content": user_message}
             ],
-            temperature=0.2
         )
         
         # JSON 부분 추출
-        result_text = response.content[0].text.strip()
+        result_text = "".join(b.text for b in response.content if getattr(b, "type", "") == "text").strip()
         if result_text.startswith('```'):
             lines = result_text.split('\n')
             if len(lines) >= 3:
@@ -103,10 +105,16 @@ def run_briefing(app_context):
     with app_context:
         all_analyses = {}
         total_count = 0
+        seen_urls = set()      # 언론사 간 같은 기사(URL) 재분석 방지 — 2026-11-24
         
         for source_name, url in RSS_SOURCES.items():
             print(f"[{source_name}] RSS 수집 중...")
             articles = fetch_and_filter_rss(url, max_articles=5)
+            try:
+                import url_dedup
+                articles, _ = url_dedup.unique(articles, "link", seen_urls)
+            except Exception:
+                pass
             
             source_results = []
             for article in articles:

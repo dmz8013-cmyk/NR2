@@ -290,11 +290,18 @@ def score_items(items: list[dict]) -> list[dict]:
     client = anthropic.Anthropic(api_key=api_key, timeout=60.0)
     for it in items:
         try:
-            resp = client.messages.create(
-                model=SCORE_MODEL, max_tokens=500,
-                # Sonnet 5.5: thinking 생략 = adaptive(켜짐). 채점은 사고 불필요 → 끔.
-                thinking={"type": "between_tools"},
-                messages=[{"role": "user", "content": [
+            import score_cascade
+
+            def _parse(r):
+                t = "".join(getattr(b, "text", "") for b in (r.content or [])
+                            if getattr(b, "type", "") == "text")
+                return json.loads(t[t.find("{"):t.rfind("}") + 1])
+
+            # 2026-11-24: Haiku 5.5 1차 → 경계(5~8점)·파싱 실패만 Sonnet 5.5 재채점.
+            # max_tokens 500 유지: 출력이 summary_ko(≤400자)+keywords 라 300 이면 잘린다(평균 177tok).
+            resp, _model, data = score_cascade.score(
+                client, max_tokens=500, parse=_parse,
+                content=[
                     # 고정부(인명 사전 ≈2,250tok 포함)를 캐시 프리픽스로
                     {"type": "text",
                      "text": SCORE_PROMPT_FIXED.format(fact_names=_fact_names_block()),
@@ -302,14 +309,10 @@ def score_items(items: list[dict]) -> list[dict]:
                     {"type": "text", "text": SCORE_PROMPT_ITEM.format(
                         name=it["name"], affil=it.get("affil") or "소속 미상",
                         summary=it["summary_raw"][:600])},
-                ]}])
-            try:
-                import api_usage
-                api_usage.record("signal_score", SCORE_MODEL, resp.usage)
-            except Exception:
-                pass
-            t = resp.content[0].text
-            data = json.loads(t[t.find("{"):t.rfind("}") + 1])
+                ])
+            if data is None:
+                raise ValueError("채점 JSON 파싱 실패(Haiku·Sonnet 모두)")
+            # 사용량은 api_usage.install() 의 전역 계측이 기록한다.
             it["score"] = max(0, min(10, int(data.get("score", 0))))
             it["summary_ko"] = (data.get("summary_ko") or "").strip()[:400]
             it["keywords"] = [str(k).strip().lower()

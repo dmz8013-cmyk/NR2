@@ -26,6 +26,13 @@ def create_app(config_name='default'):
     """Flask 애플리케이션 팩토리"""
     app = Flask(__name__)
 
+    # Anthropic 전 호출 사용량 자동 기록(스케줄러·웹앱 공통 진입점) — 실패해도 앱은 뜬다.
+    try:
+        import api_usage
+        api_usage.install()
+    except Exception:
+        pass
+
     # Load configuration
     app.config.from_object(config[config_name])
 

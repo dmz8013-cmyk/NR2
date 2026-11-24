@@ -142,7 +142,7 @@ def generate_illustration(scene_prompt: str, style_suffix: str | None = None) ->
 # ── 글자 감지 + 자동 재생성 ───────────────────────
 # Flux는 "no text" 지시를 가끔 무시하고 간판·글자를 그려 넣는다.
 # Haiku 비전으로 검사해 글자가 보이면 해당 장만 재생성한다(최대 2회).
-_TEXT_CHECK_MODEL = "claude-haiku-4-5-20251001"
+_TEXT_CHECK_MODEL = "claude-haiku-5-5"   # 2026-11-24 YES/NO 분류 → 최저가 Haiku
 _NO_TEXT_BOOST = (
     " Absolutely no text anywhere: no letters, no numbers, no words, no typography, "
     "no signage, no billboards, no labels; all signs, screens and papers must be blank."
@@ -171,6 +171,7 @@ def _image_has_text(png_bytes: bytes) -> bool:
         resp = client.messages.create(
             model=_TEXT_CHECK_MODEL,
             max_tokens=10,
+            thinking={"type": "disabled"},      # Haiku 5.5 는 기본 adaptive(켜짐) — 10토큰이면 잘린다
             messages=[{
                 "role": "user",
                 "content": [
@@ -183,7 +184,7 @@ def _image_has_text(png_bytes: bytes) -> bool:
                 ],
             }],
         )
-        answer = resp.content[0].text.strip().upper()
+        answer = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text").strip().upper()
         return answer.startswith("YES")
     except Exception as e:
         logger.warning(f"[일러스트] 글자 검사 실패(그대로 사용): {e}")

@@ -113,6 +113,15 @@ def collect_political_news(is_afternoon=True):
                     'breaking': bool(BREAKING_RE.search(title)),
                 })
 
+    # URL 중복 제거(2026-11-24): 제목 앞 30자가 달라도 같은 기사(원문 링크)면 한 번만 프롬프트에 넣는다.
+    try:
+        import url_dedup
+        all_articles, _ud = url_dedup.unique(all_articles, "link")
+        if _ud:
+            logger.info(f"[정치] URL 중복 {_ud}건 제외")
+    except Exception as _e:
+        logger.warning(f"[정치] URL 중복 제거 실패(무시): {_e}")
+
     # 속보(북한·미사일·합참·속보·단독·탄핵·계엄) 우선 → 최신순. 상위 60건
     all_articles.sort(key=lambda x: (not x.get('breaking', False), -(x['pub_date'].timestamp() if x['pub_date'] else 0)))
     all_articles = all_articles[:60]

@@ -309,11 +309,7 @@ def select_issues(briefing_text: str, n: int = NUM_ISSUES,
             max_tokens=8192,
             messages=[{"role": "user", "content": prompt_text}],
         )
-        try:
-            import api_usage
-            api_usage.record("cardnews_select", SELECT_MODEL, resp.usage)
-        except Exception:
-            pass
+        # 사용량은 api_usage.install() 의 전역 계측이 기록한다(2026-11-24, 이중 집계 방지로 개별 기록 제거).
         try:
             data = _extract_json(resp.content[0].text)
             break

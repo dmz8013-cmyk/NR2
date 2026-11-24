@@ -189,6 +189,7 @@ def fetch_news_by_category(
 ) -> dict[str, list[dict]]:
     """카테고리별 RSS 뉴스를 수집하고 시간 필터링."""
     categorized: dict[str, list[dict]] = {}
+    seen_urls: set = set()      # 카테고리 간 URL 중복 제거(같은 기사가 두 피드에 실림) — 2026-11-24
 
     for category, feed_urls in RSS_FEEDS.items():
         articles: list[dict] = []
@@ -225,6 +226,13 @@ def fetch_news_by_category(
             except Exception as e:
                 logger.warning(f"RSS 수집 실패 [{category}] {url}: {e}")
 
+        try:
+            import url_dedup
+            articles, _ud = url_dedup.unique(articles, "link", seen_urls)
+            if _ud:
+                logger.info(f"  [{category}] URL 중복 {_ud}건 제외")
+        except Exception as _e:
+            logger.warning(f"URL 중복 제거 실패(무시): {_e}")
         categorized[category] = articles[:MAX_ARTICLES_PER_CATEGORY]
         logger.info(f"  [{category}] {len(categorized[category])}건 수집")
 
@@ -553,11 +561,12 @@ def generate_briefing_with_ai(
         logger.warning(f"[검증패치] 시스템 프롬프트 조립 실패 — 없이 진행: {sys_err}")
         system_prompt = ""
 
-    kwargs = {"system": system_prompt} if system_prompt else {}
-    # 2줄 구조로 본문이 최대 3,000자(≈4,500토큰) — 2048이면 잘림(과거 사고 전례)
+    kwargs = {"system": _cached_system(system_prompt)} if system_prompt else {}
+    # 상한(2026-11-24): 최근 14회 생성 길이 최대 2,523자(p50 1,936자) ≈ 3,800토큰 → 5,000.
+    # 2048이면 잘림(과거 사고 전례). 상한은 잘림 방지용이라 낮춰도 비용은 같다.
     response = client.messages.create(
         model=HAIKU_MODEL,
-        max_tokens=6000,
+        max_tokens=5000,
         messages=[{"role": "user", "content": prompt}],
         **kwargs,
     )
@@ -639,6 +648,15 @@ REWRITE_PROMPT = """다음 뉴스 브리핑 항목들이 문체 규칙을 위반
 JSON 배열만 출력: [{{"i": 항목번호, "text": "수정문"}}]"""
 
 
+def _cached_system(system_prompt: str):
+    """브리핑 시스템 프롬프트(팩트사전·검증규칙·최근 이력, ≈9K토큰)를 캐시 블록으로.
+
+    같은 회차의 생성 → _enforce_density 재작성이 1~2분 안에 같은 system 을 다시 보낸다.
+    Haiku 4.5 최소 캐시 길이 4,096토큰을 넘으므로 두 번째 호출은 캐시 읽기(0.1x)가 된다.
+    짧으면 API 가 에러 없이 캐싱만 건너뛴다(2026-11-24)."""
+    return [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}]
+
+
 def _enforce_density(text: str, client, system_prompt: str, morning: bool = False) -> str:
     """해설 술어·200자 초과 ▪ 항목만 골라 1회 재작성 요청 후 치환.
 
@@ -661,7 +679,7 @@ def _enforce_density(text: str, client, system_prompt: str, morning: bool = Fals
         logger.warning(f"[문체강제] 위반 항목 {len(bad)}건 재작성 요청 "
                        f"(해설 술어/{MAX_ITEM_CHARS}자 초과/미래 완료형 {len(TENSE_FIXED_LAST)})")
         listing = "\n".join(f"{n}. {b}" for n, (_, b) in enumerate(bad, 1))
-        kwargs = {"system": system_prompt} if system_prompt else {}
+        kwargs = {"system": _cached_system(system_prompt)} if system_prompt else {}
         resp = client.messages.create(
             model=HAIKU_MODEL, max_tokens=3000,
             messages=[{"role": "user",

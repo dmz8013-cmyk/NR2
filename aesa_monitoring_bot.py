@@ -1,9 +1,11 @@
 import os
+import json
 import time
 import logging
 import feedparser
 import anthropic
 import requests
+import url_dedup
 from datetime import datetime, time as dtime, timezone, timedelta
 
 KST = timezone(timedelta(hours=9))
@@ -69,7 +71,8 @@ GOOGLE_NEWS_SOURCES = {'Nikkei Asia', 'Reuters', 'Caixin Global', 'Brookings', '
 GNEWS_INTERVAL_MIN = int(os.environ.get("AESA_GNEWS_INTERVAL_MIN", "30"))
 _last_gnews_poll: datetime | None = None
 
-SCORE_MODEL = "claude-sonnet-5-5"       # 2026-10-21 Sonnet 4.6 → 5.5 ($3/$15 → $2/$10)
+SCORE_MODEL = "claude-sonnet-5-5"       # 2026-10-21 Sonnet 4.6 → 5.5. 2026-11-24 부터 Haiku 5.5 1차 + 경계구간만 Sonnet (score_cascade)
+SCORE_MAX_TOKENS = 600                  # 평균 출력 402tok(reason 포함 시). reason 삭제 후 여유분 포함
 SYSTEM_PROMPT = "당신은 최고 수준의 국제정치, 기술 트렌드, 글로벌 금융 분석가입니다."
 
 PROMPT_FIXED = """
@@ -87,8 +90,7 @@ PROMPT_FIXED = """
   "lenses": ["A", "B", "C", "D"] 중 해당하는 렌즈 배열 (복수 가능),
   "korea_investment_link": true 또는 false (한국 투자시장과 연결고리 존재 여부),
   "korean_summary": "한국 언론 관점에서의 해당 기사 한 줄 요약",
-  "korea_insight": "한국 정치·경제·시장 관점 시사점 1~2줄. 이 기사가 한국에 미치는 영향을 코스피·원화·금리·정책·외교·산업 중 해당되는 관점으로 분석. 한국과 직접 관련 없으면 null로 반환.",
-  "reason": "점수 부여 이유 (짧게)"
+  "korea_insight": "한국 정치·경제·시장 관점 시사점 1~2줄. 이 기사가 한국에 미치는 영향을 코스피·원화·금리·정책·외교·산업 중 해당되는 관점으로 분석. 한국과 직접 관련 없으면 null로 반환."
 }}
 
 [채점 기준]
@@ -163,6 +165,33 @@ def generate_threads_draft(title, korean_summary, lenses, url):
     except Exception as e:
         logger.error(f"[AESA Threads] 초안 생성 실패: {e}")
         return None
+
+
+def _resp_text(resp):
+    """응답의 text 블록만 이어 붙인다(thinking 블록이 앞에 와도 안전)."""
+    return "".join(getattr(b, "text", "") for b in (resp.content or []) if getattr(b, "type", "") == "text")
+
+
+def _parse_score_json(response_text):
+    """채점 응답 → dict 또는 None. 잘린 JSON 은 마지막 완성 필드까지 잘라 보정."""
+    if not response_text or "{" not in response_text:
+        return None
+    start = response_text.find("{")
+    if "}" in response_text:
+        try:
+            return json.loads(response_text[start:response_text.rfind("}") + 1])
+        except json.JSONDecodeError:
+            pass
+    frag = response_text[start:]
+    cut = frag.rfind(",")
+    if cut != -1:
+        try:
+            res = json.loads(frag[:cut] + "}")
+            logger.info("[AESA] 잘린 JSON 보정 파싱 성공")
+            return res
+        except json.JSONDecodeError:
+            return None
+    return None
 
 
 def _resolve_google_news_url(entry):
@@ -248,6 +277,7 @@ def process_rss_feeds():
         client = anthropic.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY'), timeout=25.0)
 
         stats = {}
+        cycle_seen = set()          # 이번 사이클 정규화 URL (url_dedup)
 
         # Google News 경유 소스는 GNEWS_INTERVAL_MIN 간격으로만 조회
         global _last_gnews_poll
@@ -294,8 +324,18 @@ def process_rss_feeds():
                     if not url:
                         continue
 
-                    # 1차: URL 동일성 체크
+                    # 0차(2026-11-24): 이번 사이클 안에서 정규화 URL 중복(추적 파라미터·슬래시 차이,
+                    # 여러 피드 동시 게재) → 채점 API 호출 전에 거른다.
+                    norm_url = url_dedup.normalize(url)
+                    if norm_url in cycle_seen:
+                        source_stats['skipped_dup'] += 1
+                        continue
+                    cycle_seen.add(norm_url)
+
+                    # 1차: URL 동일성 체크 (원본 URL, 그리고 정규형이 다르면 정규형도)
                     existing = AesaArticle.query.filter_by(url=url).first()
+                    if not existing and norm_url != url:
+                        existing = AesaArticle.query.filter_by(url=norm_url).first()
                     if existing:
                         source_stats['skipped_dup'] += 1
                         continue
@@ -330,59 +370,32 @@ def process_rss_feeds():
                     korea_insight = None
 
                     try:
-                        response = client.messages.create(
-                            model=SCORE_MODEL,
-                            max_tokens=1024,
-                            # Sonnet 5.5 는 thinking "disabled" 를 400 으로 거부하고,
-                            # 생략하면 adaptive(=켜짐)가 된다. 채점은 사고가 필요 없으므로
-                            # between_tools 로 끈다(effort high 이하에서만 허용 — 기본 high).
-                            thinking={"type": "between_tools"},
+                        import score_cascade
+                        response, used_model, result = score_cascade.score(
+                            client,
                             system=SYSTEM_PROMPT,
-                            messages=[{"role": "user", "content": [
-                                # 고정부를 캐시 프리픽스로: system(≈30tok)+고정부(≈940tok)
-                                # = Sonnet 5.5 최소 캐시 길이 512tok 을 넘김.
+                            # 고정부를 캐시 프리픽스로: system(≈30tok)+고정부(≈940tok)
+                            # = Sonnet 5.5·Haiku 5.5 최소 캐시 길이 512tok 을 넘김.
+                            content=[
                                 {"type": "text", "text": PROMPT_FIXED,
                                  "cache_control": {"type": "ephemeral"}},
                                 {"type": "text", "text": item_text},
-                            ]}]
+                            ],
+                            parse=lambda r: _parse_score_json(_resp_text(r)),
+                            max_tokens=SCORE_MAX_TOKENS,
+                            stats=source_stats,
                         )
-                        try:
-                            import api_usage
-                            api_usage.record("aesa_score", SCORE_MODEL, response.usage)
-                        except Exception:
-                            pass
+                        # 사용량은 api_usage.install() 의 전역 계측이 '파일.함수@모델' 로 기록한다.
 
                         # 응답이 max_tokens로 잘리면 닫는 '}'가 빠져 조용한 score=0이 됨.
-                        # 무증상으로 넘기지 않도록 경고+errors 집계 (1024로도 또 잘리면 상향 신호).
+                        # 무증상으로 넘기지 않도록 경고+errors 집계.
                         truncated = (response.stop_reason == 'max_tokens')
                         if truncated:
                             logger.warning(
                                 f"[AESA] {source_name}: 응답이 max_tokens로 잘림 "
-                                f"(stop_reason=max_tokens) — JSON 보정 파싱 시도: {title[:50]}"
+                                f"(stop_reason=max_tokens, {used_model}) — JSON 보정 파싱 결과 사용: {title[:50]}"
                             )
                             source_stats['errors'] += 1
-
-                        response_text = response.content[0].text
-                        result = None
-                        if "{" in response_text:
-                            start = response_text.find("{")
-                            # 1차: 정상(닫는 '}'까지) 파싱
-                            if "}" in response_text:
-                                try:
-                                    result = json.loads(response_text[start:response_text.rfind("}") + 1])
-                                except json.JSONDecodeError:
-                                    result = None
-                            # 2차(잘림 대응): 마지막 완성 필드까지 잘라 '}'로 닫고 재시도.
-                            # score 등 핵심 필드는 JSON 앞쪽에 있어 reason이 잘려도 복구 가능.
-                            if result is None:
-                                frag = response_text[start:]
-                                cut = frag.rfind(",")
-                                if cut != -1:
-                                    try:
-                                        result = json.loads(frag[:cut] + "}")
-                                        logger.info(f"[AESA] {source_name}: 잘린 JSON 보정 파싱 성공")
-                                    except json.JSONDecodeError:
-                                        result = None
 
                         if result is not None:
                             score = min(int(result.get("score", 0)), 10)
@@ -507,7 +520,7 @@ def process_rss_feeds():
 
         logger.info("[AESA] ========== 폴링 사이클 완료 ==========")
         for src, s in stats.items():
-            logger.info(f"[AESA] {src}: fetched={s['fetched']} dup={s['skipped_dup']} scored={s['scored']} urgent={s['urgent_sent']} queued={s['queued']} low={s['low_score']} err={s['errors']}")
+            logger.info(f"[AESA] {src}: fetched={s['fetched']} dup={s['skipped_dup']} scored={s['scored']} urgent={s['urgent_sent']} queued={s['queued']} low={s['low_score']} err={s['errors']} haiku={s.get('fast_only', 0)} sonnet={s.get('escalated', 0)}")
 
 
 def send_batch_alerts():

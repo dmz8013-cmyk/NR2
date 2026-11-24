@@ -46,7 +46,7 @@ DAILY_CALL_LIMIT = 1000
 AI_KEYWORDS = ["인공지능", "AI", "생성형", "챗봇", "지능형", "머신러닝",
                "딥러닝", "LLM", "거대언어모델", "RPA", "AI아바타"]
 
-JUDGE_MODEL = "claude-haiku-4-5-20251001"
+JUDGE_MODEL = "claude-haiku-5-5"       # 2026-11-24 분류 작업 → 최저가 Haiku
 JUDGE_PROMPT = """다음 공공 입찰공고가 "AI 기술의 도입·활용이 핵심인 사업"인지 판정하라.
 
 공고명: {bid_name}
@@ -301,10 +301,11 @@ def judge_ai_project(bid_name: str, org_name: str = "") -> tuple[str, str]:
         resp = client.messages.create(
             model=JUDGE_MODEL,
             max_tokens=200,
+            thinking={"type": "disabled"},      # Haiku 5.5 는 기본 adaptive(켜짐)
             messages=[{"role": "user", "content": JUDGE_PROMPT.format(
                 bid_name=bid_name, org_name=org_name or "미상")}],
         )
-        text = resp.content[0].text
+        text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
         s, e = text.find("{"), text.rfind("}")
         data = json.loads(text[s:e + 1])
         verdict = (data.get("verdict") or "").strip()
