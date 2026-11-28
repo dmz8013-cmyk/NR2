@@ -69,7 +69,13 @@ SOURCE_RE = re.compile(r"(SoSoValue|소소밸류|SAFE|국가외환관리국|인�
                        r"업비트|빗썸|바이낸스|코인베이스|CoinGecko|코인게코|CoinMarketCap|코인마켓캡|Farside|파사이드|블룸버그|로이터|"
                        r"통계청|관세청|무역협회|산업부|기재부|기획예산처|연준|Fed|BIS|IMF|OECD|S&P|무디스|피치|나스닥|뉴욕증권거래소|"
                        r"에 따르면|기준\)|집계 기준|발표 기준|조사 결과|자료에 따르면)")
-MAX_SEARCHES_PER_ITEM = 2
+MAX_SEARCHES_PER_ITEM = 2       # 고위험 항목 검색 상한 (VERIFY_MAX_SEARCHES_HIGH)
+DEFAULT_SEARCHES_PER_ITEM = 1   # 그 외 항목 (VERIFY_MAX_SEARCHES) — 2026-11-28 비용 절감
+# 근거(11/25~27 api_usage_daily 실측): 검증이 전체 API 비용의 65%(일 $3.84). 항목마다 검색 2회를
+# 다 쓰고, 서버 도구 루프가 앞 검색 결과를 다음 턴 입력으로 다시 읽어 호출당 입력이 ~25K 토큰이었다.
+# 검색 1회면 결과를 한 번만 읽는다. 미확인 시 '삭제'로 직결되는 항목(기록·수치 출처·방향 필수,
+# 사전 밖 인명 존재 판정)만 2회를 유지한다. 1회로 줄 때의 실패 방향은 '일치' 오판이 아니라
+# 확인불가 증가(=제외·재검색 큐) 쪽이다 — 일치는 인명+핵심어 2개가 결과에 있어야 성립.
 STALE_HOURS = 48                # 검색 결과 최신 기사가 이보다 오래되면 'stale'
 
 # 실명 발언·행위 술어 — 인명과 결합하면 무조건 검색 대상 (허용 종결 술어 목록과 합집합)
@@ -416,7 +422,15 @@ def _cache_save(cache: dict) -> None:
 # ══════════════════════════════════════════════════
 #  3. 웹 검색 검증
 # ══════════════════════════════════════════════════
-def _verify_with_search(client, text: str) -> dict:
+def searches_for(reasons: list[str]) -> int:
+    """항목별 웹 검색 상한. 고위험(필수 검색·사전 밖 인명) = HIGH, 나머지 = DEFAULT."""
+    high = is_mandatory(reasons) or any(r.startswith("미등재 인명+직함") for r in reasons)
+    if high:
+        return _env_int("VERIFY_MAX_SEARCHES_HIGH", MAX_SEARCHES_PER_ITEM)
+    return _env_int("VERIFY_MAX_SEARCHES", DEFAULT_SEARCHES_PER_ITEM)
+
+
+def _verify_with_search(client, text: str, max_uses: int = MAX_SEARCHES_PER_ITEM) -> dict:
     """항목 1건 검증. 반환: {verdict, corrected, searches}. 오류 시 verdict='오류'."""
     try:
         resp = client.messages.create(
@@ -425,7 +439,7 @@ def _verify_with_search(client, text: str) -> dict:
             tools=[{
                 "type": "web_search_20250305",
                 "name": "web_search",
-                "max_uses": MAX_SEARCHES_PER_ITEM,
+                "max_uses": max_uses,
             }],
             messages=[{
                 "role": "user",
@@ -484,7 +498,7 @@ def _parse_json_block(final_text: str) -> dict | None:
 
 
 def verify_named_statement(client, text: str, names: list[str], keywords: list[str],
-                           unregistered: bool = False) -> dict:
+                           unregistered: bool = False, max_uses: int = MAX_SEARCHES_PER_ITEM) -> dict:
     """실명 발언 항목 1건 검증.
 
     반환 verdict ∈ {일치, 불일치, 확인불가, stale, unknown_person, 오류} + corrected,
@@ -496,7 +510,7 @@ def verify_named_statement(client, text: str, names: list[str], keywords: list[s
     try:
         resp = client.messages.create(
             model=VERIFY_MODEL, max_tokens=600,
-            tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": MAX_SEARCHES_PER_ITEM}],
+            tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": max_uses}],
             messages=[{"role": "user", "content": NAMED_PROMPT.format(
                 today=datetime.now(KST).strftime("%Y년 %m월 %d일"), names=", ".join(names) or "-",
                 keywords=", ".join(keywords) or "-", sentence=text)}],
@@ -568,12 +582,12 @@ def _sane_correction(original: str, corrected: str, known: set) -> bool:
     return 0.5 <= ratio <= 1.6
 
 
-def verify_numeric_source(client, text: str) -> dict:
+def verify_numeric_source(client, text: str, max_uses: int = MAX_SEARCHES_PER_ITEM) -> dict:
     """수치 출처 병기 검증 → {verdict, direction_ok, source_org, corrected, searches}."""
     try:
         resp = client.messages.create(
             model=VERIFY_MODEL, max_tokens=500,
-            tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": MAX_SEARCHES_PER_ITEM}],
+            tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": max_uses}],
             messages=[{"role": "user", "content": SOURCE_PROMPT.format(
                 today=datetime.now(KST).strftime("%Y년 %m월 %d일"), sentence=text)}],
         )
@@ -648,7 +662,7 @@ def _log_to_db(stats: dict) -> None:
                 passed INT, fixed INT, unconfirmed INT, errors INT, searches INT
             )""")
         cols = ("calls", "stale", "unknown_person", "queued", "mandatory", "record_dropped",
-                "source_added", "source_dropped")
+                "source_added", "source_dropped", "budget_high", "budget_low")
         for col in cols:
             cur.execute(f"ALTER TABLE verify_log ADD COLUMN IF NOT EXISTS {col} INT DEFAULT 0")
         keys = ("items_total", "tagged", "verified", "passed", "fixed", "unconfirmed", "errors", "searches") + cols
@@ -696,7 +710,8 @@ def run_verify_pass_ex(briefing: str, briefing_type: str = "", enqueue: bool = T
     stats = {"briefing_type": briefing_type, "items_total": 0, "tagged": 0, "verified": 0,
              "passed": 0, "fixed": 0, "unconfirmed": 0, "errors": 0, "searches": 0,
              "calls": 0, "stale": 0, "unknown_person": 0, "queued": 0,
-             "mandatory": 0, "record_dropped": 0, "source_added": 0, "source_dropped": 0}
+             "mandatory": 0, "record_dropped": 0, "source_added": 0, "source_dropped": 0,
+             "budget_high": 0, "budget_low": 0}
     try:
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if not api_key or anthropic is None:
@@ -751,14 +766,16 @@ def run_verify_pass_ex(briefing: str, briefing_type: str = "", enqueue: bool = T
                 result = cache[key]
                 logger.info(f"[자가검증] 캐시 적중: {text[:30]}… → {result['verdict']}")
             else:
+                budget = searches_for(reasons)
+                stats["budget_high" if budget >= 2 else "budget_low"] += 1
                 if named:
                     names = person_names(text, known)
                     result = verify_named_statement(client, text, names, keywords_of(text, names),
-                                                    unregistered=unregistered)
+                                                    unregistered=unregistered, max_uses=budget)
                 elif source_needed:
-                    result = verify_numeric_source(client, text)
+                    result = verify_numeric_source(client, text, max_uses=budget)
                 else:
-                    result = _verify_with_search(client, text)
+                    result = _verify_with_search(client, text, max_uses=budget)
                 result["ts"] = time.time()
                 cache[key] = result
                 stats["searches"] += result.get("searches", 0)
@@ -890,7 +907,8 @@ def run_verify_pass_ex(briefing: str, briefing_type: str = "", enqueue: bool = T
                     f"수정 {stats['fixed']} / 확인불가 {stats['unconfirmed']} / stale {stats['stale']} / "
                     f"존재불명 {stats['unknown_person']} / 큐 {stats['queued']} / 기록삭제 {stats['record_dropped']} / "
                     f"출처병기 {stats['source_added']} / 출처삭제 {stats['source_dropped']} / 오류 {stats['errors']} / "
-                    f"호출 {stats['calls']} / 검색 {stats['searches']}회")
+                    f"호출 {stats['calls']}(검색상한 2회 {stats['budget_high']}·1회 {stats['budget_low']}) / "
+                    f"검색 {stats['searches']}회")
         return "\n".join(ln for ln in lines if ln is not None), stats, details
 
     except Exception as e:
