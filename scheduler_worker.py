@@ -172,22 +172,6 @@ def evening_briefing():
     logger.info('[Scheduler] 저녁 AI 브리핑 생성 중...')
     send_briefing()
 
-# [임시 — 11/28 13:00판 재발송, 발송 확인 후 즉시 revert] 13:02 재배포로 끊긴 판을 1회만 재실행.
-# 수집 창은 원 13:00판과 동일(전날 22:00 ~ 오늘 13:00), 제목 시각은 실제 발송 시각.
-# 22:00판 중복은 prior_coverage(DB 기보도 대조)와 22:00판 창(13:00~)으로 차단.
-from datetime import datetime as _dt
-from zoneinfo import ZoneInfo as _ZI
-_RESEND_AT = _dt(2026, 11, 28, 14, 20, tzinfo=_ZI('Asia/Seoul'))
-if _dt.now(_ZI('Asia/Seoul')) < _RESEND_AT.replace(minute=59):
-    @scheduler.scheduled_job('date', run_date=_RESEND_AT, id='resend_political_1128',
-                              misfire_grace_time=900, coalesce=True, max_instances=1)
-    def resend_political_1128():
-        logger.info('[Scheduler] 11/28 13:00 정치 브리핑 재발송 (임시 1회)')
-        from political_briefing import send_political_briefing
-        send_political_briefing(is_afternoon=True,
-                                end_override=_dt(2026, 11, 28, 13, 0, tzinfo=_ZI('Asia/Seoul')),
-                                stamp_send_time=True)
-
 @scheduler.scheduled_job('cron', hour=13, minute=0, id='afternoon_political', timezone='Asia/Seoul',
                           misfire_grace_time=600, coalesce=True)
 def afternoon_political():

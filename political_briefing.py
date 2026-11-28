@@ -64,7 +64,7 @@ LAST_TIMELINESS_LENIENT: list = []
 LAST_AGE_DROPPED: list = []       # 24h 하드 필터로 제거된 기사 (회차 DM 표기용)
 
 
-def collect_political_news(is_afternoon=True, end_override=None):
+def collect_political_news(is_afternoon=True):
     """
     정치 뉴스 수집
     is_afternoon=True: 오후 1시 브리핑 (09시~13시 기사)
@@ -101,7 +101,7 @@ def collect_political_news(is_afternoon=True, end_override=None):
                 start_time = (now - timedelta(days=1)).replace(hour=22, minute=0, second=0, microsecond=0)
             else:
                 start_time = now.replace(hour=13, minute=0, second=0, microsecond=0)
-            end_time = end_override or now      # [임시 11/28 재발송] 원 13:00판 마감 시각으로 고정
+            end_time = now
 
             if pub_date_kst is None or start_time <= pub_date_kst <= end_time:
                 all_articles.append({
@@ -384,7 +384,7 @@ def send_telegram_message(text):
         return False
 
 
-def send_political_briefing(is_afternoon=True, end_override=None, stamp_send_time=False):
+def send_political_briefing(is_afternoon=True):
     """정치 브리핑 메인 함수"""
     period = "오후 1시" if is_afternoon else "오후 10시"
     logger.info(f"=== 정치 브리핑 시작 ({period}) ===")
@@ -415,7 +415,7 @@ def send_political_briefing(is_afternoon=True, end_override=None, stamp_send_tim
     from run_report import RunReport
     report = RunReport(btype)
 
-    articles = collect_political_news(is_afternoon=is_afternoon, end_override=end_override)
+    articles = collect_political_news(is_afternoon=is_afternoon)
     report.timeliness_excluded = list(LAST_TIMELINESS_EXCLUDED)
     report.timeliness_lenient = list(LAST_TIMELINESS_LENIENT)
     report.age_dropped = list(LAST_AGE_DROPPED)
@@ -645,16 +645,6 @@ def send_political_briefing(is_afternoon=True, end_override=None, stamp_send_tim
     except Exception as lay_err:
         logger.error(f"[레이아웃] 적용 실패 — 원문 발송: {lay_err}")
 
-    if stamp_send_time:
-        # [임시 11/28 재발송] 제목 줄 시각을 실제 발송 시각으로 (예: 261128 13:00 → 261128 14:47)
-        _n = datetime.now(KST)
-        _lines = briefing.split("\n")
-        for _i, _ln in enumerate(_lines[:5]):
-            if f"{_n.strftime('%y%m%d')} 13:00" in _ln:
-                _lines[_i] = _ln.replace(f"{_n.strftime('%y%m%d')} 13:00", f"{_n.strftime('%y%m%d')} {_n.strftime('%H:%M')}")
-                logger.info(f"[재발송] 제목 시각 {_n.strftime('%H:%M')} 로 표기")
-                break
-        briefing = "\n".join(_lines)
     success = send_telegram_message(briefing)
 # DB 저장
     try:
